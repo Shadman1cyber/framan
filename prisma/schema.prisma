@@ -1,0 +1,351 @@
+// FARMAN — Business Knowledge Graph (relational foundation)
+// The domain is modeled so relationships can later be exposed as a graph:
+// Company -> Suppliers/Products/Requests/Orders/Transactions/Businesses.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  country   String
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+
+  users            User[]
+  suppliers        Supplier[]
+  products         Product[]
+  purchaseRequests PurchaseRequest[]
+  purchaseOrders   PurchaseOrder[]
+  transactions     Transaction[]
+  expenses         Expense[]
+  customers        Customer[]
+  approvals        Approval[]
+  activityLogs     ActivityLog[]
+  businesses       Business[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  email     String   @unique
+  name      String
+  role      String // owner | operations | finance
+  password  String // demo-only credential, see README
+  createdAt DateTime @default(now())
+}
+
+model Supplier {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  name             String
+  category         String
+  location         String
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  status           String   @default("active") // active | paused | blacklisted
+  reliabilityScore Float // 0-100 composite
+  onTimeRate       Float // 0-100
+  avgDeliveryDays  Float
+  riskScore        Float // 0-100 (higher = riskier)
+  riskLevel        String // low | medium | high
+  totalOrders      Int      @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  catalog          SupplierProduct[]
+  offers           SupplierOffer[]
+  purchaseOrders   PurchaseOrder[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  sku         String   @unique
+  name        String
+  category    String
+  unit        String   @default("unit")
+  description String?
+
+  supplierProducts SupplierProduct[]
+  orderItems       PurchaseOrderItem[]
+}
+
+model SupplierProduct {
+  id           String   @id @default(cuid())
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  price        Float
+  currency     String   @default("USD")
+  leadTimeDays Int
+  minOrderQty  Int      @default(1)
+  updatedAt    DateTime @updatedAt
+
+  offers       SupplierOffer[]
+  priceHistory PriceHistory[]
+
+  @@unique([supplierId, productId])
+}
+
+model PriceHistory {
+  id                String          @id @default(cuid())
+  supplierProductId String
+  supplierProduct   SupplierProduct @relation(fields: [supplierProductId], references: [id])
+  price             Float
+  recordedAt        DateTime
+
+  @@index([supplierProductId, recordedAt])
+}
+
+model PurchaseRequest {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  createdById      String
+  title            String
+  itemDescription  String
+  category         String // resolved by parser
+  quantity         Int
+  unit             String
+  neededBy         DateTime?
+  budget           Float?
+  priority         String   @default("normal") // low | normal | high | urgent
+  notes            String?
+
+  status           String   @default("processing") // processing | awaiting_approval | approved | rejected | changes_requested | completed | failed
+  parsedSummary    String? // AI reasoning summary of the requirement
+  recommendation   Json? // chosen offer + reasoning snapshot
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  stages           WorkflowStage[]
+  offers           SupplierOffer[]
+  approval         Approval?
+  purchaseOrder    PurchaseOrder?
+}
+
+model WorkflowStage {
+  id         String   @id @default(cuid())
+  requestId  String
+  request    PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  key        String // created | parsed | suppliers_found | ...
+  label      String
+  status     String // pending | running | done | waiting | failed
+  summary    String?
+  dataJson   Json?
+  startedAt  DateTime?
+  completedAt DateTime?
+  sortOrder  Int
+
+  @@unique([requestId, key])
+  @@index([requestId, sortOrder])
+}
+
+model SupplierOffer {
+  id                String   @id @default(cuid())
+  requestId         String
+  request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  supplierId        String
+  supplier          Supplier @relation(fields: [supplierId], references: [id])
+  supplierProductId String?
+  supplierProduct   SupplierProduct? @relation(fields: [supplierProductId], references: [id])
+  unitPrice         Float
+  totalPrice        Float
+  leadTimeDays      Int
+  fitsDeadline      Boolean  @default(false)
+  withinBudget      Boolean  @default(true)
+  score             Float // 0-100 FARMAN evaluation score
+  rank              Int
+  selected          Boolean  @default(false)
+  reasonsJson       Json? // per-offer pros / cons
+}
+
+model Approval {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  requestId   String?   @unique
+  request     PurchaseRequest? @relation(fields: [requestId], references: [id])
+  type        String // high_value | new_supplier | unusual_price | high_risk | contract | payment | supplier_selection
+  title       String
+  description String?
+  payloadJson Json? // recommendation snapshot shown in approval UI
+  status      String    @default("pending") // pending | approved | rejected | changes_requested
+  decidedById String?
+  decidedAt   DateTime?
+  decisionNote String?
+  createdAt   DateTime  @default(now())
+}
+
+model PurchaseOrder {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id])
+  poNumber         String    @unique
+  requestId        String?   @unique
+  request          PurchaseRequest? @relation(fields: [requestId], references: [id])
+  supplierId       String
+  supplier         Supplier  @relation(fields: [supplierId], references: [id])
+  status           String    @default("issued") // issued | confirmed | shipped | delivered | cancelled
+  subtotal         Float
+  tax              Float     @default(0)
+  total            Float
+  currency         String    @default("USD")
+  expectedDelivery DateTime?
+  approvedById     String?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  items            PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id])
+  description     String
+  quantity        Int
+  unitPrice       Float
+  total           Float
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  type        String // income | expense
+  category    String
+  description String
+  amount      Float
+  date        DateTime
+  status      String   @default("cleared") // cleared | pending | projected
+  relatedType String? // purchase_order | business | manual
+  relatedId   String?
+
+  @@index([companyId, date])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  category      String
+  vendor        String
+  description   String
+  amount        Float
+  monthlyBudget Float?
+  date          DateTime
+  flagged       Boolean  @default(false)
+  flagReason    String?
+
+  @@index([companyId, date])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  name      String
+  industry  String
+  country   String
+  revenueYtd Float
+  status    String   @default("active")
+
+  @@index([companyId])
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  key          String   @unique // orchestrator | procurement | finance_cfo | business
+  name         String
+  role         String
+  description  String
+  status       String   @default("idle") // idle | working | waiting | error
+  currentTask  String?
+  lastActiveAt DateTime?
+  healthScore  Float    @default(98)
+  tasksRun     Int      @default(0)
+}
+
+model AgentTask {
+  id        String    @id @default(cuid())
+  agentKey  String
+  title     String
+  detail    String?
+  status    String    @default("done") // queued | running | waiting | done
+  progress  Int? // 0-100
+  relatedType String?
+  relatedId   String?
+  createdAt DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([agentKey, status])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  agentKey  String // orchestrator | procurement | finance_cfo | business | system | user
+  actor     String // e.g. "Procurement Agent", "Sara Mahdavi"
+  action    String // machine-readable action key
+  message   String
+  level     String   @default("info") // info | success | warning | error
+  metaJson  Json?
+  requestId String?
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
+}
+
+model Business {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  name        String
+  ideaText    String
+  concept     String
+  targetCustomers String
+  revenueModel String
+  productsJson  Json // [{name, description, priceRange}]
+  operationsJson Json // string[]
+  suppliersNeededJson Json // [{category, notes}]
+  costBreakdownJson Json // [{item, amount, note}]
+  assumptionsJson Json // [{label, value}]
+  projectedMonthlyRevenue Float
+  projectedMonthlyCost Float
+  status      String   @default("planning") // planning | active | paused
+  createdAt   DateTime @default(now())
+
+  tasks       BusinessTask[]
+}
+
+model BusinessTask {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title      String
+  detail     String?
+  phase      String // research | setup | launch | operate
+  phaseOrder Int
+  done       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, phaseOrder])
+}
