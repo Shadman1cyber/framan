@@ -51,10 +51,19 @@ so multi-currency support only requires extending that module.
 | --------------------- | ---------------------------------------------- | ------- |
 | `DATABASE_URL`        | Prisma/SQLite connection (`file:./dev.db`)     | —       |
 | `SESSION_SECRET`      | HMAC secret for session cookies                | dev fallback |
-| `FARMAN_AI_PROVIDER`  | `mock` \| `openai` \| `anthropic` \| `deepseek`| `mock`  |
+| `FARMAN_AI_PROVIDER`  | `mock` \| `nim` \| `openai` \| `anthropic` \| `deepseek` | `nim`   |
+| `NVAPI_KEY`           | NVIDIA NIM API key (build.nvidia.com)          | —       |
+| `FARMAN_NIM_MODEL`    | Pin a NIM model (e.g. `zai-org/glm-4.6`); unset = auto-discover newest GLM from `/models` | auto |
+| `HTTPS_PROXY` + `NODE_USE_ENV_PROXY=1` | Route NIM calls via a proxy if NVIDIA's edge geo-blocks your network | — |
 
-No external API keys are required — the prototype runs fully offline with a
-deterministic mock reasoning layer.
+The default configuration targets **NVIDIA NIM with a GLM model** (`FARMAN_AI_PROVIDER=nim`).
+If the NIM endpoint is unreachable (e.g. geo-blocked network), every AI call
+transparently falls back to the deterministic rule-based engine — demos never
+break either way. List models available to your key:
+
+```bash
+node scripts/nim-models.mjs
+```
 
 ---
 

@@ -358,6 +358,18 @@ async function main() {
       status: "awaiting_approval",
       parsedSummary:
         "Requirement understood: 1,200 × heavy-duty corrugated boxes 480×400mm (category: Packaging, needed in ~12 days). FARMAN will source qualified suppliers in Packaging, request indicative offers and evaluate price, delivery and reliability.",
+      recommendation: {
+        supplierId: suppliers["Isfahan Packaging Industries"],
+        supplierName: "Isfahan Packaging Industries",
+        unitPrice: 4.2 * M,
+        totalPrice: 5040 * M,
+        leadTimeDays: 4,
+        fitsDeadline: true,
+        withinBudget: true,
+        score: 87,
+        reliabilityScore: 88,
+        riskLevel: "low",
+      } as never,
       createdAt: new Date(now - 3600_000),
     },
   });
@@ -366,7 +378,7 @@ async function main() {
     ["parsed", "Requirement Parsed", 1, "done", "Requirement understood: 1,200 × heavy-duty corrugated boxes (Packaging, ~12-day window). Export-grade quality expected."],
     ["suppliers_found", "Suppliers Found", 2, "done", "Found 5 qualified suppliers quoting “Heavy-duty corrugated box 480×400mm” from the Packaging network."],
     ["offers_compared", "Offers Compared", 3, "done", "Compared 5 offers for “Heavy-duty corrugated box 480×400mm”. Average order value IRR 5B; spread of IRR 780M between cheapest and most expensive."],
-    ["risk_evaluated", "Risk Evaluated", 4, "warning", "2 of 5 suppliers carry elevated risk (Tabriz Corrugated Works: medium). Risk-adjusted scoring applied."],
+    ["risk_evaluated", "Risk Evaluated", 4, "done", "2 of 5 suppliers carry elevated risk (Tabriz Corrugated Works: medium). Risk-adjusted scoring applied."],
     ["recommendation_ready", "Recommendation Generated", 5, "done", "Isfahan Packaging Industries offers the best balance of price (87/100 evaluation score), delivery and reliability."],
   ];
   for (const [key, label, sortOrder, status, summary] of stages1) {

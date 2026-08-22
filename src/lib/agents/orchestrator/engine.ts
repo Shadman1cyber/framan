@@ -372,8 +372,16 @@ export async function executeApprovedOrder(requestId: string, userId: string) {
     where: { id: requestId },
     include: { company: true },
   });
-  if (!request || !request.recommendation) return;
-  const rec = request.recommendation as Record<string, unknown>;
+  if (!request) return;
+
+  // Recommendation normally lives on the request; fall back to the approval
+  // snapshot (e.g. pre-seeded demo workflows) so approval always executes.
+  let rec = request.recommendation as Record<string, unknown> | null;
+  if (!rec || !rec.totalPrice) {
+    const approval = await db.approval.findUnique({ where: { requestId } });
+    rec = (approval?.payloadJson as Record<string, unknown> | null) ?? null;
+  }
+  if (!rec || !rec.supplierId || !rec.totalPrice) return;
 
   await setAgentStatus("procurement", "working", `Executing approved order — ${request.title}`);
 

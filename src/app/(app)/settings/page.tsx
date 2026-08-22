@@ -76,16 +76,24 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader title="AI Provider" subtitle="Pluggable reasoning layer" />
           <div className="p-5 pt-4 space-y-3">
-            <div className="rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 flex items-center justify-between">
+            <div className={`rounded-lg border px-4 py-3 flex items-center justify-between ${process.env.FARMAN_AI_PROVIDER === "nim" ? "border-accent/30 bg-accent-soft" : "border-accent/30 bg-accent-soft"}`}>
               <div>
-                <p className="text-[13px] font-medium text-ink">Mock Provider (deterministic)</p>
-                <p className="text-xs text-ink-dim mt-0.5">Rule-based reasoning over the knowledge graph — no external API required.</p>
+                <p className="text-[13px] font-medium text-ink">
+                  {process.env.FARMAN_AI_PROVIDER === "nim"
+                    ? `NVIDIA NIM — ${process.env.FARMAN_NIM_MODEL ?? "auto-discover newest GLM"}`
+                    : "Mock Provider (deterministic)"}
+                </p>
+                <p className="text-xs text-ink-dim mt-0.5">
+                  {process.env.FARMAN_AI_PROVIDER === "nim"
+                    ? "GLM reasoning via integrate.api.nvidia.com; falls back to the deterministic engine per-call if unreachable."
+                    : "Rule-based reasoning over the knowledge graph — no external API required."}
+                </p>
               </div>
               <Badge tone="accent">active</Badge>
             </div>
             <SectionTitle>Available adapters</SectionTitle>
             <div className="flex flex-wrap gap-2">
-              {["openai", "anthropic", "deepseek", "local llm"].map((p) => (
+              {["mock", "nim (nvidia)", "openai", "anthropic", "deepseek", "local llm"].map((p) => (
                 <Badge key={p}>{p}</Badge>
               ))}
             </div>

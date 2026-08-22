@@ -421,11 +421,166 @@ export function interpretCommandText(text: string): CommandIntentResult {
   return { intent: "unknown", confidence: 0 };
 }
 
+// ── NVIDIA NIM provider (OpenAI-compatible) ──────────────────────────────────
+// Uses the integrate.api.nvidia.com chat-completions endpoint. Structured
+// tasks are prompted for JSON output; any failure (network, geo-block, bad
+// model id, malformed JSON) degrades per-call to the deterministic mock so
+// product workflows never break.
+
+const NIM_BASE = process.env.FARMAN_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1";
+
+class NimProvider implements AIProvider {
+  readonly name = "nim";
+  private apiKey = process.env.NVAPI_KEY || "";
+  private model: string | null = process.env.FARMAN_NIM_MODEL || null;
+  private mock = new MockAIProvider();
+
+  /** Discover a GLM model from /models (prefers newest = highest version). */
+  private async resolveModel(): Promise<string> {
+    if (this.model) return this.model;
+    const res = await fetch(`${NIM_BASE}/models`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!res.ok) throw new Error(`NIM /models ${res.status}`);
+    const data = (await res.json()) as { data?: { id: string }[] };
+    const ids = (data.data ?? []).map((m) => m.id);
+    const glm = ids
+      .filter((id) => /glm/i.test(id))
+      .sort((a, b) => Number(b.match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0) - Number(a.match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0));
+    if (glm.length === 0) throw new Error("No GLM model found in NIM catalog");
+    this.model = glm[0];
+    console.warn(`[farman] NIM auto-discovered model: ${this.model}`);
+    return this.model;
+  }
+
+  private async chat(system: string, user: string, maxTokens = 1200): Promise<string> {
+    const model = await this.resolveModel();
+    const res = await fetch(`${NIM_BASE}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.2,
+        max_tokens: maxTokens,
+      }),
+    });
+    if (!res.ok) throw new Error(`NIM ${model} → HTTP ${res.status}`);
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return data.choices?.[0]?.message?.content?.trim() ?? "";
+  }
+
+  private async json<T>(system: string, user: string, maxTokens = 1200): Promise<T> {
+    const text = await this.chat(
+      `${system}\nRespond with ONLY valid JSON. No markdown fences, no commentary.`,
+      user,
+      maxTokens
+    );
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("NIM: no JSON in response");
+    return JSON.parse(text.slice(start, end + 1)) as T;
+  }
+
+  async parsePurchaseRequest(input: Parameters<AIProvider["parsePurchaseRequest"]>[0]) {
+    try {
+      const out = await this.json<ParsedRequirement>(
+        "You are FARMAN's procurement parser. Classify the purchase request.",
+        JSON.stringify({
+          task: "Parse into structured requirement",
+          ...input,
+          neededBy: input.neededBy?.toISOString() ?? null,
+          categoryMustBeOneOf: ["Packaging", "Raw Materials", "Components", "Logistics"],
+          schema: {
+            category: "string", itemType: "string", quantity: "number", unit: "string",
+            urgency: "low|normal|high", constraints: "string[]", summary: "string",
+          },
+        })
+      );
+      if (!out.category || !out.summary) throw new Error("bad shape");
+      return out;
+    } catch (err) {
+      console.warn("[farman] NIM parse failed — using deterministic fallback:", (err as Error).message);
+      return this.mock.parsePurchaseRequest(input);
+    }
+  }
+
+  async recommend(input: Parameters<AIProvider["recommend"]>[0]) {
+    try {
+      const out = await this.json<RecommendationReasoning>(
+        "You are FARMAN's procurement recommendation writer. Explain decisions crisply for an enterprise buyer.",
+        JSON.stringify({ task: "Write recommendation rationale", ...input, schema: { headline: "string", reasons: "string[]", risks: "string[]" } })
+      );
+      if (!out.headline || !Array.isArray(out.reasons)) throw new Error("bad shape");
+      return out;
+    } catch (err) {
+      console.warn("[farman] NIM recommend failed — using deterministic fallback:", (err as Error).message);
+      return this.mock.recommend(input);
+    }
+  }
+
+  async answerFinanceQuestion(question: string, ctx: Record<string, unknown>) {
+    // Numbers are always computed by FARMAN's finance engine; the LLM only
+    // rewrites narrative. If it fails, the computed answer stands as-is.
+    const computed = ctx.__answer as CfoAnswer;
+    try {
+      const out = await this.json<{ answer: string }>(
+        "You are FARMAN's AI CFO. Rewrite the given financial answer in one crisp paragraph using ONLY provided facts and figures. Never invent numbers or currency symbols other than IRR.",
+        JSON.stringify({ question, facts: computed })
+      );
+      return { ...computed, answer: out.answer || computed.answer };
+    } catch {
+      return computed;
+    }
+  }
+
+  async setupBusiness(idea: string) {
+    try {
+      const out = await this.json<BusinessPlan>(
+        "You are FARMAN's Business Agent. Turn the idea into an executable business plan. All money amounts in Iranian Rial (IRR); realistic Iranian-market scale; startup costs typically 5–25 billion IRR for goods businesses.",
+        JSON.stringify({
+          idea,
+          schema: {
+            name: "string", concept: "string", targetCustomers: "string", revenueModel: "string",
+            products: "[{name, description, priceRange}] x3-4", operations: "string[] x4-6",
+            suppliersNeeded: "[{category, notes}] x2-3", costBreakdown: "[{item, amount(number IRR), note}] x5-7",
+            assumptions: "[{label, value}] x4", projectedMonthlyRevenue: "number IRR", projectedMonthlyCost: "number IRR",
+          },
+        }),
+        2000
+      );
+      if (!out.name || !Array.isArray(out.products) || !Array.isArray(out.costBreakdown)) throw new Error("bad shape");
+      return out;
+    } catch (err) {
+      console.warn("[farman] NIM business setup failed — using deterministic fallback:", (err as Error).message);
+      return this.mock.setupBusiness(idea);
+    }
+  }
+
+  interpretCommand(text: string): CommandIntentResult {
+    return interpretCommandText(text);
+  }
+}
+
 export function getAIProvider(): AIProvider {
   const configured = process.env.FARMAN_AI_PROVIDER || "mock";
   switch (configured) {
     case "mock":
       return new MockAIProvider();
+    case "nim":
+      if (!process.env.NVAPI_KEY) {
+        console.warn("[farman] FARMAN_AI_PROVIDER=nim but NVAPI_KEY missing; using mock.");
+        return new MockAIProvider();
+      }
+      return new NimProvider();
     case "openai":
     case "anthropic":
     case "deepseek":
