@@ -45,15 +45,15 @@ const DEFAULT_LABELS: Record<string, string> = {
 };
 
 const SUGGESTIONS = [
-  "Where does the Q4 packaging order stand?",
-  "Source 200 bags of oat milk for the cafe",
-  "Is the packaging buy affordable right now?",
+  "وضعیت سفارش بسته‌بندی فصل چهارم چیست؟",
+  "۲۰۰ بسته شیر گیاهی برای کافه تأمین کن",
+  "آیا خرید بسته‌بندی الان مقرون‌به‌صرفه است؟",
 ];
 
 let turnId = 0;
 
 export default function ChatPage() {
-  const { addJob } = useDemo();
+  const { addJob, user } = useDemo();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [waiting, setWaiting] = useState(false);
@@ -80,6 +80,8 @@ export default function ChatPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          userName: user?.name ?? "",
+          userTitle: user?.title ?? "",
           messages: nextHistory.map((t) => ({
             // Assistant turns are sent as their JSON form so the model keeps
             // answering in the structured protocol instead of drifting to prose.
@@ -174,17 +176,16 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col">
       <header className="mb-5">
-        <h1 className="text-lg">Chat</h1>
+        <h1 className="text-lg">گفت‌وگو</h1>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-neutral-500">
-          Say what you need in your own words. The orchestrator decides which agents do what,
-          assigns the work, and hands you the screens where you can review or approve it.
+          آنچه می‌خواهید را با زبان خودتان بگویید. هماهنگ‌کننده تصمیم می‌گیرد کدام عامل‌ها چه کنند، کارها را تقسیم می‌کند و صفحه‌هایی را که برای بازبینی یا تأیید لازم دارید پیش روی شما می‌گذارد.
         </p>
       </header>
 
       <div ref={listRef} className="min-h-[45vh] space-y-4">
         {turns.length === 0 ? (
           <div className="rounded-xl border-[0.5px] border-borders p-5">
-            <div className="text-sm">Try one of these</div>
+            <div className="text-sm">یکی از این‌ها را امتحان کنید</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
@@ -224,9 +225,9 @@ export default function ChatPage() {
                     {t.dispatch.map((d, i) => (
                       <div
                         key={i}
-                        className="border-[0.5px] border-borders bg-surface px-3 py-2"
+                        className="border-s-2 border-brand-mid bg-brand-soft/50 px-3 py-2"
                       >
-                        <span className="text-xs text-neutral-400">Assigned</span>{" "}
+                        <span className="text-xs text-neutral-400">واگذارشده</span>{" "}
                         <span className="text-sm font-medium">{d.agent}</span>
                         <span className="block text-sm text-neutral-600">{d.instruction}</span>
                       </div>
@@ -237,7 +238,7 @@ export default function ChatPage() {
                 {t.jobLink ? (
                   <Link
                     href={t.jobLink.href}
-                    className="mt-3 inline-flex items-center gap-1 rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-800"
+                    className="mt-3 inline-flex items-center gap-1 rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hover"
                   >
                     {t.jobLink.label} <ArrowRight size={12} />
                   </Link>
@@ -265,8 +266,7 @@ export default function ChatPage() {
           <div>
             <ActorLine />
             <div className="mt-1 rounded-xl border-l-2 border-borders bg-surface px-4 py-3 text-sm text-neutral-600">
-              The orchestrator is reading your request and assigning work to agents — this usually
-              takes a few seconds.
+              هماهنگ‌کننده در حال خواندن درخواست شما و واگذاری کار به عامل‌ها است — معمولاً چند ثانیه طول می‌کشد.
             </div>
           </div>
         ) : null}
@@ -290,25 +290,24 @@ export default function ChatPage() {
               }
             }}
             rows={Math.min(3, Math.max(1, Math.ceil(input.length / 60)))}
-            placeholder="Say what you need — e.g. “Get 200 pouches of oat milk sourced before Friday”"
+            placeholder="بگویید چه می‌خواهید — مثلاً «تا جمعه ۲۰۰ بسته شیر گیاهی تأمین شود»"
             className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-neutral-400"
-            aria-label="Tell the orchestrator what you need"
+            aria-label="به هماهنگ‌کننده بگویید چه می‌خواهید"
             maxLength={500}
             disabled={waiting}
           />
           <button
             type="submit"
             disabled={!input.trim() || waiting}
-            aria-label="Send"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="ارسال"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ArrowRight size={14} />
           </button>
         </div>
       </form>
       <p className="mt-2 text-sm text-neutral-400">
-        The orchestrator works inside policy: anything above $10,000 stops for director approval
-        before it executes.
+        هماهنگ‌کننده در چارچوب سیاست کار می‌کند: هر چیزی بالای ۱۰۰٬۰۰۰٬۰۰۰ ریال پیش از اجرا برای تأیید مدیریتی می‌ایستد.
       </p>
     </div>
   );
@@ -317,7 +316,7 @@ export default function ChatPage() {
 function ActorLine() {
   return (
     <div className="px-1 text-xs text-neutral-400">
-      Orchestrator · Farman
+      هماهنگ‌کننده · فرمان
     </div>
   );
 }

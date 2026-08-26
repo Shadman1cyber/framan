@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { money } from "@/lib/format";
 import {
   agents,
   approval,
@@ -35,22 +36,22 @@ function buildSnapshot(): string {
   const offerLines = offers
     .map((o) => {
       const rec = o.id === "off-packline" ? " [RECOMMENDED]" : "";
-      return `  - ${nameOf(o.supplierId)}${rec}: $${o.total.toLocaleString()} total, ${o.leadTimeDays}-day lead, ${o.reliabilityDisplay}, ${o.paymentTerms}, policy ${o.policyCheck.state}${o.reliabilityConfidence === "unproven" ? ", NO delivery history (new supplier)" : ""}`;
+      return `  - ${nameOf(o.supplierId)}${rec}: ${money(o.total)} total, ${o.leadTimeDays}-day lead, ${o.reliabilityDisplay}, ${o.paymentTerms}, policy ${o.policyCheck.state}${o.reliabilityConfidence === "unproven" ? ", NO delivery history (new supplier)" : ""}`;
     })
     .join("\n");
 
   const jobLines = workflows
     .filter((w) => w.id !== "wf-1042")
-    .map((w) => `  - ${w.id} "${w.title}" (${"$" + (w.amount ?? 0).toLocaleString()}): ${w.statusLine}`)
+    .map((w) => `  - ${w.id} "${w.title}" (${money(w.amount ?? 0)}): ${w.statusLine}`)
     .join("\n");
 
   return [
-    `Company: ${company.name}. Cash position $${company.cashPosition.toLocaleString()}. Packaging budget remaining $${(packaging ? packaging.monthlyCap - packaging.committed : 0).toLocaleString()} of a $${(packaging?.monthlyCap ?? 0).toLocaleString()} monthly cap.`,
+    `Company: ${company.name}. Cash position ${money(company.cashPosition)}. Packaging budget remaining ${money(packaging ? packaging.monthlyCap - packaging.committed : 0)} of a ${money(packaging?.monthlyCap ?? 0)} monthly cap.`,
     ``,
     `Main job wf-1042 "Q4 retail packaging — 50,000 kraft pouches, needed by Sep 28":`,
     `  Stages Specify/Source/Compare are COMPLETE. It is now WAITING ON THE USER's director approval (${approval.requiredBecause}).`,
     offerLines,
-    `  Farman recommends Packline Industries because it is the lowest-cost offer that meets the Sep 28 deadline with the strongest delivery record. VerdePack is cheaper but misses the deadline and has no history; Summit meets the deadline but costs $2,500 more with an 89% on-time rate.`,
+    `  Farman recommends Packline Industries because it is the lowest-cost offer that meets the Sep 28 deadline with the strongest delivery record. VerdePack is cheaper but misses the deadline and has no history; Summit meets the deadline but costs IRR 25,000,000 more with an 89% on-time rate.`,
     ``,
     `Other jobs:`,
     jobLines,
@@ -68,13 +69,13 @@ Voice rules (mandatory):
 - Say "Farman recommends X because…", never "the AI thinks". Never use the words AI, magic, autopilot, genius, robot.
 - Use plain verbs: run, approve, execute, review, waiting, completed, blocked.
 - Approvals phrased like "Approval required: policy POL-2 threshold exceeded."
-- Sentence case. No emojis. Reply in at most 80 words unless listing facts.
+- Reply ONLY in formal Persian (Farsi). No emojis. At most 80 words unless listing facts.
 
 Grounding rules:
 - Answer status/factual questions ONLY from the workspace snapshot below. Never invent orders, prices, or suppliers.
 - If something is genuinely missing, ask ONE short follow-up question in reply.
 - When the user asks to buy or arrange something NEW, or MODIFIES an earlier request (item, quantity, budget, timing) in their latest message, always emit a fresh create_job action carrying the FULL updated details.
-- Approval facts are exact: POL-2 requires director approval ONLY above $10,000. For amounts at or below $10,000 set needs_approval=false unless the snapshot shows another policy truly applies (new-supplier award at $5,000+ under POL-5). Never claim a threshold is exceeded when the amount does not exceed it.
+- All amounts are Iranian rial (IRR). Approval facts are exact: POL-2 requires director approval ONLY above IRR 100,000,000. For amounts at or below that set needs_approval=false unless the snapshot shows another policy truly applies (new-supplier award at IRR 50,000,000+ under POL-5). Never claim a threshold is exceeded when the amount does not exceed it.
 - Prefer "Farman will…" over "I will…" in reply.
 - When the user references the Q4 packaging order, include matching link actions so they can open the real screens.
 
@@ -82,7 +83,7 @@ Respond with ONLY a JSON object (no markdown fences):
 {
   "reply": "string",
   "dispatch": [{"agent": "Sourcing agent|Evaluation agent|Finance agent|Farman orchestrator", "instruction": "specific instruction"}],
-  "actions": [{"type":"link","target":"approval|compare|execution|workflow|audit|finance|tasks","label":"button label"} | {"type":"create_job","title":"sentence-case title","stages":["Specify","Source","Compare","Approve","Execute","Complete"],"needs_approval":true,"amount":123,"policy_note":"plain-language reason"}]
+  "actions": [{"type":"link","target":"approval|compare|execution|workflow|audit|finance|tasks","label":"button label"} | {"type":"create_job","title":"sentence-case title","stages":["مشخصات","استعلام","مقایسه","تأیید","اجرا","تکمیل"],"needs_approval":true,"amount":123,"policy_note":"plain-language reason"}]
 }
 Keep dispatch to at most 3 entries and actions to at most 3. Omit dispatch/actions arrays when not needed.`;
 
@@ -117,8 +118,16 @@ export async function POST(req: NextRequest) {
   }
 
   let history: ChatMessage[] = [];
+  let userName = "";
+  let userTitle = "";
   try {
-    const body = (await req.json()) as { messages?: unknown };
+    const body = (await req.json()) as {
+      messages?: unknown;
+      userName?: unknown;
+      userTitle?: unknown;
+    };
+    if (typeof body.userName === "string") userName = body.userName.slice(0, 80);
+    if (typeof body.userTitle === "string") userTitle = body.userTitle.slice(0, 80);
     if (Array.isArray(body.messages)) {
       history = body.messages
         .filter(
@@ -166,7 +175,11 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: `${SYSTEM_PROMPT}\n\nWORKSPACE SNAPSHOT:\n${buildSnapshot()}`,
+            content: `${SYSTEM_PROMPT}\n\nWORKSPACE SNAPSHOT:\n${buildSnapshot()}${
+              userName
+                ? `\n\nYou are helping ${userName}${userTitle ? ` (${userTitle})` : ""}. Address them by name when natural.`
+                : ""
+            }`,
           },
           ...history,
           {

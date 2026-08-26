@@ -8,6 +8,7 @@ import type { Decision } from "@/lib/types";
 import { purchaseRequest, recommendation } from "@/lib/mock-data";
 import { PageHeader } from "@/components/ui";
 import { Stepper } from "@/components/stepper";
+import { ProgressLine } from "@/components/charts";
 
 export default function WorkflowPage({ params }: { params: { id: string } }) {
   const { decision } = useDemo();
@@ -27,7 +28,7 @@ export default function WorkflowPage({ params }: { params: { id: string } }) {
       <PageHeader
         title={wf.title}
         meta={`Opened by ${wf.initiatedByName} · ${wf.openedAt} · ${
-          wf.amount ? `$${wf.amount.toLocaleString()}` : "no amount yet"
+          wf.amount ? `IRR ${wf.amount.toLocaleString()}` : "no amount yet"
         }`}
       />
 
@@ -38,6 +39,15 @@ export default function WorkflowPage({ params }: { params: { id: string } }) {
           currentStageId={wf.currentStageId}
         />
         <p className="mt-5 text-sm text-neutral-700">{viewStatusLine(wf, isMain)}</p>
+        {isMain ? (
+          <div className="mt-4">
+            <ProgressLine
+              done={wf.stages.filter((st) => st.state === "completed").length}
+              total={6}
+              caption={`${wf.stages.filter((st) => st.state === "completed").length} از ۶ مرحله کامل شده است`}
+            />
+          </div>
+        ) : null}
       </section>
 
       {isMain && <MainStageCards decision={decision} />}
@@ -83,12 +93,11 @@ function ChatJobView({ id }: { id: string }) {
   if (!job) {
     return (
       <p className="text-sm text-neutral-500">
-        This chat-created job is no longer in memory (it clears on refresh). Ask the orchestrator
-        again in{" "}
+        این کارِ گفت‌وگویی دیگر در حافظه نیست (با تازه‌سازی پاک می‌شود). در{" "}
         <Link href="/chat" className="underline">
-          Chat
+          گفت‌وگو
         </Link>{" "}
-        and it will re-create it.
+        دوباره از هماهنگ‌کننده بخواهید تا بسازد.
       </p>
     );
   }
@@ -96,7 +105,7 @@ function ChatJobView({ id }: { id: string }) {
     <div>
       <PageHeader
         title={job.title}
-        meta={`Created via chat · ${job.amount ? `$${job.amount.toLocaleString()}` : "no amount given"}`}
+        meta={`ساخته‌شده در گفت‌وگو · ${job.amount ? `${new Intl.NumberFormat("fa").format(job.amount)} ریال` : "بدون مبلغ"}`}
       />
       <section className="mb-8">
         <ol className="space-y-[0.5px]">
@@ -110,7 +119,7 @@ function ChatJobView({ id }: { id: string }) {
               </span>
               <span className="text-sm">{stage}</span>
               <span className="ml-auto text-sm text-neutral-400">
-                {i === 0 ? "Next — starts when the job runs" : "Queued"}
+                {i === 0 ? "بعدی — با اجرای کار شروع می‌شود" : "صف‌شده"}
               </span>
             </li>
           ))}
@@ -118,22 +127,20 @@ function ChatJobView({ id }: { id: string }) {
       </section>
       {job.needsApproval ? (
         <div className="rounded-md border-l-2 border-amber-600 bg-amber-50 p-4 text-sm leading-relaxed">
-          Approval required before Farman executes this job
-          {job.policyNote ? `: ${job.policyNote}` : "."} It appears in “Needs you” until a director
-          signs off.
+          پیش از اجرای این کار توسط فرمان، تأیید لازم است
+          {job.policyNote ? `: ${job.policyNote}` : "."} تا وقتی مدیری امضا نکند، در بخش «نیازمند شما» دیده می‌شود.
         </div>
       ) : (
         <div className="rounded-md border-l-2 border-borders bg-surface p-4 text-sm leading-relaxed text-neutral-600">
-          Queued by the orchestrator from your chat request. This demo plans new jobs but does not
-          execute them — the seeded packaging request shows the full end-to-end run.
+          به دست هماهنگ‌کننده از گفت‌وگوی شما صف شد. این نسخهٔ نمایشی کارهای جدید را برنامه‌ریزی اما اجرا نمی‌کند — درخواست بسته‌بندیِ نمونه مسیر کامل را نشان می‌دهد.
         </div>
       )}
       <div className="mt-6 flex gap-4 text-sm">
-        <Link href="/chat" className="underline hover:text-neutral-600">
-          Back to chat
+        <Link href="/chat" className="text-brand underline hover:text-brand-hover">
+          بازگشت به گفت‌وگو
         </Link>
-        <Link href="/workflows" className="underline hover:text-neutral-600">
-          All workflows
+        <Link href="/workflows" className="text-brand underline hover:text-brand-hover">
+          همهٔ جریان‌ها
         </Link>
       </div>
     </div>
@@ -142,10 +149,10 @@ function ChatJobView({ id }: { id: string }) {
 
 function viewStatusLine(wf: ReturnType<typeof getWorkflow>, isMain: boolean): string {
   if (isMain && wf.currentStageId === "approve" && wf.statusKind === "needs_user") {
-    return `${wf.statusLine} Approval expires in 48 hours.`;
+    return `${wf.statusLine} تأیید ۴۸ ساعت دیگر منقضی می‌شود.`;
   }
   if (isMain && wf.statusKind === "waiting_external") {
-    return `${wf.statusLine} Farman checks every 15 minutes and posts the confirmation here when it arrives.`;
+    return `${wf.statusLine} فرمان هر ۱۵ دقیقه بررسی می‌کند و تأییدیه را همین‌جا ثبت می‌کند.`;
   }
   if (wf.statusKind === "blocked") {
     return wf.statusLine;
@@ -161,12 +168,12 @@ function MainStageCards({ decision }: { decision: Decision }) {
       <Card title="Recommendation">
         {decision === "rejected" ? (
           <p>
-            The recommendation was not accepted. Packline Industries ($15,500) remains on record
+            The recommendation was not accepted. Packline Industries (IRR 155,000,000) remains on record
             with the reasons it was preferred.
           </p>
         ) : decision === "approved" ? (
           <p>
-            Accepted — Packline Industries at $15,500: lowest price among offers meeting the Sep 28
+            Accepted — Packline Industries at IRR 155,000,000: lowest price among offers meeting the Sep 28
             deadline, 98% delivery record.
           </p>
         ) : (
@@ -181,7 +188,7 @@ function MainStageCards({ decision }: { decision: Decision }) {
           <p>Rejected by you — the workflow stopped before any purchase was made.</p>
         ) : decision === "pending" ? (
           <p>
-            Policy POL-2 requires director sign-off above $10,000. This order is $15,500.
+            Policy POL-2 requires director sign-off above IRR 100,000,000. This order is IRR 155,000,000.
           </p>
         ) : (
           <p>
@@ -194,11 +201,10 @@ function MainStageCards({ decision }: { decision: Decision }) {
       <Card title="Execution">
         {decision === "approved" ? (
           <p>
-            {done + 1} of 6 execution steps complete — waiting on supplier confirmation from
-            Packline Industries.
+            {done + 1} از ۶ گام اجرا کامل است — در انتظار تأییدیهٔ «پک‌لاین اینداستریز».
           </p>
         ) : decision === "rejected" ? (
-          <p>Nothing was executed — the job closed before any order was placed.</p>
+          <p>چیزی اجرا نشد — کار پیش از ثبت سفارش بسته شد.</p>
         ) : (
           <p>6 steps are queued and run automatically once the approval is granted.</p>
         )}

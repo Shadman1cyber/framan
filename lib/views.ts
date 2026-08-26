@@ -37,7 +37,7 @@ export function getWorkflow(id: string, decision: Decision): Workflow {
       currentStageId: "execute",
       statusKind: "waiting_external",
       statusLine:
-        "Executing — PO-5521 sent to Packline Industries. Waiting on supplier confirmation.",
+        "در حال اجرا — PO-5521 برای «پک‌لاین اینداستریز» ارسال شد. در انتظار تأییدیه تأمین‌کننده.",
     };
   }
 
@@ -52,7 +52,7 @@ export function getWorkflow(id: string, decision: Decision): Workflow {
       stages,
       statusKind: "blocked",
       statusLine:
-        "Stopped by your decision — nothing ordered, nothing spent. Suppliers notified of closure.",
+        "به تصمیم شما متوقف شد — هیچ سفارشی ثبت و هزینه‌ای نشد. تأمین‌کنندگان آگاه شدند.",
     };
   }
 
@@ -61,7 +61,7 @@ export function getWorkflow(id: string, decision: Decision): Workflow {
       ...base,
       statusKind: "running",
       statusLine:
-        "Revising the recommendation — pulling updated lead times from all three suppliers before you decide.",
+        "در حال بازبینی پیشنهاد — پیش از تصمیم شما، زمان تحویل به‌روز از هر سه تأمین‌کننده گرفته می‌شود.",
     };
   }
 
@@ -70,7 +70,7 @@ export function getWorkflow(id: string, decision: Decision): Workflow {
       ...base,
       statusKind: "running",
       statusLine:
-        "Collecting more evidence — requesting delivery records for Summit Flexible Packaging references.",
+        "جمع‌آوری شواهد بیشتر — گواهی تحویل مراجع «سامیت فلکسیبل پکیجینگ» درخواست می‌شود.",
     };
   }
 
@@ -84,49 +84,49 @@ export function getExecutionSteps(decision: Decision): ExecutionStep[] {
     return [
       {
         key: "approved",
-        label: "Approval granted",
+        label: "تأیید صادر شد",
         state: "done",
-        detail: "Recorded by Alex Chen — just now.",
+        detail: "به دست الکس چن — همین حالا ثبت شد.",
       },
       {
         key: "po-created",
-        label: `Purchase order created — ${purchaseOrder.id}`,
+        label: `ایجاد سفارش خرید — ${purchaseOrder.id}`,
         state: "done",
-        detail: "Drafted from the accepted Packline quote (EV-110).",
+        detail: "از پیشنهاد پذیرفته‌شدهٔ پک‌لاین تنظیم شد (EV-110).",
       },
       {
         key: "po-sent",
-        label: "Sent to Packline Industries",
+        label: "ارسال به پک‌لاین اینداستریز",
         state: "done",
-        detail: "Delivered to their ordering portal — receipt EV-131.",
+        detail: "تحویل‌شده به پرتال سفارش آن‌ها — رسید EV-131.",
       },
       {
         key: "confirmation",
-        label: "Supplier confirmation",
+        label: "تأییدیهٔ تأمین‌کننده",
         state: "waiting_external",
-        detail: "Waiting on supplier response — order sent moments ago. Packline typically confirms within 4 business hours.",
+        detail: "در انتظار پاسخ تأمین‌کننده — سفارش چند لحظه پیش ارسال شد. پک‌لاین معمولاً تا ۴ ساعت کاری تأیید می‌کند.",
       },
       {
         key: "financial-update",
-        label: "Financial update",
+        label: "به‌روزرسانی مالی",
         state: "pending",
-        detail: "Net 30 payment scheduled for Oct 1 once Packline confirms.",
+        detail: "پس از تأیید پک‌لاین، پرداخت «خالص ۳۰ روز» برای ۱ اکتبر زمان‌بندی می‌شود.",
       },
       {
         key: "complete",
-        label: "Completed",
+        label: "تکمیل",
         state: "pending",
-        detail: "Closes when goods arrive — expected Sep 22.",
+        detail: "با رسیدن کالا بسته می‌شود — موعد ۲۲ سپتامبر.",
       },
     ];
   }
 
   const queuedNote =
     decision === "change_requested"
-      ? "Queued — runs after the revised recommendation is approved."
+      ? "صف شده — پس از تأیید پیشنهاد اصلاح‌شده اجرا می‌شود."
       : decision === "evidence_requested"
-        ? "Queued — runs after you decide with the new evidence."
-        : "Queued until this approval is granted.";
+        ? "صف شده — پس از تصمیم شما با شواهد تازه اجرا می‌شود."
+        : "تا صدور این تأیید در صف است.";
 
   return [
     {
@@ -135,14 +135,14 @@ export function getExecutionSteps(decision: Decision): ExecutionStep[] {
       state: "active",
       detail:
         decision === "pending"
-          ? "Waiting on your approval — entered this stage 6 minutes ago."
+          ? "در انتظار تأیید شما — ۶ دقیقه پیش وارد این مرحله شد."
           : queuedNote,
     },
-    { key: "po-created", label: `Purchase order created — ${purchaseOrder.id}`, state: "pending", detail: queuedNote },
-    { key: "po-sent", label: "Sent to Packline Industries", state: "pending", detail: queuedNote },
-    { key: "confirmation", label: "Supplier confirmation", state: "pending", detail: queuedNote },
-    { key: "financial-update", label: "Financial update", state: "pending", detail: queuedNote },
-    { key: "complete", label: "Completed", state: "pending", detail: queuedNote },
+    { key: "po-created", label: `ایجاد سفارش خرید — ${purchaseOrder.id}`, state: "pending", detail: queuedNote },
+    { key: "po-sent", label: "ارسال به پک‌لاین اینداستریز", state: "pending", detail: queuedNote },
+    { key: "confirmation", label: "تأییدیهٔ تأمین‌کننده", state: "pending", detail: queuedNote },
+    { key: "financial-update", label: "به‌روزرسانی مالی", state: "pending", detail: queuedNote },
+    { key: "complete", label: "تکمیل", state: "pending", detail: queuedNote },
   ];
 }
 
@@ -154,36 +154,36 @@ export function getExecutionStepsFor(
 
   if (workflowId === "wf-1038") {
     return [
-      { key: "approved", label: "Approval granted", state: "done", detail: "Priya Patel — Yesterday · 17:02." },
-      { key: "po", label: "Purchase order created", state: "done", detail: "Card order placed with the roastery's online account." },
-      { key: "sent", label: "Sent to supplier", state: "done", detail: "Order confirmed by the supplier's checkout." },
-      { key: "confirm", label: "Supplier confirmation", state: "done", detail: "Delivery window received — today before noon." },
-      { key: "fin", label: "Financial update", state: "done", detail: "$340 card charge settled and reconciled (EV-090)." },
-      { key: "complete", label: "Completed", state: "done", detail: "Goods received at the breakroom · Today 9:41." },
+      { key: "approved", label: "تأیید صادر شد", state: "done", detail: "پریا پتل — دیروز · ۱۷:۰۲." },
+      { key: "po", label: "ایجاد سفارش خرید", state: "done", detail: "سفارش کارتی از حساب آنلاین کارگاه رست ثبت شد." },
+      { key: "sent", label: "ارسال به تأمین‌کننده", state: "done", detail: "سفارش در سیستم تأمین‌کننده تأیید شد." },
+      { key: "confirm", label: "تأییدیهٔ تأمین‌کننده", state: "done", detail: "بازهٔ تحویل دریافت شد — امروز پیش از ظهر." },
+      { key: "fin", label: "به‌روزرسانی مالی", state: "done", detail: "۳٬۴۰۰٬۰۰۰ ریال هزینهٔ کارتی تسویه و مغایرت‌گیری شد (EV-090)." },
+      { key: "complete", label: "تکمیل", state: "done", detail: "کالا در اتاق استراحت تحویل شد · امروز ۹:۴۱." },
     ];
   }
 
   if (workflowId === "wf-1044") {
     return [
-      { key: "approved", label: "Approval granted", state: "done", detail: "Standing order — within policy limits, no human approval needed." },
-      { key: "po", label: "Purchase order created", state: "done", detail: "PO-5514 created from the standing-order contract price." },
-      { key: "sent", label: "Sent to supplier", state: "done", detail: "Delivered to the supplier portal · Today · 10:02." },
-      { key: "confirm", label: "Supplier confirmation", state: "done", detail: "Confirmed · Today · 10:47. Delivery scheduled Aug 26." },
+      { key: "approved", label: "تأیید صادر شد", state: "done", detail: "سفارش دائمی — در چارچوب سیاست‌ها؛ نیازی به تأیید انسانی نبود." },
+      { key: "po", label: "ایجاد سفارش خرید", state: "done", detail: "PO-5514 بر اساس قیمت قرارداد سفارش دائمی ایجاد شد." },
+      { key: "sent", label: "ارسال به تأمین‌کننده", state: "done", detail: "تحویل به پرتال تأمین‌کننده · امروز · ۱۰:۰۲." },
+      { key: "confirm", label: "تأییدیهٔ تأمین‌کننده", state: "done", detail: "Confirmed · Today · 10:47. Delivery scheduled Aug 26." },
       {
         key: "fin",
-        label: "Financial update",
+        label: "به‌روزرسانی مالی",
         state: "failed_retry",
         detail:
-          "Failed — ERP sync timed out at 11:42 (EV-150). Retry runs every 4 minutes; Farman escalates to Sam Ortiz after three failures.",
+          "ناموفق — همگام‌سازی ERP ساعت ۱۱:۴۲ قطع شد (EV-150). تلاش مجدد هر ۴ دقیقه است؛ پس از سه شکست، فرمان به سام اورتز ارجاع می‌دهد.",
       },
-      { key: "complete", label: "Completed", state: "pending", detail: "Closes when goods arrive Aug 26 and the ledger posting succeeds." },
+      { key: "complete", label: "تکمیل", state: "pending", detail: "با رسیدن کالا در ۲۶ اوت و موفقیت ثبت دفتری بسته می‌شود." },
     ];
   }
 
   if (workflowId === "wf-1045") {
     return [
-      { key: "approved", label: "Approval granted", state: "pending", detail: "Queued — not yet reached; sourcing is still collecting quotes." },
-      { key: "po", label: "Purchase order created", state: "pending", detail: "Starts after a recommendation is approved." },
+      { key: "approved", label: "تأیید صادر شد", state: "pending", detail: "صف شده — هنوز نرسیده؛ استعلام‌ها در حال جمع‌آوری است." },
+      { key: "po", label: "Purchase order created", state: "pending", detail: "پس از تأیید یک پیشنهاد آغاز می‌شود." },
     ];
   }
 
@@ -209,11 +209,11 @@ export function needsYou(decision: Decision, jobs: ChatJob[] = []): QueueItem[] 
     if (job.needsApproval) {
       items.push({
         workflowId: job.id,
-        title: `${job.title} — approval required`,
+        title: `${job.title} — تأیید لازم است`,
         context:
           job.policyNote ??
-          "Created from your chat request — Farman waits for sign-off before starting",
-        statusLabel: "Approval required",
+          "از گفت‌وگوی شما ساخته شد — فرمان پیش از آغاز، منتظر امضاست",
+        statusLabel: "نیازمند تأیید",
         statusTone: "attention",
         amount: job.amount,
         needsYou: true,
@@ -223,25 +223,25 @@ export function needsYou(decision: Decision, jobs: ChatJob[] = []): QueueItem[] 
   if (decision === "pending" || decision === "change_requested" || decision === "evidence_requested") {
     items.push({
       workflowId: "wf-1042",
-      title: "Q4 retail packaging — approval required",
+      title: "بسته‌بندی فصل چهارم — نیازمند تأیید",
       context:
         decision === "pending"
-          ? "Evaluation agent recommends Packline Industries at $15,500 — policy POL-2 requires your sign-off"
+          ? "عامل ارزیابی «پک‌لاین اینداستریز» را به مبلغ ۱۵۵٬۰۰۰٬۰۰۰ ریال پیشنهاد می‌کند — سیاست POL-2 امضای شما را می‌خواهد"
           : decision === "change_requested"
-            ? "Evaluation agent is revising the recommendation with updated lead times — your review resumes when it returns"
-            : "Sourcing agent is collecting delivery records for Summit Flexible Packaging — your review resumes shortly",
-      statusLabel: decision === "pending" ? "Approval required" : "Revising",
+            ? "عامل ارزیابی پیشنهاد را با زمان‌های تحویل به‌روز بازنگری می‌کند — بررسی شما پس از بازگشت ادامه می‌یابد"
+            : "عامل تأمین گواهی‌های تحویل سامیت فلکسیبل پکیجینگ را جمع می‌کند — بررسی شما به‌زودی ادامه می‌یابد",
+      statusLabel: decision === "pending" ? "نیازمند تأیید" : "در حال بازنگری",
       statusTone: "attention",
-      amount: 15500,
+      amount: 155000000,
       needsYou: true,
     });
   }
   if (decision !== "approved") {
     items.push({
       workflowId: "wf-1041",
-      title: "Business cards reprint — approval expired",
-      context: "No decision within 48 hours; Farman will resubmit tomorrow 9:00 unless you decide now",
-      statusLabel: "Expired",
+      title: "چاپ مجدد کارت ویزیت — تأیید منقضی شد",
+      context: "طی ۴۸ ساعت تصمیمی گرفته نشد؛ فرمان فردا ساعت ۹:۰۰ دوباره ارسال می‌کند مگر اکنون تصمیم بگیرید",
+      statusLabel: "منقضی",
       statusTone: "bad",
       amount: 410,
       needsYou: true,
@@ -257,8 +257,8 @@ export function runningItems(decision: Decision, jobs: ChatJob[] = []): QueueIte
       items.push({
         workflowId: job.id,
         title: job.title,
-        context: "Queued by the orchestrator from your chat request — Specify stage assigned",
-        statusLabel: "Queued",
+        context: "به دست هماهنگ‌کننده از گفت‌وگوی شما صف شد — مرحله مشخصات تعیین شد",
+        statusLabel: "در صف",
         statusTone: "neutral",
         amount: job.amount,
         needsYou: false,
@@ -268,41 +268,41 @@ export function runningItems(decision: Decision, jobs: ChatJob[] = []): QueueIte
   if (decision === "approved") {
     items.push({
       workflowId: "wf-1042",
-      title: "Q4 retail packaging — executing",
+      title: "بسته‌بندی فصل چهارم — در حال اجرا",
       context:
-        "Sourcing agent sent PO-5521 to Packline Industries — waiting on supplier confirmation",
-      statusLabel: "On supplier",
+        "عامل تأمین PO-5521 را برای پک‌لاین اینداستریز فرستاد — در انتظار تأییدیهٔ تأمین‌کننده",
+      statusLabel: "با تأمین‌کننده",
       statusTone: "neutral",
-      amount: 15500,
+      amount: 155000000,
       needsYou: false,
     });
   }
   items.push(
     {
       workflowId: "wf-1045",
-      title: "Safety gloves reorder",
+      title: "سفارش مجدد دستکش ایمنی",
       context:
-        "Sourcing agent — RFQ sent to 3 suppliers 26 minutes ago, responses due 17:00",
-      statusLabel: "On suppliers",
+        "عامل تأمین — استعلام ۲۶ دقیقه پیش به ۳ تأمین‌کننده رفت؛ مهلت پاسخ ۱۷:۰۰",
+      statusLabel: "با تأمین‌کنندگان",
       statusTone: "neutral",
       amount: 980,
       needsYou: false,
     },
     {
       workflowId: "wf-1044",
-      title: "Cleaning supplies restock",
+      title: "خرید ملزومات نظافتی",
       context:
-        "Finance agent — ERP sync failing while posting the accrual; retry every 4 minutes",
-      statusLabel: "Retrying",
+        "عامل مالی — هنگام ثبت ذخیره، همگام‌سازی ERP خطا دارد؛ تلاش هر ۴ دقیقه",
+      statusLabel: "تلاش مجدد",
       statusTone: "bad",
       amount: 1150,
       needsYou: false,
     },
     {
       workflowId: "wf-1040",
-      title: "Warehouse label printer",
-      context: "Blocked by POL-7 — second quote requested at 10:15, waiting on vendor",
-      statusLabel: "Blocked",
+      title: "چاپگر برچسب انبار",
+      context: "متوقف با POL-7 — استعلام دوم ساعت ۱۰:۱۵ خواسته شد؛ در انتظار فروشنده",
+      statusLabel: "متوقف",
       statusTone: "bad",
       amount: 2300,
       needsYou: false,
@@ -315,9 +315,9 @@ export function completedToday(decision: Decision): QueueItem[] {
   const items: QueueItem[] = [
     {
       workflowId: "wf-1038",
-      title: "Breakroom coffee beans restock",
-      context: "Finance agent settled the card payment and filed the receipt",
-      statusLabel: "Completed · 9:41",
+      title: "خرید دانه قهوه اتاق استراحت",
+      context: "عامل مالی پرداخت کارتی را تسویه و رسید را الصاق کرد",
+      statusLabel: "تکمیل · ۹:۴۱",
       statusTone: "good",
       amount: 340,
       needsYou: false,
@@ -326,9 +326,9 @@ export function completedToday(decision: Decision): QueueItem[] {
   if (decision === "rejected") {
     items.unshift({
       workflowId: "wf-1042",
-      title: "Q4 retail packaging — closed without purchase",
-      context: "You rejected the recommendation; suppliers notified of closure",
-      statusLabel: "Closed",
+      title: "بسته‌بندی فصل چهارم — بدون خرید بسته شد",
+      context: "شما پیشنهاد را رد کردید؛ تأمین‌کنندگان از پایان کار آگاه شدند",
+      statusLabel: "بسته‌شده",
       statusTone: "neutral",
       amount: 0,
       needsYou: false,

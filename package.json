@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:fresh": "pkill -9 -f 'next dev' 2>/dev/null; pkill -9 -f next-server 2>/dev/null; sleep 1; rm -rf .next && next dev -p 3000"
   },
   "dependencies": {
     "lucide-react": "^1.33.0",

@@ -19,9 +19,9 @@ export default function WorkflowsPage() {
   const { decision, jobs } = useDemo();
   return (
     <div>
-      <PageHeader title="Workflows" meta="Every job Farman is running or has run." />
+      <PageHeader title="جریان‌های کاری" meta="هر کاری که فرمان در حال اجرا یا اجراشده دارد." />
       <div className="mb-8 text-sm text-neutral-500">
-        Open a workflow to see its stages, what Farman is doing, and where you can step in.
+        یک جریان کار را باز کنید تا مراحل، اقدامات فرمان و نقاط ورود شما را ببینید.
       </div>
       {workflows.map((w) => {
         const view = getWorkflow(w.id, decision);
@@ -32,13 +32,13 @@ export default function WorkflowsPage() {
             href={`/workflows/${w.id}`}
             title={w.title}
             context={`${stage} stage · ${view.statusLine}`}
-            right={<StatusLabel tone={getStatusTone(view.statusKind)}>{w.amount ? `$${w.amount.toLocaleString()}` : ""}</StatusLabel>}
+            right={<StatusLabel tone={getStatusTone(view.statusKind)}>{w.amount ? `${new Intl.NumberFormat("fa").format(w.amount)} ریال` : ""}</StatusLabel>}
           />
         );
       })}
       {jobs.length > 0 ? (
         <>
-          <div className="mt-8 mb-2 text-sm text-neutral-400">Created from chat</div>
+          <div className="mt-8 mb-2 text-sm text-neutral-400">ساخته‌شده از گفت‌وگو</div>
           {jobs.map((j) => (
             <Row
               key={j.id}
@@ -46,20 +46,20 @@ export default function WorkflowsPage() {
               title={j.title}
               context={
                 j.needsApproval
-                  ? "Approval required before Farman starts this job"
-                  : "Queued by the orchestrator — Specify stage assigned"
+                  ? "پیش از آغاز این کار توسط فرمان، تأیید لازم است"
+                  : "به دست هماهنگ‌کننده صف شد — مرحله مشخصات تعیین شد"
               }
-              right={<StatusLabel tone={j.needsApproval ? "attention" : "neutral"}>Planned</StatusLabel>}
+              right={<StatusLabel tone={j.needsApproval ? "attention" : "neutral"}>برنامه‌ریزی‌شده</StatusLabel>}
             />
           ))}
         </>
       ) : null}
       <p className="mt-6 text-sm text-neutral-400">
-        Looking for a specific purchase request? See{" "}
-        <Link href="/procurement" className="underline hover:text-neutral-600">
-          Procurement
+        در جست‌وجوی درخواست خرید مشخصی هستید؟ بخش 
+        <Link href="/procurement" className="text-brand underline hover:text-brand-hover">
+          تدارکات
         </Link>
-        .
+        را ببینید.
       </p>
     </div>
   );

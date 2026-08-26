@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, CircleDollarSign, X } from "lucide-react";
 import Link from "next/link";
 import { useDemo } from "@/lib/store";
@@ -71,16 +71,16 @@ function IntentInput() {
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="State an outcome — e.g. “Order 50k pouches for the Q4 launch”"
+            placeholder="نتیجهٔ موردنظرتان را بگویید — مثلاً «۵۰ هزار کیسه برای عرضهٔ فصل چهارم سفارش بده»"
             className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
-            aria-label="State an outcome"
+            aria-label="بیان نتیجهٔ موردنظر"
             maxLength={500}
           />
           <button
             type="submit"
             disabled={!value.trim() || state.kind === "planning"}
             aria-label="Plan this outcome"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ArrowRight size={14} />
           </button>
@@ -148,22 +148,37 @@ function IntentInput() {
 }
 
 export default function CommandCenterPage() {
-  const { decision, jobs } = useDemo();
+  const { decision, jobs, user } = useDemo();
+  const firstName = user?.name.split(" ")[0];
+  const [greeting, setGreeting] = useState("سلام");
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    const h = new Date().getHours();
+    setGreeting(h < 12 ? "صبح بخیر" : h < 18 ? "عصر بخیر" : "شب بخیر");
+    setToday(
+      new Intl.DateTimeFormat("fa-IR", { weekday: "long", day: "numeric", month: "long" }).format(
+        new Date(),
+      ),
+    );
+  }, []);
 
   return (
     <div className="space-y-8">
       <header>
-        <div className="text-sm text-neutral-500">Command center · Meridian Roasters</div>
-        <h1 className="mt-1 text-lg">Good afternoon, Alex</h1>
+        <div className="text-sm text-neutral-500">مرکز فرماندهی · مریدین راسترز</div>
+        <h1 className="mt-1 text-lg">
+          {greeting}{firstName ? `، ${firstName}` : ""}
+        </h1>
+        {today ? <div className="mt-0.5 text-sm text-neutral-400">{today}</div> : null}
       </header>
 
       <IntentInput />
 
       <section>
-        <SectionHeading title="Needs you" />
+        <SectionHeading title="نیازمند شما" />
         {needsYou(decision, jobs).length === 0 ? (
           <p className="border-[0.5px] border-borders px-4 py-3 text-sm text-neutral-500">
-            Nothing is waiting on you right now.
+            در حال حاضر چیزی در انتظار شما نیست.
           </p>
         ) : (
           needsYou(decision, jobs).map((item) => (
@@ -176,7 +191,7 @@ export default function CommandCenterPage() {
               context={item.context}
               right={
                 <StatusLabel tone={item.statusTone}>
-                  {item.amount ? `$${item.amount.toLocaleString()} · ` : ""}
+                  {item.amount ? `${new Intl.NumberFormat("fa").format(item.amount)} ریال · ` : ""}
                   {item.statusLabel}
                 </StatusLabel>
               }
@@ -187,8 +202,8 @@ export default function CommandCenterPage() {
 
       <section>
         <SectionHeading
-          title="Running"
-          hint={`${runningItems(decision, jobs).length} in progress`}
+          title="در جریان"
+          hint={`${runningItems(decision, jobs).length} فعال`}
         />
         {runningItems(decision, jobs).map((item) => (
           <Row
@@ -199,7 +214,7 @@ export default function CommandCenterPage() {
             context={item.context}
             right={
               <StatusLabel tone={item.statusTone}>
-                {item.amount ? `$${item.amount.toLocaleString()} · ` : ""}
+                {item.amount ? `${new Intl.NumberFormat("fa").format(item.amount)} ریال · ` : ""}
                 {item.statusLabel}
               </StatusLabel>
             }
@@ -208,7 +223,7 @@ export default function CommandCenterPage() {
       </section>
 
       <section>
-        <SectionHeading title="Completed today" hint={`${completedToday(decision).length} finished`} />
+        <SectionHeading title="امروز تکمیل‌شده" hint={`${completedToday(decision).length} پایان‌یافته`} />
         {completedToday(decision).map((item) => (
           <Row
             key={item.workflowId}
@@ -218,7 +233,7 @@ export default function CommandCenterPage() {
             context={item.context}
             right={
               <StatusLabel tone={item.statusTone}>
-                {item.amount ? `$${item.amount.toLocaleString()} · ` : ""}
+                {item.amount ? `${new Intl.NumberFormat("fa").format(item.amount)} ریال · ` : ""}
                 {item.statusLabel}
               </StatusLabel>
             }
@@ -227,9 +242,9 @@ export default function CommandCenterPage() {
       </section>
 
       <p className="text-sm text-neutral-400">
-        Need something specific? See{" "}
-        <Link href="/agents" className="underline hover:text-neutral-600">
-          what each agent may do on its own
+        چیز مشخصی لازم دارید؟ ببینید{" "}
+        <Link href="/agents" className="text-brand underline hover:text-brand-hover">
+          آنچه هر عامل به‌تنهایی می‌تواند انجام دهد
         </Link>
         .
       </p>

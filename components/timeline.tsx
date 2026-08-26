@@ -50,13 +50,13 @@ function Marker({ state }: { state: ExecutionStep["state"] }) {
       );
     case "waiting_external":
       return (
-        <span className={`${base} border-[1.5px] border-amber-600 bg-white text-amber-700`}>
+        <span className={`${base} border-[1.5px] border-brand bg-white text-brand`}>
           <Clock size={12} />
         </span>
       );
     case "active":
       return (
-        <span className={`${base} border-[1.5px] border-amber-600 bg-white tnum text-xs text-neutral-900`}>
+        <span className={`${base} border-[1.5px] border-brand bg-brand-soft tnum text-xs text-brand`}>
           ·
         </span>
       );

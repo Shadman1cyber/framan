@@ -3,16 +3,16 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Evidence, QueueItem } from "@/lib/types";
 import { evidenceRecords } from "@/lib/mock-data";
 import { money } from "@/lib/format";
 
-const toneText: Record<QueueItem["statusTone"], string> = {
-  neutral: "text-neutral-500",
-  attention: "text-amber-700",
-  good: "text-green-700",
-  bad: "text-red-700",
+const toneBadge: Record<QueueItem["statusTone"], string> = {
+  neutral: "border-neutral-200 bg-neutral-50 text-neutral-600",
+  attention: "border-amber-200 bg-amber-50 text-amber-800",
+  good: "border-green-200 bg-green-50 text-green-800",
+  bad: "border-red-200 bg-red-50 text-red-700",
 };
 
 export function StatusLabel({
@@ -22,7 +22,13 @@ export function StatusLabel({
   tone: QueueItem["statusTone"];
   children: ReactNode;
 }) {
-  return <span className={`text-sm ${toneText[tone]}`}>{children}</span>;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md border-[0.5px] px-2 py-0.5 text-xs ${toneBadge[tone]}`}
+    >
+      {children}
+    </span>
+  );
 }
 
 export function Row({
@@ -43,7 +49,7 @@ export function Row({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 border-[0.5px] border-borders px-4 py-3 hover:bg-surface ${
+      className={`flex items-center gap-3 border-[0.5px] border-borders px-4 py-3 hover:bg-white ${
         needsYou ? "border-l-2 border-l-amber-600" : ""
       } -mt-[0.5px] first:mt-0`}
     >
@@ -52,7 +58,8 @@ export function Row({
         <span className="block truncate text-sm">{title}</span>
         <span className="block truncate text-sm text-neutral-500">{context}</span>
       </span>
-      {right ? <span className="shrink-0 text-right">{right}</span> : null}
+      {right ? <span className="shrink-0 text-end">{right}</span> : null}
+      <ChevronLeft size={14} className="shrink-0 text-neutral-300" aria-hidden />
     </Link>
   );
 }
@@ -93,7 +100,7 @@ export function PageHeader({
 }
 
 export function Card({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border-[0.5px] border-borders p-5">{children}</div>;
+  return <div className="rounded-xl border-[0.5px] border-borders bg-white p-5 shadow-card">{children}</div>;
 }
 
 export function MetricGroup({ children }: { children: ReactNode }) {
@@ -139,8 +146,8 @@ export function Btn({
     "w-full rounded-md px-4 py-2.5 text-sm transition-colors disabled:cursor-not-allowed sm:w-auto sm:py-2";
   const styles =
     variant === "primary"
-      ? "bg-neutral-900 text-white hover:bg-neutral-800"
-      : "border-[0.5px] border-borders bg-white text-neutral-800 hover:bg-surface";
+      ? "bg-brand text-white hover:bg-brand-hover"
+      : "border-[0.5px] border-borders bg-white text-neutral-700 hover:border-neutral-300 hover:bg-canvas";
   return (
     <button onClick={onClick} disabled={disabled} className={`${base} ${styles}`}>
       {children}
@@ -161,7 +168,7 @@ export function Callout({
     warn: "border-amber-600/60 bg-amber-50",
     danger: "border-red-600/60 bg-red-50",
     good: "border-green-600/60 bg-green-50",
-    info: "border-neutral-300 bg-surface",
+    info: "border-brand/40 bg-brand-soft/60",
   }[tone];
   return (
     <div className={`rounded-md border-l-2 ${styles} p-4`}>
@@ -182,7 +189,7 @@ export function EvidenceChip({ id }: { id: string }) {
         className="inline-flex items-center gap-0.5 rounded border-[0.5px] border-borders bg-surface px-1.5 py-0.5 text-xs text-neutral-600 hover:text-neutral-900"
       >
         {record.id}
-        {record.kind === "policy" ? " · policy" : ""}
+        {record.kind === "policy" ? " · سیاست" : ""}
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
       {open ? (

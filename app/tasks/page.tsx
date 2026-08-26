@@ -11,11 +11,10 @@ export default function TasksPage() {
 
   return (
     <div>
-      <PageHeader title="My tasks" meta="Approvals and reviews waiting on you." />
+      <PageHeader title="کارهای من" meta="تأییدها و بررسی‌هایی که منتظر شما هستند." />
       {items.length === 0 ? (
         <p className="border-[0.5px] border-borders px-4 py-3 text-sm text-neutral-500">
-          Nothing is waiting on you right now. Farman will surface a task here whenever a policy
-          checkpoint or a blocked workflow needs a human.
+          در حال حاضر چیزی در انتظار شما نیست. هرگاه یک نقطه کنترلی سیاست یا جریان کاری متوقف‌شده به انسان نیاز پیدا کند، فرمان آن را همین‌جا نشان می‌دهد.
         </p>
       ) : (
         items.map((item) => (
@@ -33,7 +32,7 @@ export default function TasksPage() {
               <span className="block truncate text-sm text-neutral-500">{item.context}</span>
             </span>
             <StatusLabel tone={item.statusTone}>
-              {item.amount ? `$${item.amount.toLocaleString()} · ` : ""}
+              {item.amount ? `${new Intl.NumberFormat("fa").format(item.amount)} ریال · ` : ""}
               {item.statusLabel}
             </StatusLabel>
           </Link>

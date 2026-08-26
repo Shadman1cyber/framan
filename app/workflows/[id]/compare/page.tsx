@@ -13,6 +13,7 @@ import {
 } from "@/lib/mock-data";
 import type { Decision, Offer } from "@/lib/types";
 import { money } from "@/lib/format";
+import { BarList } from "@/components/charts";
 
 const recommended = offers.find((o) => o.id === recommendation.offerId) as Offer;
 const recommendedId = recommended.id;
@@ -26,13 +27,13 @@ export default function ComparePage() {
       <header className="mb-6">
         <div className="text-sm text-neutral-500">
           <Link href="/workflows/wf-1042" className="hover:text-neutral-700">
-            Workflow wf-1042
+            جریان کار wf-1042
           </Link>{" "}
-          · Compare stage
+          · مرحله مقایسه
         </div>
         <h1 className="mt-1 text-lg">{purchaseRequest.title}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {rfq.responsesReceived} of 3 quotes received · stock needed by{" "}
+          {rfq.responsesReceived} از ۳ پیشنهاد دریافت شد · موجودی لازم تا{" "}
           {purchaseRequest.neededBy}
         </p>
       </header>
@@ -40,13 +41,13 @@ export default function ComparePage() {
       <DecisionNote decision={decision} />
 
       <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium">Offer comparison</h2>
+        <h2 className="mb-3 text-sm font-medium">مقایسه پیشنهادها</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr>
                 <th className="w-40 border-[0.5px] border-borders bg-surface px-4 py-3 text-left font-medium text-neutral-500">
-                  Factor
+                  عامل
                 </th>
                 {offers.map((o) => {
                   const isRec = o.id === recommendedId;
@@ -63,9 +64,9 @@ export default function ComparePage() {
                       >
                         {isRec
                           ? decision === "rejected"
-                            ? "Was recommended"
-                            : "Recommended"
-                          : `Received ${o.receivedAt}`}
+                            ? "پیشنهاد قبلی"
+                            : "پیشنهاد فرمان"
+                          : `دریافت ${o.receivedAt}`}
                       </div>
                     </th>
                   );
@@ -74,7 +75,7 @@ export default function ComparePage() {
             </thead>
             <tbody>
               <FactorRow
-                label="Price"
+                label="قیمت"
                 render={(o) => (
                   <>
                     <span className="tnum">{money(o.total)}</span>
@@ -86,18 +87,18 @@ export default function ComparePage() {
                 noteFor={priceNote}
               />
               <FactorRow
-                label="Lead time"
+                label="زمان تحویل"
                 render={(o) => (
                   <>
                     <span>{o.arrivalLabel}</span>
                     <span className="mt-0.5 flex items-center gap-1 text-xs">
                       {o.meetsDeadline ? (
                         <span className="flex items-center gap-1 text-green-700">
-                          <Check size={12} /> Meets your deadline
+                          <Check size={12} /> مهلت شما را برآورده می‌کند
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-red-700">
-                          <Minus size={12} /> Misses your deadline
+                          <Minus size={12} /> از مهلت می‌گذرد
                         </span>
                       )}
                     </span>
@@ -105,25 +106,25 @@ export default function ComparePage() {
                 )}
               />
               <FactorRow
-                label="Reliability"
+                label="قابلیت اطمینان"
                 render={(o) => (
                   <>
                     <span>{o.reliabilityDisplay}</span>
                     {o.reliabilityConfidence === "unproven" ? (
                       <span className="mt-0.5 block text-xs text-amber-700">
-                        Insufficient evidence — new supplier, nothing to verify against yet
+                        شواهد ناکافی — تأمین‌کننده جدید؛ هنوز مبنایی برای سنجش نیست
                       </span>
                     ) : null}
                     {o.reliabilityConfidence === "low" ? (
                       <span className="mt-0.5 block text-xs text-neutral-500">
-                        Low confidence — based on only 6 recent orders
+                        اطمینان کم — بر پایه تنها ۶ سفارش اخیر
                       </span>
                     ) : null}
                   </>
                 )}
               />
               <FactorRow
-                label="Payment terms"
+                label="شرایط پرداخت"
                 render={(o) => (
                   <>
                     <span>{o.paymentTerms}</span>
@@ -136,18 +137,18 @@ export default function ComparePage() {
                 )}
               />
               <FactorRow
-                label="Policy check"
+                label="بررسی سیاست"
                 render={(o) =>
                   o.policyCheck.state === "pass" ? (
                     <span className="flex items-center gap-1 text-green-700">
-                      <Check size={12} /> Pass
+                      <Check size={12} /> قبول
                       <span className="text-xs text-neutral-500">
                         ({policyName(o.policyCheck.policyCode)})
                       </span>
                     </span>
                   ) : (
                     <>
-                      <span className="text-amber-700">Flagged</span>
+                      <span className="text-amber-700">نشان‌گذاری‌شده</span>
                       <span className="mt-0.5 block text-xs text-neutral-600">
                         {o.policyCheck.note}
                       </span>
@@ -160,8 +161,62 @@ export default function ComparePage() {
         </div>
       </section>
 
+      <section className="mt-8">
+        <h2 className="mb-1 text-sm font-medium">نمای تصویری</h2>
+        <p className="mb-5 text-sm text-neutral-500">
+          طول هر نوار، مقدار همان عامل است؛ ستون تیره پیشنهاد فرمان است.
+        </p>
+        <div className="grid gap-8 sm:grid-cols-3">
+          <div>
+            <div className="mb-3 text-xs text-neutral-400">مجموع قیمت (ریال)</div>
+            <BarList
+              items={offers.map((o) => ({
+                key: o.id,
+                label: supplierName(o),
+                value: o.total,
+                display: money(o.total),
+                tone:
+                  o.id === recommendedId
+                    ? decision === "rejected"
+                      ? "muted"
+                      : "primary"
+                    : o.meetsDeadline
+                      ? "muted"
+                      : "bad",
+              }))}
+            />
+          </div>
+          <div>
+            <div className="mb-3 text-xs text-neutral-400">زمان تحویل (روز)</div>
+            <BarList
+              items={offers.map((o) => ({
+                key: o.id,
+                label: supplierName(o),
+                value: o.leadTimeDays,
+                display: `${o.leadTimeDays} روز`,
+                tone: o.meetsDeadline ? (o.id === recommendedId ? "primary" : "muted") : "bad",
+                note: o.meetsDeadline ? undefined : "از مهلت ۲۸ سپتامبر می‌گذرد",
+              }))}
+            />
+          </div>
+          <div>
+            <div className="mb-3 text-xs text-neutral-400">تحویل به‌موقع</div>
+            <BarList
+              items={offers.map((o) => ({
+                key: o.id,
+                label: supplierName(o),
+                value: o.onTimeRate ?? 0,
+                display: o.reliabilityDisplay,
+                tone: o.reliabilityConfidence === "unproven" ? "bad" : o.id === recommendedId ? "good" : "muted",
+                note: o.reliabilityConfidence === "unproven" ? "بدون سابقه برای سنجش" : undefined,
+              }))}
+            />
+          </div>
+        </div>
+      </section>
+
       <section className="mt-8 space-y-3">
-        <h2 className="text-sm font-medium">Why the other options weren’t picked</h2>
+        <h2 className="text-sm font-medium">چرا سایر گزینه‌ها انتخاب نشدند</h2>
         {others.map((o) => (
           <div key={o.id} className="rounded-md border-[0.5px] border-borders p-4">
             <div className="text-sm">{supplierName(o)}</div>
@@ -207,32 +262,28 @@ function DecisionNote({ decision }: { decision: Decision }) {
   if (decision === "approved") {
     return (
       <Note tone="good">
-        Approved — Packline Industries was selected at {money(recommended.total)}. The order is
-        executing; this comparison is retained as the record of what was considered.
+        تأیید شد — «پک‌لاین اینداستریز» به مبلغ {money(recommended.total)} انتخاب شد. سفارش در حال اجراست؛ این مقایسه به‌عنوان سابقهٔ گزینه‌های بررسی‌شده نگه داشته می‌شود.
       </Note>
     );
   }
   if (decision === "rejected") {
     return (
       <Note tone="danger">
-        Closed without purchase — you rejected the recommendation. All three offers are shown as
-        they stood when the decision was made.
+        بدون خرید بسته شد — شما پیشنهاد را رد کردید. هر سه پیشنهاد به همان شکل لحظهٔ تصمیم نمایش داده می‌شوند.
       </Note>
     );
   }
   if (decision === "change_requested") {
     return (
       <Note tone="info">
-        You asked for changes — the Evaluation agent is pulling updated lead times from all three
-        suppliers. This table updates when the revised recommendation returns.
+        شما اصلاح خواستید — عامل ارزیابی زمان تحویل به‌روز را از هر سه تأمین‌کننده می‌گیرد. این جدول با بازگشت پیشنهاد اصلاح‌شده به‌روز می‌شود.
       </Note>
     );
   }
   if (decision === "evidence_requested") {
     return (
       <Note tone="info">
-        You asked for more evidence — Farman is requesting on-time delivery records for Summit
-        Flexible Packaging references and will add them here.
+        شواهد بیشتر خواستید — فرمان گواهی تحویل به‌موقع مراجع «سامیت فلکسیبل پکیجینگ» را می‌گیرد و همین‌جا اضافه می‌کند.
       </Note>
     );
   }
@@ -244,16 +295,16 @@ function NextStepCard({ decision }: { decision: Decision }) {
   return (
     <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border-[0.5px] border-borders p-5">
       <div>
-        <div className="text-sm">Next: approval</div>
+        <div className="text-sm">گام بعد: تأیید</div>
         <p className="mt-1 text-sm text-neutral-500">
-          Policy POL-2 requires director sign-off above $10,000 before Farman can execute.
+          سیاست POL-2 پیش از اجرا، امضای مدیر را برای بالای ۱۰۰٬۰۰۰٬۰۰۰ ریال لازم می‌داند.
         </p>
       </div>
       <Link
         href="/approvals/apr-1042"
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+        className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
       >
-        Review approval
+        بررسی تأیید
       </Link>
     </div>
   );
@@ -271,7 +322,7 @@ function Note({
       ? "border-green-600 bg-green-50"
       : tone === "danger"
         ? "border-red-600 bg-red-50"
-        : "border-neutral-300 bg-surface";
+        : "border-brand/40 bg-brand-soft/60";
   return (
     <div className={`rounded-md border-l-2 ${styles} p-4 text-sm leading-relaxed`}>
       {children}
@@ -289,9 +340,9 @@ function policyName(code: string): string {
 
 function priceNote(offer: Offer): string {
   const delta = offer.total - recommended.total;
-  if (delta === 0) return "Lowest price among options that meet your deadline";
-  const dir = delta < 0 ? "cheaper" : "more";
-  const base = `${money(Math.abs(delta))} ${dir} than the recommendation`;
-  if (!offer.meetsDeadline) return `${base} — but misses your Sep 28 deadline`;
+  if (delta === 0) return "کم‌ترین قیمت میان گزینه‌های دارای مهلت";
+  const dir = delta < 0 ? "ارزان‌تر" : "گران‌تر";
+  const base = `${money(Math.abs(delta))} ${dir} نسبت به پیشنهاد فرمان`;
+  if (!offer.meetsDeadline) return `${base} — اما مهلت ۲۸ سپتامبر را از دست می‌دهد`;
   return base;
 }

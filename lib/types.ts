@@ -114,6 +114,7 @@ export interface OfferPolicyCheck {
 export interface Offer {
   id: ID;
   supplierId: ID;
+  onTimeRate?: number;
   unitPrice: number;
   total: number;
   leadTimeDays: number;

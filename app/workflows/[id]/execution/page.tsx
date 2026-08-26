@@ -11,6 +11,7 @@ import { purchaseOrder, purchaseRequest } from "@/lib/mock-data";
 import type { Decision } from "@/lib/types";
 import { money } from "@/lib/format";
 import { ExecutionTimeline } from "@/components/timeline";
+import { ProgressLine } from "@/components/charts";
 
 export default function ExecutionPage({ params }: { params: { id: string } }) {
   const { decision } = useDemo();
@@ -23,8 +24,8 @@ export default function ExecutionPage({ params }: { params: { id: string } }) {
     return (
       <EmptyState
         id={params.id}
-        title="No data — execution hasn’t started"
-        body="This workflow hasn’t reached the Execute stage yet. The timeline appears here once an approval is granted and Farman starts acting on it."
+        title="بدون داده — اجرا آغاز نشده است"
+        body="این جریان کار هنوز به مرحلهٔ اجرا نرسیده است. خط زمان پس از صدور تأیید و آغاز اقدام فرمان همین‌جا نمایش داده می‌شود."
       />
     );
   }
@@ -34,11 +35,10 @@ export default function ExecutionPage({ params }: { params: { id: string } }) {
       <div>
         <Header />
         <div className="rounded-md border-l-2 border-red-600 bg-red-50 p-4 text-sm leading-relaxed">
-          Nothing to execute — you rejected the recommendation, so Farman stopped before creating a
-          purchase order. Nothing was sent and nothing will be charged.
+          چیزی برای اجرا نیست — شما پیشنهاد را رد کردید و فرمان پیش از ساخت سفارش خرید متوقف شد. چیزی ارسال نشد و هزینه‌ای در کار نیست.
           <div className="mt-2">
             <Link href="/workflows/wf-1042" className="underline">
-              Back to the workflow
+              بازگشت به جریان کار
             </Link>
           </div>
         </div>
@@ -53,32 +53,42 @@ export default function ExecutionPage({ params }: { params: { id: string } }) {
     <div>
       <Header />
 
-      <p className="mb-6 text-sm text-neutral-700">{summary}</p>
+      <p className="mb-4 text-sm text-neutral-700">{summary}</p>
+
+      {isMain ? (
+        <div className="mb-8">
+          <ProgressLine
+            done={steps.filter((st) => st.state === "done").length + (decision === "approved" ? 1 : 0)}
+            total={6}
+            caption={`${steps.filter((st) => st.state === "done").length} از ۶ گام اجرا تکمیل شده است`}
+          />
+        </div>
+      ) : null}
 
       <section className="max-w-xl">
-        <h2 className="mb-4 text-sm font-medium">Execution timeline</h2>
+        <h2 className="mb-4 text-sm font-medium">خط زمان اجرا</h2>
         <ExecutionTimeline steps={steps} />
       </section>
 
       {isMain && decision === "approved" ? (
         <section className="mt-8 max-w-xl rounded-xl border-[0.5px] border-borders p-5">
-          <h3 className="text-sm font-medium">{purchaseOrder.id}</h3>
+          <h3 className="text-sm font-medium">سفارش خرید {purchaseOrder.id}</h3>
           <dl className="mt-2 space-y-1 text-sm text-neutral-600">
             <div className="flex justify-between gap-4">
-              <dt>Supplier</dt>
+              <dt>تأمین‌کننده</dt>
               <dd>{purchaseOrder.supplierName}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Total</dt>
+              <dt>مجموع</dt>
               <dd className="tnum">{money(purchaseOrder.amount)}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Terms</dt>
-              <dd>Net 30 · payment due Oct 1</dd>
+              <dt>شرایط</dt>
+              <dd>خالص ۳۰ روز · سررسید ۱ اکتبر</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Delivery window</dt>
-              <dd>Arrives Sep 22</dd>
+              <dt>بازهٔ تحویل</dt>
+              <dd>رسیدن ۲۲ سپتامبر</dd>
             </div>
           </dl>
         </section>
@@ -89,12 +99,12 @@ export default function ExecutionPage({ params }: { params: { id: string } }) {
 
 function mainSummary(decision: Decision, done: number): string {
   if (decision === "approved")
-    return `In progress — ${done + 1} of 6 steps complete. Next update when Packline Industries confirms PO-${purchaseOrder.id.replace("PO-", "")}.`;
+    return `در حال پیشرفت — ${done + 1} از ۶ گام کامل است. به‌روزرسانی بعدی هنگام تأیید ${purchaseOrder.id} توسط پک‌لاین اینداستریز.`;
   if (decision === "change_requested")
-    return "Queued — the Evaluation agent is revising the recommendation; execution starts after the revised version is approved.";
+    return "صف شده — عامل ارزیابی پیشنهاد را بازنگری می‌کند؛ اجرا پس از تأیید نسخهٔ اصلاح‌شده آغاز می‌شود.";
   if (decision === "evidence_requested")
-    return "Queued — Farman is collecting the extra evidence you asked for; execution starts after you decide.";
-  return "Queued — all six steps are ready and run automatically once this approval is granted.";
+    return "صف شده — فرمان شواهد بیشتر خواستهٔ شما را جمع می‌کند؛ اجرا پس از تصمیم شما آغاز می‌شود.";
+  return "صف شده — هر شش گام آماده‌اند و به‌محض صدور تأیید خودکار اجرا می‌شوند.";
 }
 
 function Header() {
@@ -104,9 +114,9 @@ function Header() {
         href="/workflows/wf-1042"
         className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700"
       >
-        <ArrowLeft size={12} /> Workflow wf-1042
+        <ArrowLeft size={12} /> جریان کار wf-1042
       </Link>
-      <h1 className="mt-1 text-lg">Execute stage — Q4 retail packaging</h1>
+      <h1 className="mt-1 text-lg">مرحله اجرا — بسته‌بندی فصل چهارم</h1>
       <p className="mt-1 text-sm text-neutral-500">
         {purchaseRequest.quantity.toLocaleString()} pouches for {purchaseRequest.title.includes("kraft") ? "the Q4 launch" : ""}{" "}
         · needed by {purchaseRequest.neededBy}
@@ -122,7 +132,7 @@ function EmptyState({ id, title, body }: { id: string; title: string; body: stri
         href={`/workflows/${id}`}
         className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700"
       >
-        <ArrowLeft size={12} /> Back to workflow
+        <ArrowLeft size={12} /> بازگشت به جریان کار
       </Link>
       <h1 className="mt-3 text-lg">{title}</h1>
       <p className="mt-1 max-w-lg text-sm leading-relaxed text-neutral-500">{body}</p>

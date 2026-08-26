@@ -18,14 +18,15 @@ Respond with ONLY a JSON object, no markdown fences, matching exactly:
 {
   "title": "short sentence-case job title, max 60 chars",
   "summary": "one plain sentence describing what will happen",
-  "stages": ["Specify", "Source", "Compare", "Approve", "Execute", "Complete"],
+  "stages": ["مشخصات", "استعلام", "مقایسه", "تأیید", "اجرا", "تکمیل"],
   "needs_approval": true,
   "policy_note": "plain-language policy reason if approval needed, else omit",
-  "amount": number_or_omit
+  "amount": amount_in_IRR_number_or_omit
 }
 Rules:
 - Keep the standard six stages unless the outcome clearly needs fewer; never invent stage names.
-- Set needs_approval=true and provide policy_note when an order exceeds $10,000 (policy POL-2).
+- Set needs_approval=true and provide policy_note when an order exceeds IRR 100,000,000 (policy POL-2).
+- Write ALL text values (title, summary, policy_note) in formal Persian (Farsi).
 - Sentence case everywhere. No emojis. No text outside the JSON.`;
 
 function parsePlan(raw: string): Plan | null {

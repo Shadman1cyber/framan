@@ -19,7 +19,13 @@ import { Btn, EvidenceChip, MetricGroup, Metric } from "@/components/ui";
 const recommendedId = recommendation.offerId;
 
 export default function ApprovalPage({ params }: { params: { id: string } }) {
-  const { decision, decide, reset } = useDemo();
+  const { decision, decide, reset, user } = useDemo();
+
+  const canDecide =
+    !!user &&
+    (user.roleId === "role-director" ||
+      user.roleId === "role-finance-partner" ||
+      user.id === "u-alex");
 
   if (params.id !== approval.id) {
     return (
@@ -49,7 +55,7 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
         </div>
         <h1 className="mt-1 text-lg">Approval decision</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Requested {approval.requestedAt} · assigned to {approval.assignedToName} ·{" "}
+          درخواست {approval.requestedAt} · واگذارشده به {approval.assignedToName} ·{" "}
           {approval.expiresIn}
         </p>
       </header>
@@ -59,40 +65,39 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
         {/* 1 — what am I approving + 2 — how much */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <Label>What you’re approving</Label>
-            <h2 className="mt-1 text-base">Award to Packline Industries</h2>
+            <Label>چه چیزی را تأیید می‌کنید</Label>
+            <h2 className="mt-1 text-base">پرداخت به پک‌لاین اینداستریز</h2>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-neutral-600">
               {purchaseRequest.quantity.toLocaleString()} kraft stand-up pouches for the Q4 launch,
               delivered by {purchaseRequest.neededBy}.
             </p>
           </div>
           <div className="text-right">
-            <Label>Order total</Label>
+            <Label>مبلغ سفارش</Label>
             <div className="tnum mt-1 text-3xl">{money(approval.amount)}</div>
             <div className="tnum mt-0.5 text-sm text-neutral-500">
-              {money(recommendedOffer.unitPrice)} per unit
+              {money(recommendedOffer.unitPrice)} به ازای هر واحد
             </div>
           </div>
         </div>
 
         {/* 3 — why this option: factor table, no bare scores */}
         <div className="mt-7">
-          <Label>Why this option</Label>
+          <Label>چرا این گزینه</Label>
           <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Farman recommends Packline Industries because it is the lowest-cost offer that meets
-            your Sep 28 deadline from the supplier with the strongest delivery record.
+            فرمان «پک‌لاین اینداستریز» را پیشنهاد می‌کند، زیرا کم‌هزینه‌ترین پیشنهادِ برآورده‌کنندهٔ مهلت ۲۸ سپتامبر است و بهترین سابقهٔ تحویل را دارد.
           </p>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse text-sm">
               <thead>
                 <tr>
                   <th className="w-28 border-[0.5px] border-borders bg-surface px-3 py-2 text-left font-medium text-neutral-500">
-                    Factor
+                    عامل
                   </th>
                   <th className="border-[0.5px] border-borders bg-surface px-3 py-2 text-left align-top">
                     <div>Packline Industries</div>
                     <div className="text-xs font-medium">
-                      {decision === "rejected" ? "Was recommended" : "Recommended"}
+                      {decision === "rejected" ? "پیشنهاد قبلی" : "پیشنهاد فرمان"}
                     </div>
                   </th>
                   {offers
@@ -110,84 +115,84 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
               <tbody>
                 <tr>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top text-neutral-500">
-                    Price
+                    قیمت
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    <span className="tnum">$15,500</span>
+                    <span className="tnum">IRR 155,000,000</span>
                     <span className="block text-xs text-neutral-500">
-                      Lowest among options that meet the deadline
+                      کم‌ترین میان گزینه‌های دارای مهلت
                     </span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    <span className="tnum">$13,000</span>
+                    <span className="tnum">IRR 130,000,000</span>
                     <span className="block text-xs text-neutral-500">
-                      Cheaper, but misses the deadline
+                      ارزان‌تر، اما از مهلت می‌گذرد
                     </span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    <span className="tnum">$18,000</span>
+                    <span className="tnum">IRR 180,000,000</span>
                     <span className="block text-xs text-neutral-500">
-                      $2,500 (16%) more than the recommendation
+                      ۲۵٬۰۰۰٬۰۰۰ ریال (۱۶٪) بیشتر از پیشنهاد فرمان
                     </span>
                   </td>
                 </tr>
                 <tr>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top text-neutral-500">
-                    Lead time
+                    زمان تحویل
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    21 days — arrives Sep 22
+                    ۲۱ روز — رسیدن ۲۲ سپتامبر
                     <span className="block text-xs text-green-700">
-                      Meets Sep 28 with a 6-day buffer
+                      مهلت ۲۸ سپتامبر با ۶ روز ذخیره
                     </span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    35 days — arrives Oct 6
-                    <span className="block text-xs text-red-700">Misses the deadline</span>
+                    ۳۵ روز — رسیدن ۶ اکتبر
+                    <span className="block text-xs text-red-700">از مهلت می‌گذرد</span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    12 days — arrives Sep 13
-                    <span className="block text-xs text-green-700">Meets the deadline</span>
+                    ۱۲ روز — رسیدن ۱۳ سپتامبر
+                    <span className="block text-xs text-green-700">مهلت را برآورده می‌کند</span>
                   </td>
                 </tr>
                 <tr>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top text-neutral-500">
-                    Reliability
+                    قابلیت اطمینان
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    98% on time across 24 orders
+                    ۹۸٪ به‌موقع در ۲۴ سفارش
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    No delivery history
+                    بدون سابقهٔ تحویل
                     <span className="block text-xs text-amber-700">
-                      Insufficient evidence — new supplier
+                      شواهد ناکافی — تأمین‌کننده جدید
                     </span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    89% on time, last 6 orders
+                    ۸۹٪ به‌موقع در ۶ سفارش اخیر
                     <span className="block text-xs text-neutral-500">
-                      3 late deliveries — schedule risk
+                      ۳ تحویل دیرهنگام — ریسک زمانی
                     </span>
                   </td>
                 </tr>
                 <tr>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top text-neutral-500">
-                    Payment terms
+                    شرایط پرداخت
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    Net 30
-                    <span className="block text-xs text-neutral-500">Standard per policy POL-8</span>
+                    خالص ۳۰ روز
+                    <span className="block text-xs text-neutral-500">استاندارد طبق POL-8</span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    Net 45
+                    خالص ۴۵ روز
                     <span className="block text-xs text-neutral-500">
-                      Outside standard terms
+                      خارج از شرایط استاندارد
                     </span>
                   </td>
                   <td className="border-[0.5px] border-borders px-3 py-2 align-top">
-                    Net 30, 2%/10 discount
+                    خالص ۳۰ روز با تخفیف ۲٪/۱۰
                     <span className="block text-xs text-green-700">
-                      Early-pay discount meets POL-8
+                      تخفیف زودهنگام مطابق POL-8
                     </span>
                   </td>
                 </tr>
@@ -198,7 +203,7 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
 
         {/* 4 — risk/policy trigger */}
         <div className="mt-7">
-          <Label>Why this needs you</Label>
+          <Label>چرا این کار با شماست</Label>
           <div className="mt-2 rounded-md border-l-2 border-amber-600 bg-amber-50 p-4 text-sm leading-relaxed">
             {approval.requiredBecause}
           </div>
@@ -206,31 +211,29 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
 
         {/* 5 — what happens if approved */}
         <div className="mt-7">
-          <Label>If you approve</Label>
+          <Label>در صورت تأیید</Label>
           <p className="mt-1 text-sm leading-relaxed text-neutral-700">{approval.ifApproved}</p>
         </div>
 
         {/* Finance impact — inline, phase 7 */}
         <div className="mt-7">
-          <Label>Financial context</Label>
+          <Label>بستر مالی</Label>
           <div className="mt-2">
             <MetricGroup>
-              <Metric label="Cash position today" value={money(company.cashPosition)} />
+              <Metric label="موجودی نقد امروز" value={money(company.cashPosition)} />
               <Metric
-                label="This transaction"
+                label="این تراکنش"
                 value={signedMoney(-approval.amount)}
-                note="Due Oct 1 under Net 30 terms"
+                note="سررسید ۱ اکتبر، خالص ۳۰ روز"
               />
               <Metric
-                label="Packaging budget remaining"
+                label="باقیماندهٔ بودجه بسته‌بندی"
                 value={`${money(remaining)} → ${money(remainingAfter)}`}
-                note={`Of ${money(packaging?.monthlyCap ?? 0)} monthly cap`}
+                note={`از سقف ماهانهٔ ${money(packaging?.monthlyCap ?? 0)}`}
               />
             </MetricGroup>
             <p className="mt-3 text-sm leading-relaxed text-neutral-600">
-              Affordable — the payment lands Oct 1 under Net 30 terms, cash stays positive, and
-              packaging spend remains inside the monthly cap with {money(remainingAfter)} to spare.
-              Checked by the Finance agent at 11:07 (EV-140).
+              مقرون‌به‌صرفه است — پرداخت در ۱ اکتبر با شرایط خالص ۳۰ روز انجام می‌شود؛ موجودی نقد مثبت می‌مانَد و هزینهٔ بسته‌بندی داخل سقف ماهانه با {money(remainingAfter)} ذخیره می‌مانَد. بررسی توسط عامل مالی در ۱۱:۰۷ (EV-140).
             </p>
           </div>
         </div>
@@ -238,31 +241,39 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
         {/* Decision */}
         <div className="mt-8 border-t-[0.5px] border-borders pt-6">
           {decision === "pending" ? (
-            <>
-              <Label>Your decision</Label>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Btn variant="primary" onClick={() => decide("approved")}>
-                  Approve — $15,500
-                </Btn>
-                <Btn onClick={() => decide("rejected")}>Reject</Btn>
-                <Btn onClick={() => decide("change_requested")}>Request change</Btn>
-                <Btn onClick={() => decide("evidence_requested")}>
-                  Ask for more evidence
-                </Btn>
+            canDecide ? (
+              <>
+                <Label>تصمیم شما</Label>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Btn variant="primary" onClick={() => decide("approved")}>
+                    تأیید — ۱۵۵٬۰۰۰٬۰۰۰ ریال
+                  </Btn>
+                  <Btn onClick={() => decide("rejected")}>رد</Btn>
+                  <Btn onClick={() => decide("change_requested")}>درخواست اصلاح</Btn>
+                  <Btn onClick={() => decide("evidence_requested")}>
+                    درخواست شواهد بیشتر
+                  </Btn>
+                </div>
+                <p className="mt-3 text-sm text-neutral-500">
+                  تصمیم شما همراه با شواهد بالا در گزارش حسابرسی ثبت می‌شود.
+                </p>
+              </>
+            ) : (
+              <div className="rounded-md border-l-2 border-borders bg-surface p-4 text-sm leading-relaxed text-neutral-600">
+                این تصمیم به الکس چن (مدیر عملیات) واگذار شده است
+                {user ? `، ${user.name}` : ""}
+                . همه‌چیز را می‌توانید ببینید؛ اما تأیید تنها با مسئول تعیین‌شده یا نقشی با سقف متناسب ممکن است.
               </div>
-              <p className="mt-3 text-sm text-neutral-500">
-                Your decision is recorded in the audit log with the evidence shown above.
-              </p>
-            </>
+            )
           ) : (
             <DecisionResult decision={decision} onReset={reset} />
           )}
         </div>
       </div>
 
-      {/* Supporting evidence */}
+      {/* شواهد پشتیبان */}
       <section className="mt-8">
-        <h2 className="mb-2 text-sm font-medium">Supporting evidence</h2>
+        <h2 className="mb-2 text-sm font-medium">شواهد پشتیبان</h2>
         <EvidenceRow id="EV-110" />
         <EvidenceRow id="EV-111" />
         <EvidenceRow id="EV-112" />
@@ -271,7 +282,7 @@ export default function ApprovalPage({ params }: { params: { id: string } }) {
           href="/activity"
           className="mt-3 inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900"
         >
-          See the full audit trail <ArrowRight size={12} />
+          مشاهدهٔ کامل گزارش حسابرسی <ArrowRight size={12} />
         </Link>
       </section>
     </div>
@@ -290,14 +301,13 @@ function DecisionResult({
       <div>
         <div className="flex items-center gap-2 rounded-md border-l-2 border-green-600 bg-green-50 p-4 text-sm">
           <Check size={14} className="shrink-0 text-green-700" />
-          Approved just now — recorded with evidence EV-110 and policy snapshot EV-120. Farman is
-          executing.
+          همین حالا تأیید شد — همراه با شواهد EV-110 و تصویر سیاست EV-120 ثبت شد. فرمان در حال اجراست.
         </div>
         <Link
           href="/workflows/wf-1042/execution"
-          className="mt-3 inline-flex items-center gap-1 rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          className="mt-3 inline-flex items-center gap-1 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
         >
-          Follow the execution <ArrowRight size={12} />
+          پیگیری اجرا <ArrowRight size={12} />
         </Link>
       </div>
     );
@@ -305,11 +315,10 @@ function DecisionResult({
   if (decision === "rejected") {
     return (
       <div className="rounded-md border-l-2 border-red-600 bg-red-50 p-4 text-sm leading-relaxed">
-        Rejected — the workflow stopped. Nothing was ordered and nothing will be charged. Both
-        losing quotes remain open in case you want to restart sourcing.
+        رد شد — جریان کار متوقف شد. هیچ سفارشی ثبت و هزینه‌ای نشده است. هر دو پیشنهاد دیگر برای آغاز دوبارهٔ تأمین باز می‌مانند.
         <div className="mt-3">
           <Link href="/activity" className="inline-flex items-center gap-1 underline">
-            What happened next <ArrowRight size={12} />
+            آنچه بعد اتفاق افتاد <ArrowRight size={12} />
           </Link>
         </div>
       </div>
@@ -319,19 +328,15 @@ function DecisionResult({
     <div>
       {decision === "change_requested" ? (
         <div className="rounded-md border-l-2 border-amber-600 bg-amber-50 p-4 text-sm leading-relaxed">
-          Change requested — the Evaluation agent is revising the recommendation against updated
-          lead times from all three suppliers. You’ll be notified here within the hour; nothing has
-          been ordered while it works.
+          اصلاح درخواست شد — عامل ارزیابی پیشنهاد را با زمان‌های تحویل به‌روز از هر سه تأمین‌کننده بازنگری می‌کند. حداکثر ظرف یک ساعت همین‌جا خبر داده می‌شود؛ تا آن موقع هیچ سفارشی ثبت نشده است.
         </div>
       ) : (
         <div className="rounded-md border-l-2 border-amber-600 bg-amber-50 p-4 text-sm leading-relaxed">
-          More evidence requested — Farman is asking Summit Flexible Packaging’s references for
-          on-time delivery records, and VerdePack Co. for performance data from comparable
-          customers. The approval returns here with whatever comes back.
+          شواهد بیشتر درخواست شد — فرمان از مراجع «سامیت فلکسیبل پکیجینگ» گواهی تحویل به‌موقع و از «وردپک» دادهٔ عملکرد مشتریان مشابه را می‌خواهد. تأیید با هر چه برسد به همین‌جا بازمی‌گردد.
         </div>
       )}
       <button onClick={onReset} className="mt-3 text-sm text-neutral-400 underline hover:text-neutral-600">
-        Demo: reset to the pending decision
+        نمایشی: بازگشت به وضعیت در انتظار تصمیم
       </button>
     </div>
   );

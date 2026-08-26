@@ -77,7 +77,7 @@ function Circle({ stage }: { stage: Stage }) {
   }
   if (stage.state === "active") {
     return (
-      <span className="tnum flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-amber-600 bg-white text-xs text-neutral-900 sm:h-7 sm:w-7 sm:text-sm">
+      <span className="tnum flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-brand bg-white text-xs text-brand sm:h-7 sm:w-7 sm:text-sm">
         {stageIndexLabel(stage.id)}
       </span>
     );

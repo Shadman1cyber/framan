@@ -8,8 +8,8 @@ export default function BusinessPage() {
   return (
     <div>
       <PageHeader
-        title="Business"
-        meta={`${company.name} · ${company.workspace} workspace`}
+        title="کسب‌وکار"
+        meta={`${company.name} · ${company.workspace} · فضای کاری`}
       />
 
       <MetricGroup>
@@ -18,13 +18,13 @@ export default function BusinessPage() {
             key={c.id}
             label={c.name}
             value={money(c.monthlyCap - c.committed)}
-            note={`remaining of ${money(c.monthlyCap)} cap`}
+            note={`باقی از ${money(c.monthlyCap)} سقف`}
           />
         ))}
       </MetricGroup>
 
       <section className="mt-8">
-        <h2 className="mb-2 text-sm font-medium">People and permissions</h2>
+        <h2 className="mb-2 text-sm font-medium">افراد و دسترسی‌ها</h2>
         <div className="border-[0.5px] border-borders">
           {users.map((u) => {
             const role = roles.find((r) => r.id === u.roleId);
@@ -35,24 +35,23 @@ export default function BusinessPage() {
                   <span className="text-neutral-500">{role?.title}</span>
                 </div>
                 <div className="tnum mt-0.5 text-sm text-neutral-500">
-                  May approve single orders up to {money(role?.approvalLimit ?? 0)}
+                  تأیید سفارش‌های تکی تا {money(role?.approvalLimit ?? 0)}
                 </div>
               </div>
             );
           })}
         </div>
         <p className="mt-2 text-sm text-neutral-400">
-          Roles are managed in{" "}
-          <span className="underline">Policies & permissions</span> (demo: read-only here).
+          نقش‌ها در بخش 
+          <span className="underline">سیاست‌ها و دسترسی‌ها</span> مدیریت می‌شود (در نسخهٔ نمایشی فقط خواندنی).
         </p>
       </section>
 
       <section className="mt-8">
         <Card>
-          <h2 className="text-sm font-medium">Workspaces</h2>
+          <h2 className="text-sm font-medium">فضاهای کاری</h2>
           <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            This demo runs in a single workspace — Operations. In production, each business unit
-            gets its own workspace with isolated policies, budgets, and audit logs.
+            این نسخهٔ نمایشی در یک فضای کاری — عملیات — اجرا می‌شود. در محیط اصلی، هر واحد کسب‌وکار فضای کاری مستقل با سیاست‌ها، بودجه‌ها و حسابرسی جداگانه دارد.
           </p>
         </Card>
       </section>

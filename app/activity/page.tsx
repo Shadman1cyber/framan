@@ -10,10 +10,10 @@ import { EvidenceChip } from "@/components/ui";
 type Filter = "all" | "user" | "agent" | "system";
 
 const filters: Array<{ key: Filter; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "user", label: "Human decisions" },
-  { key: "agent", label: "Agent actions" },
-  { key: "system", label: "System" },
+  { key: "all", label: "همه" },
+  { key: "user", label: "تصمیم‌های انسانی" },
+  { key: "agent", label: "اقدامات عامل‌ها" },
+  { key: "system", label: "سیستم" },
 ];
 
 export default function ActivityPage() {
@@ -26,10 +26,9 @@ export default function ActivityPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-lg">Activity & audit log</h1>
+        <h1 className="text-lg">گزارش فعالیت و حسابرسی</h1>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-neutral-500">
-          Every consequential action Farman takes or asks for, with who initiated it, which policy
-          applied, and the evidence behind it.
+          هر اقدام مهم فرمان یا درخواست او، همراه با آغازگر، سیاست اعمال‌شده و شواهد پشت آن.
         </p>
       </header>
 
@@ -56,11 +55,11 @@ export default function ActivityPage() {
       </ol>
 
       <p className="mt-8 text-sm text-neutral-400">
-        Events are retained permanently. See{" "}
-        <Link href="/policies" className="underline hover:text-neutral-600">
-          policies
+        رویدادها برای همیشه نگهداری می‌شوند. بخش 
+        <Link href="/policies" className="text-brand underline hover:text-brand-hover">
+          سیاست‌ها
         </Link>{" "}
-        for the rules referenced above.
+        قواعد ارجاع‌شده در بالا را ببینید.
       </p>
     </div>
   );
@@ -98,10 +97,10 @@ function EventRow({ event }: { event: ActivityEvent }) {
             href="/policies"
             className="text-neutral-700 underline decoration-neutral-300 hover:decoration-neutral-700"
           >
-            Policy {event.policyCode}
+            سیاست {event.policyCode}
           </Link>
         ) : null}
-        <span>Outcome: {event.outcome}</span>
+        <span>نتیجه: {event.outcome}</span>
       </div>
       {event.evidenceIds.length > 0 ? (
         <div className="mt-2 flex flex-wrap items-start gap-1.5">

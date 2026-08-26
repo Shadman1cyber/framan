@@ -19,6 +19,14 @@ interface JobState {
   nextIndex: number;
 }
 
+export interface SessionUser {
+  id: string;
+  name: string;
+  title: string;
+  roleId: string;
+  approvalLimit: number;
+}
+
 type Action =
   | { type: "decide"; decision: Exclude<Decision, "pending"> }
   | { type: "add_job"; job: Omit<ChatJob, "id">; id: string }
@@ -45,6 +53,7 @@ function reducer(
 }
 
 interface DemoContextValue extends DemoState, JobState {
+  user: SessionUser | null;
   decide: (decision: Exclude<Decision, "pending">) => void;
   addJob: (job: Omit<ChatJob, "id">) => string;
   reset: () => void;
@@ -54,7 +63,13 @@ const DemoContext = createContext<DemoContextValue | null>(null);
 
 let jobCounter = 0;
 
-export function DemoProvider({ children }: { children: ReactNode }) {
+export function DemoProvider({
+  children,
+  initialUser = null,
+}: {
+  children: ReactNode;
+  initialUser?: SessionUser | null;
+}) {
   const [state, dispatch] = useReducer(reducer, {
     decision: "pending" as Decision,
     jobs: [] as ChatJob[],
@@ -63,6 +78,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DemoContextValue>(
     () => ({
       ...state,
+      user: initialUser,
       decide: (decision) => dispatch({ type: "decide", decision }),
       addJob: (job) => {
         // Stable-enough id for a single-tab demo session.
@@ -75,7 +91,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "reset" });
       },
     }),
-    [state],
+    [state, initialUser],
   );
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
 }

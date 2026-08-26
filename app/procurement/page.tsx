@@ -13,12 +13,12 @@ export default function ProcurementPage() {
   return (
     <div>
       <PageHeader
-        title="Procurement"
-        meta="Purchase requests and their sourcing state."
+        title="تدارکات"
+        meta="درخواست‌های خرید و وضعیت تأمین آن‌ها."
       />
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-medium">Active request</h2>
+        <h2 className="mb-2 text-sm font-medium">درخواست فعال</h2>
         <Link
           href="/approvals/apr-1042"
           className="-mt-[0.5px] flex items-center gap-3 border-[0.5px] border-l-2 border-l-amber-600 border-borders px-4 py-3 hover:bg-surface"
@@ -27,18 +27,18 @@ export default function ProcurementPage() {
             <span className="block text-sm">{purchaseRequest.title}</span>
             <span className="block truncate text-sm text-neutral-500">
               PR-{purchaseRequest.id.replace("pr-", "")} · {purchaseRequest.quantity.toLocaleString()}{" "}
-              {purchaseRequest.unitLabel} · {rfq.responsesReceived} quotes in · needed by{" "}
+              {purchaseRequest.unitLabel} · {rfq.responsesReceived} پیشنهاد دریافت شد · لازم تا{" "}
               {purchaseRequest.neededBy}
             </span>
           </span>
           <StatusLabel tone="attention">
-            ${"15,500"} · Approval required
+            ۱۵۵٬۰۰۰٬۰۰۰ ریال · نیازمند تأیید
           </StatusLabel>
         </Link>
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium">All procurement workflows</h2>
+        <h2 className="mb-2 text-sm font-medium">همهٔ جریان‌های کار تدارکات</h2>
         {workflows.map((w) => {
           const view = getWorkflow(w.id, decision);
           return (

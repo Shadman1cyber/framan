@@ -8,12 +8,12 @@ export default function PoliciesPage() {
   return (
     <div>
       <PageHeader
-        title="Policies & permissions"
-        meta="The rules Farman enforces. Agents cannot bypass them; they stop and ask instead."
+        title="سیاست‌ها و دسترسی‌ها"
+        meta="قواعدی که فرمان اعمال می‌کند. عامل‌ها نمی‌توانند دورشان بزنند؛ می‌ایستند و می‌پرسند."
       />
 
       <section>
-        <h2 className="mb-2 text-sm font-medium">Active policies</h2>
+        <h2 className="mb-2 text-sm font-medium">سیاست‌های فعال</h2>
         <div className="space-y-[0.5px]">
           {policies.map((p) => (
             <div key={p.id} className="border-[0.5px] border-borders px-4 py-3">
@@ -24,21 +24,21 @@ export default function PoliciesPage() {
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-neutral-600">
                 {p.description}
               </p>
-              <p className="mt-1 text-sm text-neutral-500">Triggers when: {p.trigger}</p>
+              <p className="mt-1 text-sm text-neutral-500">فعال می‌شود وقتی: {p.trigger}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-2 text-sm font-medium">Roles and approval limits</h2>
+        <h2 className="mb-2 text-sm font-medium">نقش‌ها و سقف تأیید</h2>
         <div className="space-y-[0.5px]">
           {roles.map((r) => (
             <div key={r.id} className="border-[0.5px] border-borders px-4 py-3">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-sm">
                 <span>{r.title}</span>
                 <span className="tnum text-neutral-500">
-                  up to {money(r.approvalLimit)} per order
+                  برای هر سفارش تا {money(r.approvalLimit)}
                 </span>
               </div>
               <ul className="mt-1 grid gap-x-8 gap-y-0.5 pl-4 text-sm text-neutral-600 sm:grid-cols-2">
@@ -49,7 +49,7 @@ export default function PoliciesPage() {
                 ))}
                 {r.cannotApprove.map((x) => (
                   <li key={x} className="list-disc text-neutral-500">
-                    Cannot: {x}
+                    خیر: {x}
                   </li>
                 ))}
               </ul>
