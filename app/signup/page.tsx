@@ -43,13 +43,13 @@ export default function SignupPage() {
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) {
-        setError(data.error ?? "Sign-up failed. Try again.");
+        setError(data.error ?? "ثبت‌نام ناموفق بود. دوباره تلاش کنید.");
         return;
       }
       router.push("/");
       router.refresh();
     } catch {
-      setError("Could not reach the server — check that it is running.");
+      setError("به سرور دسترسی نشد — بررسی کنید سرور روشن است.");
     } finally {
       setBusy(false);
     }
@@ -150,7 +150,7 @@ export default function SignupPage() {
       <p className="mt-4 text-sm text-neutral-500">
         قبلاً حساب ساخته‌اید؟ 
         <Link href="/login" className="underline hover:text-neutral-700">
-          Sign in
+          ورود
         </Link>
       </p>
     </div>

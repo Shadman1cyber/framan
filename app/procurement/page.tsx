@@ -6,6 +6,7 @@ import { getWorkflow, getStatusTone } from "@/lib/views";
 import { purchaseRequest, rfq, workflows } from "@/lib/mock-data";
 import type { Workflow } from "@/lib/types";
 import { PageHeader, StatusLabel } from "@/components/ui";
+import { money } from "@/lib/format";
 
 export default function ProcurementPage() {
   const { decision } = useDemo();
@@ -68,7 +69,7 @@ function RowLink({
         <span className="block truncate text-sm">{wf.title}</span>
         <span className="block truncate text-sm text-neutral-500">{statusLine}</span>
       </span>
-      <StatusLabel tone={tone}>{wf.amount ? `$${wf.amount.toLocaleString()}` : ""}</StatusLabel>
+      <StatusLabel tone={tone}>{wf.amount ? money(wf.amount) : ""}</StatusLabel>
     </Link>
   );
 }
