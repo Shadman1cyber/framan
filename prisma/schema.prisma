@@ -1,0 +1,261 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String?        @unique
+  phone         String?        @unique
+  passwordHash  String?
+  role          String         @default("CUSTOMER")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  allergies     UserAllergy[]
+  preferences   UserPreference[]
+  orders        Order[]
+  ratings       Rating[]
+  dietaryTags   UserDietaryTag[]
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  nameFa      String
+  nameEn      String?
+  icon        String?
+  description String?
+  image       String?
+  order       Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  products    Product[]
+}
+
+model Ingredient {
+  id          String                  @id @default(cuid())
+  nameFa      String
+  nameEn      String?
+  description String?
+  isAllergen   Boolean                @default(false)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  products    ProductIngredient[]
+  allergens   IngredientAllergen[]
+}
+
+model Allergen {
+  id          String                  @id @default(cuid())
+  key         String                  @unique
+  nameFa      String
+  nameEn      String
+  description String?
+  icon        String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  ingredients IngredientAllergen[]
+  products    ProductAllergen[]
+  users       UserAllergy[]
+}
+
+model IngredientAllergen {
+  ingredientId String
+  allergenId   String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  allergen     Allergen   @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+  @@id([ingredientId, allergenId])
+}
+
+model DietaryTag {
+  id        String             @id @default(cuid())
+  key       String             @unique
+  nameFa    String
+  nameEn    String
+  icon      String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  products  ProductDietaryTag[]
+  users     UserDietaryTag[]
+}
+
+model UserDietaryTag {
+  userId       String
+  dietaryTagId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dietaryTag   DietaryTag @relation(fields: [dietaryTagId], references: [id], onDelete: Cascade)
+  @@id([userId, dietaryTagId])
+}
+
+model Product {
+  id            String              @id @default(cuid())
+  slug          String              @unique
+  nameFa        String
+  nameEn        String?
+  description   String
+  price         Int
+  image         String?
+  categoryId    String
+  isAvailable   Boolean             @default(true)
+  isFeatured    Boolean             @default(false)
+  order         Int                 @default(0)
+  allergenStatus String             @default("UNKNOWN")
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  ingredients   ProductIngredient[]
+  allergens     ProductAllergen[]
+  dietaryTags   ProductDietaryTag[]
+  ratings       Rating[]
+  orderItems    OrderItem[]
+  @@index([categoryId])
+  @@index([isFeatured])
+}
+
+model ProductIngredient {
+  productId    String
+  ingredientId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  @@id([productId, ingredientId])
+}
+
+model ProductAllergen {
+  productId  String
+  allergenId String
+  status     String        @default("CONTAINS")
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  allergen   Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+  @@id([productId, allergenId])
+}
+
+model ProductDietaryTag {
+  productId    String
+  dietaryTagId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  dietaryTag   DietaryTag @relation(fields: [dietaryTagId], references: [id], onDelete: Cascade)
+  @@id([productId, dietaryTagId])
+}
+
+model UserAllergy {
+  id        String   @id @default(cuid())
+  userId    String
+  allergenId String
+  severity  String   @default("AVOID")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allergen  Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+  @@unique([userId, allergenId])
+}
+
+model UserPreference {
+  id        String              @id @default(cuid())
+  userId    String
+  key       String
+  value     String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, key])
+}
+
+model Cafe {
+  id        String   @id @default(cuid())
+  nameFa    String
+  nameEn    String?
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branches  Branch[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  cafeId    String
+  nameFa    String
+  nameEn    String?
+  slug      String   @unique
+  address   String?
+  isActive  Boolean  @default(true)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  tables    CafeTable[]
+  qrCodes   QRCode[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CafeTable {
+  id        String   @id @default(cuid())
+  branchId  String
+  number    String
+  label     String?
+  isActive  Boolean  @default(true)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  qrCodes   QRCode[]
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([branchId, number])
+}
+
+model QRCode {
+  id        String     @id @default(cuid())
+  code      String     @unique
+  branchId  String
+  tableId   String?
+  label     String?
+  isActive  Boolean    @default(true)
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table     CafeTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  orders    Order[]
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String?
+  qrCodeId   String?
+  tableId    String?
+  status     String      @default("PENDING")
+  total      Int
+  customerName  String?
+  customerPhone String?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  qrCode     QRCode?     @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  table      CafeTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  @@index([status])
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Int
+  notes     String?
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([userId, productId])
+  @@index([productId])
+}
