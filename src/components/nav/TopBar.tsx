@@ -13,6 +13,8 @@ export function TopBar({
   const { data: session } = useSession();
   const user = session?.user;
   const role = (user as { role?: string } | undefined)?.role;
+  // Rule 7: management accounts do not get customer shopping features.
+  const isManagement = role === "ADMIN" || role === "STAFF" || role === "OWNER" || role === "CASHIER";
 
   return (
     <header className="sticky top-0 z-30 border-b border-coffee/10 bg-cream-50/80 backdrop-blur">
@@ -28,7 +30,7 @@ export function TopBar({
           )}
           {user ? (
             <>
-              {role === "ADMIN" || role === "STAFF" ? (
+              {isManagement ? (
                 <Link
                   href="/admin"
                   className="hidden items-center gap-1 rounded-xl border border-olive/30 bg-olive-50 px-3 py-2 text-xs font-medium text-olive-700 transition-colors hover:bg-olive-100 md:inline-flex"
@@ -60,14 +62,16 @@ export function TopBar({
               </Link>
             </>
           )}
-          <Link
-            href="/cart"
-            className="relative inline-flex items-center gap-1 rounded-xl border border-coffee/15 bg-cream-50 px-3 py-2 text-sm hover:bg-beige"
-            aria-label="سبد خرید"
-          >
-            <span aria-hidden="true">🧺</span>
-            <span className="hidden md:inline">سبد</span>
-          </Link>
+          {!isManagement && (
+            <Link
+              href="/cart"
+              className="relative inline-flex items-center gap-1 rounded-xl border border-coffee/15 bg-cream-50 px-3 py-2 text-sm hover:bg-beige"
+              aria-label="سبد خرید"
+            >
+              <span aria-hidden="true">🧺</span>
+              <span className="hidden md:inline">سبد</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

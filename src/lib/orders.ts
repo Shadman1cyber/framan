@@ -1,6 +1,12 @@
-import { ORDER_STATUSES, type OrderStatus } from "./constants";
+import {
+  ORDER_STATUSES,
+  type OrderStatus,
+  type OrderType,
+} from "./constants";
 import { prisma } from "./db";
 import { validateAndPriceCart, type CartItemInput } from "./cart";
+import { orderPreparationEstimator } from "./estimator";
+import { transitionOrderAtomic } from "./business/orders-write";
 
 export type CreateOrderInput = {
   userId?: string | null;
@@ -15,6 +21,25 @@ export class OrderError extends Error {
   constructor(public code: string, message: string) {
     super(message);
   }
+}
+
+async function countStaff() {
+  const [chefs, staff] = await Promise.all([
+    prisma.staff.count({ where: { isActive: true, role: "CHEF" } }),
+    prisma.staff.count({ where: { isActive: true, role: { not: "CHEF" } } }),
+  ]);
+  return { chefs: chefs || 1, staff };
+}
+
+async function countActiveLoad() {
+  const orders = await prisma.order.findMany({
+    where: { status: { in: ["PENDING", "CONFIRMED", "PREPARING"] } },
+    select: { _count: { select: { items: true } } },
+  });
+  return {
+    activeOrders: orders.length,
+    activeItems: orders.reduce((s, o) => s + o._count.items, 0),
+  };
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -48,21 +73,60 @@ export async function createOrder(input: CreateOrderInput) {
     tableId = qr.tableId;
   }
 
+  const orderType: OrderType = tableId ? "TABLE" : "TAKEAWAY";
+
+  // Preparation estimate (best effort; never blocks order placement).
+  let estimate: { minMinutes: number; maxMinutes: number; factors: unknown } | null = null;
+  try {
+    const ingredientCounts = await prisma.productIngredient.groupBy({
+      by: ["productId"],
+      where: { productId: { in: priced.items.map((i) => i.productId) } },
+      _count: { _all: true },
+    });
+    const countByProduct = new Map(ingredientCounts.map((g) => [g.productId, g._count._all]));
+    const [{ chefs, staff }, load] = await Promise.all([countStaff(), countActiveLoad()]);
+    const est = orderPreparationEstimator.estimate({
+      items: priced.items.map((i) => ({
+        quantity: i.quantity,
+        prepBaseMin: i.prepBaseMin,
+        ingredientCount: countByProduct.get(i.productId) ?? 0,
+      })),
+      activeOrders: load.activeOrders,
+      activeItems: load.activeItems,
+      chefs,
+      staff,
+    });
+    estimate = {
+      minMinutes: est.minMinutes,
+      maxMinutes: est.maxMinutes,
+      factors: est.factors,
+    };
+  } catch {
+    estimate = null;
+  }
+
   const order = await prisma.order.create({
     data: {
       userId: input.userId ?? null,
       qrCodeId,
       tableId,
+      orderType,
       status: "PENDING",
       total: priced.total,
       customerName: input.customerName ?? null,
       customerPhone: input.customerPhone ?? null,
       notes: input.notes ?? null,
+      estPrepMin: estimate?.minMinutes ?? null,
+      estPrepMax: estimate?.maxMinutes ?? null,
+      prepFactors: estimate ? JSON.stringify(estimate.factors) : null,
       items: {
         create: priced.items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
           price: i.unitPrice,
+          coffeeLineId: i.coffeeLineId,
+          coffeeLineName: i.coffeeLineName,
+          optionPrice: i.optionPrice,
         })),
       },
     },
@@ -72,30 +136,46 @@ export async function createOrder(input: CreateOrderInput) {
   return order;
 }
 
+/**
+ * State machine, strictly per order type:
+ *  TABLE:    PENDING -> CONFIRMED -> PREPARING -> COMPLETED
+ *  TAKEAWAY: PENDING -> CONFIRMED -> PREPARING -> READY(آماده تحویل) -> COMPLETED
+ *
+ * Business rules enforced here (not only in UI):
+ *  - Table orders have NO pickup/serve step: they cannot enter READY and
+ *    can only be completed from PREPARING.
+ *  - Takeaway orders must pass through READY before COMPLETED.
+ *  - Cancellation is allowed until the order is handed to the customer.
+ */
 const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["PREPARING", "CANCELLED"],
-  PREPARING: ["READY", "CANCELLED"],
-  READY: ["COMPLETED", "CANCELLED"],
+  PREPARING: ["READY", "COMPLETED", "CANCELLED"],
+  READY: ["COMPLETED"],
   COMPLETED: [],
   CANCELLED: [],
 };
 
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
+export function canTransition(
+  from: OrderStatus,
+  to: OrderStatus,
+  orderType: OrderType = "TAKEAWAY",
+): boolean {
+  if (!ORDER_STATUSES.includes(from) || !ORDER_STATUSES.includes(to)) return false;
+  // Rule: READY is takeaway-only.
+  if (to === "READY" && orderType !== "TAKEAWAY") return false;
+  // Rule: only table orders may skip READY and complete directly from PREPARING.
+  if (from === "PREPARING" && to === "COMPLETED" && orderType !== "TABLE") return false;
   return STATUS_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+export function nextStatuses(status: OrderStatus, orderType: OrderType): OrderStatus[] {
+  return (STATUS_TRANSITIONS[status] ?? []).filter((s) => canTransition(status, s, orderType));
+}
+
 export async function transitionOrder(orderId: string, next: string) {
-  if (!ORDER_STATUSES.includes(next as OrderStatus)) {
-    throw new OrderError("INVALID_STATUS", "وضعیت نامعتبر است");
-  }
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) throw new OrderError("NOT_FOUND", "سفارش پیدا نشد");
-  if (!canTransition(order.status as OrderStatus, next as OrderStatus)) {
-    throw new OrderError("INVALID_TRANSITION", "تغییر وضعیت مجاز نیست");
-  }
-  return prisma.order.update({
-    where: { id: orderId },
-    data: { status: next },
-  });
+  // Delegates to the single shared implementation: order mutation, related
+  // table release and (optionally) the agent receipt commit in one transaction.
+  const { order } = await prisma.$transaction(tx => transitionOrderAtomic(tx, orderId, next));
+  return order as never;
 }

@@ -17,12 +17,19 @@ async function main() {
   await prisma.userAllergy.deleteMany();
   await prisma.userPreference.deleteMany();
   await prisma.userDietaryTag.deleteMany();
+  await prisma.productCoffeeLine.deleteMany();
+  await prisma.coffeeLine.deleteMany();
+  await prisma.productImage.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
   await prisma.ingredientAllergen.deleteMany();
   await prisma.ingredient.deleteMany();
   await prisma.allergen.deleteMany();
   await prisma.dietaryTag.deleteMany();
+  await prisma.staff.deleteMany();
+  await prisma.aIInsight.deleteMany();
+  await prisma.importJob.deleteMany();
+  await prisma.setting.deleteMany();
   await prisma.user.deleteMany();
 
   const allergens = await Promise.all(
@@ -54,31 +61,32 @@ async function main() {
 
   const ingredients = await Promise.all(
     [
-      { nameFa: "اسپرسو", nameEn: "Espresso" },
-      { nameFa: "شیر تازه", nameEn: "Fresh Milk", isAllergen: true },
-      { nameFa: "شیر جو دوسر", nameEn: "Oat Milk" },
-      { nameFa: "شیر بادام", nameEn: "Almond Milk", isAllergen: true },
-      { nameFa: "شکر قهوه‌ای", nameEn: "Brown Sugar" },
-      { nameFa: "وانیل", nameEn: "Vanilla" },
-      { nameFa: "کاکائو", nameEn: "Cocoa" },
-      { nameFa: "کره", nameEn: "Butter", isAllergen: true },
-      { nameFa: "تخم مرغ", nameEn: "Egg", isAllergen: true },
-      { nameFa: "آرد گندم", nameEn: "Wheat Flour", isAllergen: true },
-      { nameFa: "گردو", nameEn: "Walnut", isAllergen: true },
-      { nameFa: "بادام", nameEn: "Almond", isAllergen: true },
-      { nameFa: "کنجد", nameEn: "Sesame", isAllergen: true },
-      { nameFa: "پنیر موزارلا", nameEn: "Mozzarella", isAllergen: true },
-      { nameFa: "مرغ", nameEn: "Chicken" },
-      { nameFa: "ماهی سالمون", nameEn: "Salmon", isAllergen: true },
-      { nameFa: "روغن زیتون", nameEn: "Olive Oil" },
-      { nameFa: "گوجه فرنگی", nameEn: "Tomato" },
-      { nameFa: "ریحان", nameEn: "Basil" },
-      { nameFa: "عسل", nameEn: "Honey" },
-      { nameFa: "کشمش", nameEn: "Raisin" },
-      { nameFa: "سیب", nameEn: "Apple" },
-      { nameFa: "نعناع", nameEn: "Mint" },
-      { nameFa: "لیمو", nameEn: "Lemon" },
-      { nameFa: "یخ", nameEn: "Ice" },
+      { nameFa: "اسپرسو", nameEn: "Espresso", unit: "GRAM", stockQuantity: 5000, minQuantity: 1000, costPerUnit: 800, supplier: "قهوه ستاره" },
+      { nameFa: "دانه قهوه اتیوپی", nameEn: "Ethiopia Beans", unit: "GRAM", stockQuantity: 3000, minQuantity: 800, costPerUnit: 1600, supplier: "قهوه ستاره" },
+      { nameFa: "شیر تازه", nameEn: "Fresh Milk", isAllergen: true, unit: "MILLILITER", stockQuantity: 12000, minQuantity: 4000, costPerUnit: 28, supplier: "پگاه" },
+      { nameFa: "شیر جو دوسر", nameEn: "Oat Milk", unit: "MILLILITER", stockQuantity: 6000, minQuantity: 2000, costPerUnit: 65 },
+      { nameFa: "شیر بادام", nameEn: "Almond Milk", isAllergen: true, unit: "MILLILITER", stockQuantity: 3000, minQuantity: 1000, costPerUnit: 90 },
+      { nameFa: "شکر قهوه‌ای", nameEn: "Brown Sugar", unit: "GRAM", stockQuantity: 8000, minQuantity: 2000, costPerUnit: 45 },
+      { nameFa: "وانیل", nameEn: "Vanilla", unit: "MILLILITER", stockQuantity: 500, minQuantity: 200, costPerUnit: 900 },
+      { nameFa: "کاکائو", nameEn: "Cocoa", unit: "GRAM", stockQuantity: 2000, minQuantity: 500, costPerUnit: 320 },
+      { nameFa: "کره", nameEn: "Butter", isAllergen: true, unit: "GRAM", stockQuantity: 2500, minQuantity: 800, costPerUnit: 420 },
+      { nameFa: "تخم مرغ", nameEn: "Egg", isAllergen: true, unit: "UNIT", stockQuantity: 180, minQuantity: 60, costPerUnit: 3500 },
+      { nameFa: "آرد گندم", nameEn: "Wheat Flour", isAllergen: true, unit: "GRAM", stockQuantity: 15000, minQuantity: 5000, costPerUnit: 22 },
+      { nameFa: "گردو", nameEn: "Walnut", isAllergen: true, unit: "GRAM", stockQuantity: 1200, minQuantity: 400, costPerUnit: 380 },
+      { nameFa: "بادام", nameEn: "Almond", isAllergen: true, unit: "GRAM", stockQuantity: 900, minQuantity: 300, costPerUnit: 520 },
+      { nameFa: "کنجد", nameEn: "Sesame", isAllergen: true, unit: "GRAM", stockQuantity: 700, minQuantity: 200, costPerUnit: 180 },
+      { nameFa: "پنیر موزارلا", nameEn: "Mozzarella", isAllergen: true, unit: "GRAM", stockQuantity: 4000, minQuantity: 1500, costPerUnit: 260 },
+      { nameFa: "مرغ", nameEn: "Chicken", unit: "GRAM", stockQuantity: 6000, minQuantity: 2000, costPerUnit: 180 },
+      { nameFa: "ماهی سالمون", nameEn: "Salmon", isAllergen: true, unit: "GRAM", stockQuantity: 1500, minQuantity: 600, costPerUnit: 850 },
+      { nameFa: "روغن زیتون", nameEn: "Olive Oil", unit: "MILLILITER", stockQuantity: 4000, minQuantity: 1000, costPerUnit: 210 },
+      { nameFa: "گوجه فرنگی", nameEn: "Tomato", unit: "GRAM", stockQuantity: 5000, minQuantity: 1500, costPerUnit: 25 },
+      { nameFa: "ریحان", nameEn: "Basil", unit: "GRAM", stockQuantity: 300, minQuantity: 150, costPerUnit: 150 },
+      { nameFa: "عسل", nameEn: "Honey", unit: "GRAM", stockQuantity: 1500, minQuantity: 500, costPerUnit: 480 },
+      { nameFa: "کشمش", nameEn: "Raisin", unit: "GRAM", stockQuantity: 800, minQuantity: 300, costPerUnit: 120 },
+      { nameFa: "سیب", nameEn: "Apple", unit: "GRAM", stockQuantity: 7000, minQuantity: 2000, costPerUnit: 30 },
+      { nameFa: "نعناع", nameEn: "Mint", unit: "GRAM", stockQuantity: 250, minQuantity: 100, costPerUnit: 90 },
+      { nameFa: "لیمو", nameEn: "Lemon", unit: "UNIT", stockQuantity: 60, minQuantity: 20, costPerUnit: 4000 },
+      { nameFa: "یخ", nameEn: "Ice", unit: "GRAM", stockQuantity: 20000, minQuantity: 5000, costPerUnit: 2 },
     ].map((i) => prisma.ingredient.create({ data: i })),
   );
   const ingByKey = Object.fromEntries(ingredients.map((i) => [i.nameFa, i]));
@@ -117,6 +125,16 @@ async function main() {
   );
   const catBySlug = Object.fromEntries(categories.map((c) => [c.slug, c]));
 
+  const coffeeLines = await Promise.all(
+    [
+      { nameFa: "بلند خانه", nameEn: "House Blend" },
+      { nameFa: "اتیوپی", nameEn: "Ethiopia" },
+      { nameFa: "کلمبیا", nameEn: "Colombia" },
+      { nameFa: "رزرو ویژه", nameEn: "Special Reserve" },
+    ].map((c) => prisma.coffeeLine.create({ data: c })),
+  );
+  const lineByName = Object.fromEntries(coffeeLines.map((c) => [c.nameEn, c]));
+
   const img = (q: string) =>
     `https://images.unsplash.com/${q}?auto=format&fit=crop&w=900&q=80`;
 
@@ -129,261 +147,178 @@ async function main() {
     image: string;
     category: string;
     isFeatured?: boolean;
-    isAvailable?: boolean;
-    allergenStatus?: "SAFE" | "UNKNOWN" | "CONTAINS";
-    ingredients: string[];
-    allergens?: Array<{ key: string; status?: "CONTAINS" | "MAY_CONTAIN" }>;
+    prepBaseMin?: number;
+    ingredients: Array<[string, number, string?]>;
+    allergens?: string[];
     dietary?: string[];
+    coffeeLinePrices?: Array<[string, number]>;
   };
 
   const products: ProductSeed[] = [
     {
-      slug: "espresso",
-      nameFa: "اسپرسو",
-      nameEn: "Espresso",
+      slug: "espresso", nameFa: "اسپرسو", nameEn: "Espresso",
       description: "یک شات اسپرسوی غلیظ و معطر، عصاره‌ی خالص دانه‌های تازه آسیاب شده.",
-      price: 85000,
-      image: img("photo-1510707577719-ae7c14805e3a"),
-      category: "coffee",
-      isFeatured: true,
-      allergenStatus: "SAFE",
-      ingredients: ["اسپرسو"],
+      price: 85000, image: img("photo-1510707577719-ae7c14805e3a"), category: "coffee",
+      isFeatured: true, prepBaseMin: 2,
+      ingredients: [["اسپرسو", 18, "GRAM"]],
       dietary: ["VEGAN", "GLUTEN_FREE", "DAIRY_FREE"],
+      coffeeLinePrices: [["House Blend", 85000], ["Ethiopia", 105000], ["Colombia", 115000], ["Special Reserve", 155000]],
     },
     {
-      slug: "cappuccino",
-      nameFa: "کاپوچینو",
-      nameEn: "Cappuccino",
+      slug: "cappuccino", nameFa: "کاپوچینو", nameEn: "Cappuccino",
       description: "اسپرسو با شیر بخار داده شده و کف مخملی.",
-      price: 120000,
-      image: img("photo-1572442388796-11668a67e53d"),
-      category: "coffee",
-      isFeatured: true,
-      allergenStatus: "CONTAINS",
-      ingredients: ["اسپرسو", "شیر تازه"],
-      allergens: [{ key: "MILK" }],
+      price: 120000, image: img("photo-1572442388796-11668a67e53d"), category: "coffee",
+      isFeatured: true, prepBaseMin: 4,
+      ingredients: [["اسپرسو", 18, "GRAM"], ["شیر تازه", 150, "MILLILITER"]],
+      allergens: ["MILK"],
+      coffeeLinePrices: [["House Blend", 120000], ["Ethiopia", 140000], ["Colombia", 150000]],
     },
     {
-      slug: "latte",
-      nameFa: "لته",
-      nameEn: "Latte",
+      slug: "latte", nameFa: "لته", nameEn: "Latte",
       description: "اسپرسو با شیر نرم و لطیف، مناسب برای آرامش صبحگاهی.",
-      price: 125000,
-      image: img("photo-1561882468-9110e03e0f78"),
-      category: "coffee",
-      allergenStatus: "CONTAINS",
-      ingredients: ["اسپرسو", "شیر تازه"],
-      allergens: [{ key: "MILK" }],
+      price: 125000, image: img("photo-1561882468-9110e03e0f78"), category: "coffee",
+      prepBaseMin: 4,
+      ingredients: [["اسپرسو", 18, "GRAM"], ["شیر تازه", 200, "MILLILITER"]],
+      allergens: ["MILK"],
+      coffeeLinePrices: [["House Blend", 125000], ["Ethiopia", 145000], ["Special Reserve", 195000]],
     },
     {
-      slug: "oat-latte",
-      nameFa: "لته جو دوسر",
-      nameEn: "Oat Latte",
+      slug: "oat-latte", nameFa: "لته جو دوسر", nameEn: "Oat Latte",
       description: "لته کلاسیک با شیر جو دوسر بدون شکر.",
-      price: 145000,
-      image: img("photo-1592318445673-2d4cf2cd89d4"),
-      category: "coffee",
-      isFeatured: true,
-      allergenStatus: "SAFE",
-      ingredients: ["اسپرسو", "شیر جو دوسر"],
+      price: 145000, image: img("photo-1592318445673-2d4cf2cd89d4"), category: "coffee",
+      isFeatured: true, prepBaseMin: 4,
+      ingredients: [["اسپرسو", 18, "GRAM"], ["شیر جو دوسر", 200, "MILLILITER"]],
       dietary: ["VEGAN", "DAIRY_FREE"],
     },
     {
-      slug: "mocha",
-      nameFa: "موکا",
-      nameEn: "Mocha",
+      slug: "mocha", nameFa: "موکا", nameEn: "Mocha",
       description: "ترکیب اسپرسو، شیر گرم و سس کاکائوی غلیظ.",
-      price: 140000,
-      image: img("photo-1578314675229-95ea43bd1f5e"),
-      category: "coffee",
-      allergenStatus: "CONTAINS",
-      ingredients: ["اسپرسو", "شیر تازه", "کاکائو"],
-      allergens: [{ key: "MILK" }],
+      price: 140000, image: img("photo-1578314675229-95ea43bd1f5e"), category: "coffee",
+      prepBaseMin: 5,
+      ingredients: [["اسپرسو", 18, "GRAM"], ["شیر تازه", 180, "MILLILITER"], ["کاکائو", 15, "GRAM"]],
+      allergens: ["MILK"],
     },
     {
-      slug: "hot-chocolate",
-      nameFa: "هات چاکلت",
-      nameEn: "Hot Chocolate",
+      slug: "hot-chocolate", nameFa: "هات چاکلت", nameEn: "Hot Chocolate",
       description: "شکلات داغ غلیظ با خامه‌ی کاکائو.",
-      price: 110000,
-      image: img("photo-1542990253-0d0f5be5f0ed"),
-      category: "hot-drinks",
-      allergenStatus: "CONTAINS",
-      ingredients: ["شیر تازه", "کاکائو"],
-      allergens: [{ key: "MILK" }],
+      price: 110000, image: img("photo-1542990253-0d0f5be5f0ed"), category: "hot-drinks",
+      prepBaseMin: 4,
+      ingredients: [["شیر تازه", 220, "MILLILITER"], ["کاکائو", 25, "GRAM"]],
+      allergens: ["MILK"],
     },
     {
-      slug: "tea",
-      nameFa: "چای سیاه",
-      nameEn: "Black Tea",
+      slug: "tea", nameFa: "چای سیاه", nameEn: "Black Tea",
       description: "چای سیاه تازه‌دم با عطر و طعم اصیل.",
-      price: 55000,
-      image: img("photo-1597318236926-69cbf04f8d3e"),
-      category: "hot-drinks",
-      allergenStatus: "SAFE",
+      price: 55000, image: img("photo-1597318236926-69cbf04f8d3e"), category: "hot-drinks",
+      prepBaseMin: 3,
       ingredients: [],
       dietary: ["VEGAN", "GLUTEN_FREE", "DAIRY_FREE"],
     },
     {
-      slug: "iced-latte",
-      nameFa: "آیس لته",
-      nameEn: "Iced Latte",
+      slug: "iced-latte", nameFa: "آیس لته", nameEn: "Iced Latte",
       description: "لته خنک با یخ، مناسب برای روزهای گرم.",
-      price: 135000,
-      image: img("photo-1461023058943-07fcbe16d735"),
-      category: "cold-drinks",
-      isFeatured: true,
-      allergenStatus: "CONTAINS",
-      ingredients: ["اسپرسو", "شیر تازه", "یخ"],
-      allergens: [{ key: "MILK" }],
+      price: 135000, image: img("photo-1461023058943-07fcbe16d735"), category: "cold-drinks",
+      isFeatured: true, prepBaseMin: 3,
+      ingredients: [["اسپرسو", 18, "GRAM"], ["شیر تازه", 150, "MILLILITER"], ["یخ", 120, "GRAM"]],
+      allergens: ["MILK"],
     },
     {
-      slug: "cold-brew",
-      nameFa: "کولد برو",
-      nameEn: "Cold Brew",
+      slug: "cold-brew", nameFa: "کولد برو", nameEn: "Cold Brew",
       description: "قهوه‌ی دم سرد ۱۲ ساعته با طعمی ملایم و کم‌تلخی.",
-      price: 130000,
-      image: img("photo-1517701604599-bb29b565090c"),
-      category: "cold-drinks",
-      allergenStatus: "SAFE",
-      ingredients: ["اسپرسو", "یخ"],
+      price: 130000, image: img("photo-1517701604599-bb29b565090c"), category: "cold-drinks",
+      prepBaseMin: 2,
+      ingredients: [["اسپرسو", 25, "GRAM"], ["یخ", 150, "GRAM"]],
       dietary: ["VEGAN", "GLUTEN_FREE", "DAIRY_FREE"],
+      coffeeLinePrices: [["House Blend", 130000], ["Ethiopia", 160000]],
     },
     {
-      slug: "lemon-mint",
-      nameFa: "لیموناد نعنایی",
-      nameEn: "Mint Lemonade",
+      slug: "lemon-mint", nameFa: "لیموناد نعنایی", nameEn: "Mint Lemonade",
       description: "لیموناد خانگی با نعنای تازه.",
-      price: 95000,
-      image: img("photo-1556679343-c7306c1976bc"),
-      category: "cold-drinks",
-      allergenStatus: "SAFE",
-      ingredients: ["لیمو", "نعناع", "یخ"],
+      price: 95000, image: img("photo-1556679343-c7306c1976bc"), category: "cold-drinks",
+      prepBaseMin: 4,
+      ingredients: [["لیمو", 1, "UNIT"], ["نعناع", 8, "GRAM"], ["یخ", 150, "GRAM"], ["شکر قهوه‌ای", 20, "GRAM"]],
       dietary: ["VEGAN", "GLUTEN_FREE", "DAIRY_FREE"],
     },
     {
-      slug: "croissant",
-      nameFa: "کرواسان کره‌ای",
-      nameEn: "Butter Croissant",
+      slug: "croissant", nameFa: "کرواسان کره‌ای", nameEn: "Butter Croissant",
       description: "کرواسان تازه پخته شده با کره‌ی فرانسوی.",
-      price: 85000,
-      image: img("photo-1555507036-ab1f4038808a"),
-      category: "breakfast",
-      isFeatured: true,
-      allergenStatus: "CONTAINS",
-      ingredients: ["آرد گندم", "کره", "تخم مرغ"],
-      allergens: [{ key: "GLUTEN" }, { key: "MILK" }, { key: "EGGS" }],
+      price: 85000, image: img("photo-1555507036-ab1f4038808a"), category: "breakfast",
+      isFeatured: true, prepBaseMin: 5,
+      ingredients: [["آرد گندم", 90, "GRAM"], ["کره", 40, "GRAM"], ["تخم مرغ", 0.5, "UNIT"]],
+      allergens: ["GLUTEN", "MILK", "EGGS"],
     },
     {
-      slug: "cheese-plate",
-      nameFa: "بشقاب پنیر و گردو",
-      nameEn: "Cheese & Walnut Plate",
+      slug: "cheese-plate", nameFa: "بشقاب پنیر و گردو", nameEn: "Cheese & Walnut Plate",
       description: "پنیر موزارلا، گردوی تازه و عسل.",
-      price: 165000,
-      image: img("photo-1452195100486-9cc805987862"),
-      category: "breakfast",
-      allergenStatus: "CONTAINS",
-      ingredients: ["پنیر موزارلا", "گردو", "عسل"],
-      allergens: [{ key: "MILK" }, { key: "TREE_NUTS" }],
+      price: 165000, image: img("photo-1452195100486-9cc805987862"), category: "breakfast",
+      prepBaseMin: 6,
+      ingredients: [["پنیر موزارلا", 120, "GRAM"], ["گردو", 30, "GRAM"], ["عسل", 20, "GRAM"]],
+      allergens: ["MILK", "TREE_NUTS"],
     },
     {
-      slug: "omelette",
-      nameFa: "املت کلاسیک",
-      nameEn: "Classic Omelette",
+      slug: "omelette", nameFa: "املت کلاسیک", nameEn: "Classic Omelette",
       description: "املت سه تخم مرغ با کره و ادویه.",
-      price: 120000,
-      image: img("photo-1525351484163-7529414344d8"),
-      category: "breakfast",
-      allergenStatus: "CONTAINS",
-      ingredients: ["تخم مرغ", "کره"],
-      allergens: [{ key: "EGGS" }, { key: "MILK" }],
+      price: 120000, image: img("photo-1525351484163-7529414344d8"), category: "breakfast",
+      prepBaseMin: 8,
+      ingredients: [["تخم مرغ", 3, "UNIT"], ["کره", 15, "GRAM"]],
+      allergens: ["EGGS", "MILK"],
     },
     {
-      slug: "margherita",
-      nameFa: "پیتزا مارگاریتا",
-      nameEn: "Margherita Pizza",
+      slug: "margherita", nameFa: "پیتزا مارگاریتا", nameEn: "Margherita Pizza",
       description: "پیتزا ایتالیایی با سس گوجه، موزارلا و ریحان تازه.",
-      price: 245000,
-      image: img("photo-1604068549290-dea0e4a305ca"),
-      category: "food",
-      isFeatured: true,
-      allergenStatus: "CONTAINS",
-      ingredients: ["آرد گندم", "پنیر موزارلا", "گوجه فرنگی", "ریحان", "روغن زیتون"],
-      allergens: [{ key: "GLUTEN" }, { key: "MILK" }],
+      price: 245000, image: img("photo-1604068549290-dea0e4a305ca"), category: "food",
+      isFeatured: true, prepBaseMin: 12,
+      ingredients: [["آرد گندم", 220, "GRAM"], ["پنیر موزارلا", 120, "GRAM"], ["گوجه فرنگی", 100, "GRAM"], ["ریحان", 5, "GRAM"], ["روغن زیتون", 15, "MILLILITER"]],
+      allergens: ["GLUTEN", "MILK"],
     },
     {
-      slug: "chicken-salad",
-      nameFa: "سالاد مرغ",
-      nameEn: "Chicken Salad",
+      slug: "chicken-salad", nameFa: "سالاد مرغ", nameEn: "Chicken Salad",
       description: "سالاد سبز با مرغ گریل شده و سس روغن زیتون.",
-      price: 195000,
-      image: img("photo-1546069901-ba9599a7e63c"),
-      category: "food",
-      allergenStatus: "SAFE",
-      ingredients: ["مرغ", "روغن زیتون", "ریحان"],
+      price: 195000, image: img("photo-1546069901-ba9599a7e63c"), category: "food",
+      prepBaseMin: 10,
+      ingredients: [["مرغ", 150, "GRAM"], ["روغن زیتون", 20, "MILLILITER"], ["ریحان", 3, "GRAM"]],
       dietary: ["GLUTEN_FREE", "DAIRY_FREE"],
     },
     {
-      slug: "salmon-plate",
-      nameFa: "بشقاب سالمون",
-      nameEn: "Salmon Plate",
+      slug: "salmon-plate", nameFa: "بشقاب سالمون", nameEn: "Salmon Plate",
       description: "ماهی سالمون گریل شده با سبزیجات تازه.",
-      price: 385000,
-      image: img("photo-1467003909585-2f8a72700288"),
-      category: "food",
-      allergenStatus: "CONTAINS",
-      ingredients: ["ماهی سالمون", "روغن زیتون", "لیمو"],
-      allergens: [{ key: "FISH" }],
+      price: 385000, image: img("photo-1467003909585-2f8a72700288"), category: "food",
+      prepBaseMin: 14,
+      ingredients: [["ماهی سالمون", 180, "GRAM"], ["روغن زیتون", 15, "MILLILITER"], ["لیمو", 0.5, "UNIT"]],
+      allergens: ["FISH"],
     },
     {
-      slug: "tiramisu",
-      nameFa: "تیرامیسو",
-      nameEn: "Tiramisu",
+      slug: "tiramisu", nameFa: "تیرامیسو", nameEn: "Tiramisu",
       description: "دسر ایتالیایی با قهوه، پنیر ماسکارپونه و کاکائو.",
-      price: 145000,
-      image: img("photo-1571877227200-a0d98ea607e9"),
-      category: "dessert",
-      isFeatured: true,
-      allergenStatus: "CONTAINS",
-      ingredients: ["پنیر موزارلا", "تخم مرغ", "کاکائو", "آرد گندم"],
-      allergens: [{ key: "MILK" }, { key: "EGGS" }, { key: "GLUTEN" }],
+      price: 145000, image: img("photo-1571877227200-a0d98ea607e9"), category: "dessert",
+      isFeatured: true, prepBaseMin: 5,
+      ingredients: [["پنیر موزارلا", 80, "GRAM"], ["تخم مرغ", 1, "UNIT"], ["کاکائو", 8, "GRAM"], ["آرد گندم", 40, "GRAM"]],
+      allergens: ["MILK", "EGGS", "GLUTEN"],
     },
     {
-      slug: "basque-cheesecake",
-      nameFa: "چیزکیک باسک",
-      nameEn: "Basque Cheesecake",
+      slug: "basque-cheesecake", nameFa: "چیزکیک باسک", nameEn: "Basque Cheesecake",
       description: "چیزکیک کرمی با لایه‌ی کاراملی.",
-      price: 135000,
-      image: img("photo-1565958011703-44f9829ba187"),
-      category: "dessert",
-      allergenStatus: "CONTAINS",
-      ingredients: ["پنیر موزارلا", "تخم مرغ", "آرد گندم"],
-      allergens: [{ key: "MILK" }, { key: "EGGS" }, { key: "GLUTEN" }],
+      price: 135000, image: img("photo-1565958011703-44f9829ba187"), category: "dessert",
+      prepBaseMin: 5,
+      ingredients: [["پنیر موزارلا", 90, "GRAM"], ["تخم مرغ", 1, "UNIT"], ["آرد گندم", 30, "GRAM"]],
+      allergens: ["MILK", "EGGS", "GLUTEN"],
     },
     {
-      slug: "vegan-brownie",
-      nameFa: "براونی وگان",
-      nameEn: "Vegan Brownie",
+      slug: "vegan-brownie", nameFa: "براونی وگان", nameEn: "Vegan Brownie",
       description: "براونی شکلاتی بدون لبنیات و تخم مرغ.",
-      price: 110000,
-      image: img("photo-1606313564200-e75d5e30476c"),
-      category: "dessert",
-      allergenStatus: "SAFE",
-      ingredients: ["کاکائو", "آرد گندم"],
-      allergens: [{ key: "GLUTEN" }],
+      price: 110000, image: img("photo-1606313564200-e75d5e30476c"), category: "dessert",
+      prepBaseMin: 5,
+      ingredients: [["کاکائو", 20, "GRAM"], ["آرد گندم", 60, "GRAM"]],
+      allergens: ["GLUTEN"],
       dietary: ["VEGAN", "DAIRY_FREE"],
     },
     {
-      slug: "fresh-apple-pie",
-      nameFa: "پای سیب تازه",
-      nameEn: "Fresh Apple Pie",
+      slug: "fresh-apple-pie", nameFa: "پای سیب تازه", nameEn: "Fresh Apple Pie",
       description: "پای سیب خانگی با کنجد.",
-      price: 125000,
-      image: img("photo-1568571780765-9276ac8b75a2"),
-      category: "dessert",
-      allergenStatus: "CONTAINS",
-      ingredients: ["آرد گندم", "کره", "سیب", "کنجد"],
-      allergens: [{ key: "GLUTEN" }, { key: "MILK" }, { key: "SESAME" }],
+      price: 125000, image: img("photo-1568571780765-9276ac8b75a2"), category: "dessert",
+      prepBaseMin: 5,
+      ingredients: [["آرد گندم", 80, "GRAM"], ["کره", 30, "GRAM"], ["سیب", 120, "GRAM"], ["کنجد", 5, "GRAM"]],
+      allergens: ["GLUTEN", "MILK", "SESAME"],
     },
   ];
 
@@ -400,28 +335,24 @@ async function main() {
         image: p.image,
         categoryId: cat.id,
         isFeatured: p.isFeatured ?? false,
-        isAvailable: p.isAvailable ?? true,
-        allergenStatus: p.allergenStatus ?? "UNKNOWN",
+        prepBaseMin: p.prepBaseMin ?? 3,
+        allergenStatus: (p.allergens?.length ?? 0) > 0 ? "CONTAINS" : "FREE",
       },
     });
-    for (const ingName of p.ingredients) {
+    for (const [ingName, qty, unit] of p.ingredients) {
       const ing = ingByKey[ingName];
       if (ing) {
         await prisma.productIngredient.create({
-          data: { productId: created.id, ingredientId: ing.id },
+          data: { productId: created.id, ingredientId: ing.id, quantity: qty, unit: unit ?? "GRAM" },
         });
       }
     }
     if (p.allergens) {
-      for (const a of p.allergens) {
-        const al = allergenByKey[a.key];
+      for (const key of p.allergens) {
+        const al = allergenByKey[key];
         if (al) {
           await prisma.productAllergen.create({
-            data: {
-              productId: created.id,
-              allergenId: al.id,
-              status: a.status ?? "CONTAINS",
-            },
+            data: { productId: created.id, allergenId: al.id },
           });
         }
       }
@@ -432,6 +363,16 @@ async function main() {
         if (dt) {
           await prisma.productDietaryTag.create({
             data: { productId: created.id, dietaryTagId: dt.id },
+          });
+        }
+      }
+    }
+    if (p.coffeeLinePrices) {
+      for (const [lineEn, price] of p.coffeeLinePrices) {
+        const line = lineByName[lineEn];
+        if (line) {
+          await prisma.productCoffeeLine.create({
+            data: { productId: created.id, coffeeLineId: line.id, price },
           });
         }
       }
@@ -468,13 +409,32 @@ async function main() {
     data: { code: "main-menu", branchId: branch.id, label: "منوی اصلی" },
   });
 
-  const adminPassword = await bcrypt.hash("admin1234", 10);
+  // Staff — chefs feed the preparation-time estimator.
+  await prisma.staff.createMany({
+    data: [
+      { name: "امیر — شف قهوه", role: "CHEF" },
+      { name: "سارا — شف آشپزخانه", role: "CHEF" },
+      { name: "رضا — گارسون", role: "WAITER" },
+    ],
+  });
+
+  // Users for the three roles.
+  const ownerPassword = await bcrypt.hash("admin1234", 10);
   await prisma.user.create({
     data: {
       name: "مدیر کافه",
       email: "admin@farmans.cafe",
-      passwordHash: adminPassword,
-      role: "ADMIN",
+      passwordHash: ownerPassword,
+      role: "OWNER",
+    },
+  });
+  const cashierPassword = await bcrypt.hash("cashier1234", 10);
+  await prisma.user.create({
+    data: {
+      name: "صندوق‌دار",
+      email: "cashier@farmans.cafe",
+      passwordHash: cashierPassword,
+      role: "CASHIER",
     },
   });
 
@@ -515,8 +475,9 @@ async function main() {
   }
 
   console.log("✅ Seed completed");
-  console.log("Admin: admin@farmans.cafe / admin1234");
-  console.log("User:  user@farmans.cafe  / user1234");
+  console.log("Owner:   admin@farmans.cafe   / admin1234");
+  console.log("Cashier: cashier@farmans.cafe / cashier1234");
+  console.log("User:    user@farmans.cafe    / user1234");
 }
 
 main()

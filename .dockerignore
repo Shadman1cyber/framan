@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+uploads
+prisma/dev.db
+prisma/prod.db
+*.db
+.env
+npm-debug.log
+README.md

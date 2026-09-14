@@ -1,13 +1,19 @@
 import { prisma } from "./db";
 
+/**
+ * Allergen model has exactly two states (Rule 1):
+ *   CONTAINS = حاوی است, FREE = حاوی نیست
+ * A ProductAllergen row means the product CONTAINS that allergen.
+ */
+export type AllergenState = "CONTAINS" | "FREE";
+
 export type ProductAllergyInfo = {
   productId: string;
-  allergenStatus: "CONTAINS" | "MAY_CONTAIN" | "UNKNOWN";
+  allergenStatus: AllergenState;
   conflictingAllergens: Array<{
     allergenId: string;
     key: string;
     nameFa: string;
-    status: "CONTAINS" | "MAY_CONTAIN";
   }>;
 };
 
@@ -45,11 +51,11 @@ export async function buildAllergyInfoForProducts(
       allergenId: pa.allergenId,
       key: pa.allergen.key,
       nameFa: pa.allergen.nameFa,
-      status: (pa.status as "CONTAINS" | "MAY_CONTAIN") ?? "CONTAINS",
     }));
     map.set(p.id, {
       productId: p.id,
-      allergenStatus: (p.allergenStatus as "CONTAINS" | "MAY_CONTAIN" | "UNKNOWN") ?? "UNKNOWN",
+      allergenStatus:
+        p.allergenStatus === "CONTAINS" ? "CONTAINS" : "FREE",
       conflictingAllergens: conflicts,
     });
   }
@@ -59,7 +65,7 @@ export async function buildAllergyInfoForProducts(
 export type ProductAllergyFilter = "ALL" | "SAFE";
 
 export function isProductSafe(info: ProductAllergyInfo): boolean {
-  if (info.allergenStatus === "UNKNOWN") return false;
+  if (info.allergenStatus === "CONTAINS") return false;
   if (info.conflictingAllergens.length > 0) return false;
   return true;
 }

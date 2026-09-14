@@ -12,16 +12,13 @@ export type PublicProduct = {
   isAvailable: boolean;
   category: { id: string; slug: string; nameFa: string };
   ingredients: Array<{ id: string; nameFa: string }>;
-  allergens: Array<{
-    id: string;
-    key: string;
-    nameFa: string;
-    status: "CONTAINS" | "MAY_CONTAIN";
-  }>;
+  allergens: Array<{ id: string; key: string; nameFa: string; icon: string | null }>;
   dietaryTags: Array<{ id: string; key: string; nameFa: string; icon: string | null }>;
+  coffeeLines: Array<{ id: string; nameFa: string; price: number }>;
+  images: Array<{ id: string; url: string; isPrimary: boolean }>;
   ratingAvg: number | null;
   ratingCount: number;
-  allergenStatus: "CONTAINS" | "MAY_CONTAIN" | "UNKNOWN";
+  allergenStatus: "CONTAINS" | "FREE";
 };
 
 export type PublicCategory = {
@@ -48,14 +45,28 @@ type ProductWithRelations = {
   isAvailable: boolean;
   category: { id: string; slug: string; nameFa: string };
   ingredients: Array<{ ingredient: { id: string; nameFa: string } }>;
-  allergens: Array<{
-    allergen: { id: string; key: string; nameFa: string };
-    status: string;
-  }>;
+  allergens: Array<{ allergen: { id: string; key: string; nameFa: string; icon: string | null } }>;
   dietaryTags: Array<{
     dietaryTag: { id: string; key: string; nameFa: string; icon: string | null };
   }>;
+  coffeeLines: Array<{ coffeeLine: { id: string; nameFa: string }; price: number }>;
+  images: Array<{ id: string; url: string; isPrimary: boolean }>;
   ratings: Array<{ rating: number }>;
+};
+
+// NOTE: internal recipe quantities (ProductIngredient.quantity) are never selected here.
+const productInclude = {
+  category: { select: { id: true, slug: true, nameFa: true } },
+  ingredients: { include: { ingredient: { select: { id: true, nameFa: true } } } },
+  allergens: { include: { allergen: { select: { id: true, key: true, nameFa: true, icon: true } } } },
+  dietaryTags: { include: { dietaryTag: { select: { id: true, key: true, nameFa: true, icon: true } } } },
+  coffeeLines: {
+    where: { isActive: true, coffeeLine: { isActive: true } },
+    select: { price: true, coffeeLine: { select: { id: true, nameFa: true } } },
+    orderBy: { price: "asc" },
+  },
+  images: { select: { id: true, url: true, isPrimary: true }, orderBy: { order: "asc" } },
+  ratings: { select: { rating: true } },
 };
 
 function mapProduct(p: ProductWithRelations): PublicProduct {
@@ -63,6 +74,7 @@ function mapProduct(p: ProductWithRelations): PublicProduct {
   const ratingAvg = ratings.length
     ? ratings.reduce((s, r) => s + r.rating, 0) / ratings.length
     : null;
+  const primaryImage = p.images?.find((i) => i.isPrimary)?.url ?? p.images?.[0]?.url ?? null;
   return {
     id: p.id,
     slug: p.slug,
@@ -70,22 +82,22 @@ function mapProduct(p: ProductWithRelations): PublicProduct {
     nameEn: p.nameEn,
     description: p.description,
     price: p.price,
-    image: p.image,
+    image: p.image ?? primaryImage,
     isFeatured: p.isFeatured,
     isAvailable: p.isAvailable,
     category: p.category,
     ingredients: (p.ingredients ?? []).map((pi) => pi.ingredient),
-    allergens: (p.allergens ?? []).map((pa) => ({
-      id: pa.allergen.id,
-      key: pa.allergen.key,
-      nameFa: pa.allergen.nameFa,
-      status: (pa.status as "CONTAINS" | "MAY_CONTAIN") ?? "CONTAINS",
-    })),
+    allergens: (p.allergens ?? []).map((pa) => pa.allergen),
     dietaryTags: (p.dietaryTags ?? []).map((pd) => pd.dietaryTag),
+    coffeeLines: (p.coffeeLines ?? []).map((cl) => ({
+      id: cl.coffeeLine.id,
+      nameFa: cl.coffeeLine.nameFa,
+      price: cl.price,
+    })),
+    images: (p.images ?? []).map((i) => ({ id: i.id, url: i.url, isPrimary: i.isPrimary })),
     ratingAvg,
     ratingCount: ratings.length,
-    allergenStatus: (p as ProductWithRelations & { allergenStatus?: string })
-      .allergenStatus as PublicProduct["allergenStatus"] ?? "UNKNOWN",
+    allergenStatus: (p.allergens ?? []).length > 0 ? "CONTAINS" : "FREE",
   };
 }
 
@@ -128,31 +140,28 @@ export async function getProducts(opts: {
         : {}),
     },
     orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
-    include: {
-      category: { select: { id: true, slug: true, nameFa: true } },
-      ingredients: { include: { ingredient: true } },
-      allergens: { include: { allergen: true } },
-      dietaryTags: { include: { dietaryTag: true } },
-      ratings: { select: { rating: true } },
-    },
+    include: productInclude as never,
     take: opts.limit ?? 100,
   });
-  return products.map(mapProduct);
+  return products.map((p) => mapProduct(p as unknown as ProductWithRelations));
 }
 
 export async function getProductBySlug(slug: string): Promise<PublicProduct | null> {
   const p = await prisma.product.findUnique({
     where: { slug },
-    include: {
-      category: { select: { id: true, slug: true, nameFa: true } },
-      ingredients: { include: { ingredient: true } },
-      allergens: { include: { allergen: true } },
-      dietaryTags: { include: { dietaryTag: true } },
-      ratings: { select: { rating: true } },
-    },
+    include: productInclude as never,
   });
   if (!p) return null;
-  return mapProduct(p);
+  return mapProduct(p as unknown as ProductWithRelations);
+}
+
+export async function getProductById(id: string): Promise<PublicProduct | null> {
+  const p = await prisma.product.findUnique({
+    where: { id },
+    include: productInclude as never,
+  });
+  if (!p) return null;
+  return mapProduct(p as unknown as ProductWithRelations);
 }
 
 export async function getCategoryBySlug(slug: string) {

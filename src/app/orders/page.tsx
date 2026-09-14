@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Price } from "@/components/ui/Price";
-import { ORDER_STATUS_LABELS_FA, type OrderStatus } from "@/lib/constants";
+import { ORDER_STATUS_LABELS_FA, orderStatusLabel, type OrderStatus, type OrderType } from "@/lib/constants";
 import { EmptyState } from "@/components/ui/States";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +62,7 @@ export default async function OrdersPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="rounded-full bg-olive-50 px-2 py-0.5 text-olive-600">
-                      {ORDER_STATUS_LABELS_FA[o.status as OrderStatus]}
+                      {orderStatusLabel(o.status as OrderStatus, (o.orderType as OrderType) ?? "TAKEAWAY")}
                     </span>
                     <Price amount={o.total} size="sm" />
                   </div>

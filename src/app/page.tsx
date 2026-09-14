@@ -10,6 +10,8 @@ import { ProductCard } from "@/components/menu/ProductCard";
 import { CategoryNav } from "@/components/menu/CategoryNav";
 import { QrContextTracker } from "@/components/menu/QrContextTracker";
 import { AllergenSelector } from "@/components/menu/AllergenSelector";
+import { SearchBar } from "@/components/menu/SearchBar";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -90,6 +92,10 @@ export default async function HomePage({
             کد QR نامعتبر است؛ می‌توانید همچنان از منو استفاده کنید.
           </div>
         )}
+
+        <Suspense fallback={<div className="skeleton mb-10 h-14" />}>
+          <SearchBar className="mb-10" />
+        </Suspense>
 
         <section className="mb-10 md:mb-14">
           <p className="mb-2 text-sm font-medium text-olive-600">پیشنهاد امروز</p>

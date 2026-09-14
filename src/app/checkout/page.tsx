@@ -41,7 +41,11 @@ function CheckoutInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           qrCodeId: qrId,
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          items: items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            coffeeLineId: i.coffeeLineId ?? undefined,
+          })),
           customerName: name || undefined,
           customerPhone: phone || undefined,
           notes: notes || undefined,
@@ -88,8 +92,11 @@ function CheckoutInner() {
             <h2 className="mb-2 text-sm font-semibold">اقلام</h2>
             <ul className="space-y-1 text-sm">
               {items.map((i) => (
-                <li key={i.productId} className="flex justify-between">
-                  <span>{i.name} × {i.quantity}</span>
+                <li key={`${i.productId}::${i.coffeeLineId ?? ""}`} className="flex justify-between">
+                  <span>
+                    {i.name}
+                    {i.coffeeLineName ? ` — ${i.coffeeLineName}` : ""} × {i.quantity}
+                  </span>
                   <Price amount={i.price * i.quantity} size="sm" />
                 </li>
               ))}

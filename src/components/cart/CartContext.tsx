@@ -12,8 +12,11 @@ export type CartLine = {
   productId: string;
   name: string;
   price: number;
+  basePrice?: number;
   image?: string;
   quantity: number;
+  coffeeLineId?: string | null;
+  coffeeLineName?: string | null;
 };
 
 type CartContextValue = {
@@ -22,9 +25,9 @@ type CartContextValue = {
   total: number;
   hydrated: boolean;
   add: (item: Omit<CartLine, "quantity"> & { quantity?: number }) => void;
-  increase: (productId: string) => void;
-  decrease: (productId: string) => void;
-  remove: (productId: string) => void;
+  increase: (productId: string, coffeeLineId?: string | null) => void;
+  decrease: (productId: string, coffeeLineId?: string | null) => void;
+  remove: (productId: string, coffeeLineId?: string | null) => void;
   clear: () => void;
   setQrContext: (qrId: string | null, tableLabel?: string | null) => void;
   qrId: string | null;
@@ -34,8 +37,13 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const STORAGE_KEY = "farmans.cart.v1";
+const STORAGE_KEY = "farmans.cart.v2";
 const QR_KEY = "farmans.qr.v1";
+
+/** Cart lines are keyed by productId + selected coffee line. */
+function lineKey(productId: string, coffeeLineId?: string | null): string {
+  return coffeeLineId ? `${productId}::${coffeeLineId}` : productId;
+}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartLine[]>([]);
@@ -73,10 +81,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((incoming: Omit<CartLine, "quantity"> & { quantity?: number }) => {
     setItems((prev) => {
-      const existing = prev.find((p) => p.productId === incoming.productId);
+      const key = lineKey(incoming.productId, incoming.coffeeLineId);
+      const existing = prev.find((p) => lineKey(p.productId, p.coffeeLineId) === key);
       if (existing) {
         return prev.map((p) =>
-          p.productId === incoming.productId
+          lineKey(p.productId, p.coffeeLineId) === key
             ? { ...p, quantity: p.quantity + (incoming.quantity ?? 1) }
             : p,
         );
@@ -86,22 +95,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setLastAddedAt(Date.now());
   }, []);
 
-  const increase = useCallback((productId: string) => {
+  const increase = useCallback((productId: string, coffeeLineId?: string | null) => {
     setItems((prev) =>
-      prev.map((p) => (p.productId === productId ? { ...p, quantity: p.quantity + 1 } : p)),
+      prev.map((p) =>
+        lineKey(p.productId, p.coffeeLineId) === lineKey(productId, coffeeLineId)
+          ? { ...p, quantity: p.quantity + 1 }
+          : p,
+      ),
     );
   }, []);
 
-  const decrease = useCallback((productId: string) => {
+  const decrease = useCallback((productId: string, coffeeLineId?: string | null) => {
     setItems((prev) =>
       prev
-        .map((p) => (p.productId === productId ? { ...p, quantity: p.quantity - 1 } : p))
+        .map((p) =>
+          lineKey(p.productId, p.coffeeLineId) === lineKey(productId, coffeeLineId)
+            ? { ...p, quantity: p.quantity - 1 }
+            : p,
+        )
         .filter((p) => p.quantity > 0),
     );
   }, []);
 
-  const remove = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((p) => p.productId !== productId));
+  const remove = useCallback((productId: string, coffeeLineId?: string | null) => {
+    setItems((prev) =>
+      prev.filter((p) => lineKey(p.productId, p.coffeeLineId) !== lineKey(productId, coffeeLineId)),
+    );
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

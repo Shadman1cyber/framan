@@ -7,15 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Roles: CUSTOMER | CASHIER | OWNER  (legacy ADMIN/STAFF are migrated at runtime)
 model User {
-  id            String         @id @default(cuid())
+  id            String           @id @default(cuid())
   name          String?
-  email         String?        @unique
-  phone         String?        @unique
+  email         String?          @unique
+  phone         String?          @unique
   passwordHash  String?
-  role          String         @default("CUSTOMER")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  role          String           @default("CUSTOMER")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   allergies     UserAllergy[]
   preferences   UserPreference[]
   orders        Order[]
@@ -38,27 +39,34 @@ model Category {
   products    Product[]
 }
 
+// Ingredient doubles as the raw-material inventory record.
 model Ingredient {
-  id          String                  @id @default(cuid())
-  nameFa      String
-  nameEn      String?
-  description String?
-  isAllergen   Boolean                @default(false)
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  products    ProductIngredient[]
-  allergens   IngredientAllergen[]
+  id            String               @id @default(cuid())
+  nameFa        String
+  nameEn        String?
+  description   String?
+  isAllergen    Boolean              @default(false)
+  unit          String               @default("GRAM")
+  stockQuantity Float                @default(0)
+  minQuantity   Float?
+  costPerUnit   Float?
+  supplier      String?
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  products      ProductIngredient[]
+  allergens     IngredientAllergen[]
 }
 
 model Allergen {
-  id          String                  @id @default(cuid())
-  key         String                  @unique
+  id          String               @id @default(cuid())
+  key         String               @unique
   nameFa      String
   nameEn      String
   description String?
   icon        String?
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
   ingredients IngredientAllergen[]
   products    ProductAllergen[]
   users       UserAllergy[]
@@ -73,13 +81,13 @@ model IngredientAllergen {
 }
 
 model DietaryTag {
-  id        String             @id @default(cuid())
-  key       String             @unique
+  id        String              @id @default(cuid())
+  key       String              @unique
   nameFa    String
   nameEn    String
   icon      String?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
   products  ProductDietaryTag[]
   users     UserDietaryTag[]
 }
@@ -92,44 +100,60 @@ model UserDietaryTag {
   @@id([userId, dietaryTagId])
 }
 
+// allergenStatus has exactly two values: CONTAINS | FREE
 model Product {
-  id            String              @id @default(cuid())
-  slug          String              @unique
-  nameFa        String
-  nameEn        String?
-  description   String
-  price         Int
-  image         String?
-  categoryId    String
-  isAvailable   Boolean             @default(true)
-  isFeatured    Boolean             @default(false)
-  order         Int                 @default(0)
-  allergenStatus String             @default("UNKNOWN")
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  category      Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  ingredients   ProductIngredient[]
-  allergens     ProductAllergen[]
-  dietaryTags   ProductDietaryTag[]
-  ratings       Rating[]
-  orderItems    OrderItem[]
+  id             String              @id @default(cuid())
+  slug           String              @unique
+  nameFa         String
+  nameEn         String?
+  description    String
+  price          Int
+  image          String?
+  categoryId     String
+  isAvailable    Boolean             @default(true)
+  isFeatured     Boolean             @default(false)
+  order          Int                 @default(0)
+  allergenStatus String              @default("FREE")
+  prepBaseMin    Int                 @default(3)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  category       Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  ingredients    ProductIngredient[]
+  allergens      ProductAllergen[]
+  dietaryTags    ProductDietaryTag[]
+  ratings        Rating[]
+  orderItems     OrderItem[]
+  images         ProductImage[]
+  coffeeLines    ProductCoffeeLine[]
   @@index([categoryId])
   @@index([isFeatured])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  url       String
+  isPrimary Boolean @default(false)
+  order     Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@index([productId])
 }
 
 model ProductIngredient {
   productId    String
   ingredientId String
+  quantity     Float      @default(0)
+  unit         String     @default("GRAM")
   product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   @@id([productId, ingredientId])
 }
 
+// A row means the product CONTAINS the allergen (no third state).
 model ProductAllergen {
   productId  String
   allergenId String
-  status     String        @default("CONTAINS")
-  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   allergen   Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
   @@id([productId, allergenId])
 }
@@ -142,22 +166,46 @@ model ProductDietaryTag {
   @@id([productId, dietaryTagId])
 }
 
+// Configurable coffee lines (e.g. House Blend, Ethiopia, Colombia...)
+model CoffeeLine {
+  id        String              @id @default(cuid())
+  nameFa    String
+  nameEn    String?
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  products  ProductCoffeeLine[]
+  orderItems OrderItem[]
+}
+
+// Per-product price for a coffee line (final price at purchase time).
+model ProductCoffeeLine {
+  id           String     @id @default(cuid())
+  productId    String
+  coffeeLineId String
+  price        Int
+  isActive     Boolean    @default(true)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  coffeeLine   CoffeeLine @relation(fields: [coffeeLineId], references: [id], onDelete: Cascade)
+  @@unique([productId, coffeeLineId])
+}
+
 model UserAllergy {
-  id        String   @id @default(cuid())
-  userId    String
+  id         String   @id @default(cuid())
+  userId     String
   allergenId String
-  severity  String   @default("AVOID")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  allergen  Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+  severity   String   @default("AVOID")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allergen   Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
   @@unique([userId, allergenId])
 }
 
 model UserPreference {
-  id        String              @id @default(cuid())
-  userId    String
-  key       String
-  value     String
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  userId  String
+  key     String
+  value   String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, key])
 }
 
@@ -172,32 +220,51 @@ model Cafe {
 }
 
 model Branch {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   cafeId    String
   nameFa    String
   nameEn    String?
-  slug      String   @unique
+  slug      String      @unique
   address   String?
-  isActive  Boolean  @default(true)
-  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  isActive  Boolean     @default(true)
+  cafe      Cafe        @relation(fields: [cafeId], references: [id], onDelete: Cascade)
   tables    CafeTable[]
   qrCodes   QRCode[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model CafeTable {
-  id        String   @id @default(cuid())
-  branchId  String
-  number    String
-  label     String?
-  isActive  Boolean  @default(true)
-  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  qrCodes   QRCode[]
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String             @id @default(cuid())
+  branchId    String
+  number      String
+  label       String?
+  isActive    Boolean            @default(true)
+  isOccupied  Boolean            @default(false)
+  occupiedAt  DateTime?
+  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  qrCodes     QRCode[]
+  orders      Order[]
+  reservations TableReservation[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   @@unique([branchId, number])
+}
+
+model TableReservation {
+  id            String    @id @default(cuid())
+  tableId       String
+  customerName  String
+  customerPhone String?
+  guests        Int       @default(1)
+  reservedAt    DateTime
+  durationMin   Int       @default(60)
+  status        String    @default("RESERVED") // RESERVED | SEATED | CANCELLED | NO_SHOW
+  createdBy     String?
+  table         CafeTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@index([tableId, reservedAt])
 }
 
 model QRCode {
@@ -215,35 +282,49 @@ model QRCode {
   orders    Order[]
 }
 
+// orderType: TABLE | TAKEAWAY
+// status: PENDING | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
+// READY means "آماده سرو" for table orders and "آماده تحویل" for takeaway orders.
 model Order {
-  id         String      @id @default(cuid())
-  userId     String?
-  qrCodeId   String?
-  tableId    String?
-  status     String      @default("PENDING")
-  total      Int
-  customerName  String?
-  customerPhone String?
-  notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  qrCode     QRCode?     @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
-  table      CafeTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  items      OrderItem[]
+  id             String      @id @default(cuid())
+  userId         String?
+  qrCodeId       String?
+  tableId        String?
+  orderType      String      @default("TAKEAWAY")
+  status         String      @default("PENDING")
+  total          Int
+  customerName   String?
+  customerPhone  String?
+  notes          String?
+  estPrepMin     Int?
+  estPrepMax     Int?
+  prepFactors    String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  qrCode         QRCode?     @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  table          CafeTable?  @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
   @@index([status])
   @@index([userId])
+  @@index([orderType])
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  productId String
-  quantity  Int
-  price     Int
-  notes     String?
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  id            String      @id @default(cuid())
+  orderId       String
+  productId     String
+  quantity      Int
+  price         Int
+  notes         String?
+  coffeeLineId  String?
+  coffeeLineName String?
+  optionPrice   Int         @default(0)
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  coffeeLine    CoffeeLine? @relation(fields: [coffeeLineId], references: [id], onDelete: SetNull)
 }
 
 model Rating {
@@ -258,4 +339,281 @@ model Rating {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   @@unique([userId, productId])
   @@index([productId])
+}
+
+// Kitchen/foyer staff — number of active chefs feeds the preparation estimator.
+model Staff {
+  id        String   @id @default(cuid())
+  name      String
+  role      String   @default("CHEF") // CHEF | WAITER | OTHER
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Simple key/value application settings (AI enabled flag etc.)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// AI generated insight/alert, persisted for the dashboard.
+model AIInsight {
+  id        String   @id @default(cuid())
+  kind      String   @default("GENERAL") // INVENTORY | FINANCE | OPERATION | GENERAL
+  severity  String   @default("INFO") // INFO | WARNING | CRITICAL
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+}
+
+// AI assistant conversation (chat history).
+// ownerId == null marks a legacy (pre-ownership) session: read-only archive,
+// visible only to OWNER holders; it is never claimed by a user implicitly.
+model AIChatSession {
+  id        String          @id @default(cuid())
+  userId    String?
+  ownerId   String?
+  archived  Boolean         @default(false)
+  title     String          @default("گفتگوی جدید")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  messages  AIChatMessage[]
+  @@index([ownerId, archived, updatedAt])
+}
+
+model AIChatMessage {
+  id        String        @id @default(cuid())
+  sessionId String
+  role      String // user | assistant
+  content   String
+  createdAt DateTime      @default(now())
+  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+}
+
+// Data import/migration job (CSV from external accounting systems).
+model ImportJob {
+  id        String   @id @default(cuid())
+  kind      String // PRODUCTS | INGREDIENTS | ORDERS | EXPENSES
+  filename  String
+  status    String   @default("COMPLETED") // COMPLETED | FAILED | PARTIAL
+  report    String   // JSON report
+  createdAt DateTime @default(now())
+}
+
+// Single-installation agent execution. Scope is server-bound, never model supplied.
+// Derived graph data (Phase 3). Never a business source of truth; volatile
+// numbers must always be read from the live source tables.
+model GraphNode {
+  id            String      @id
+  scopeId       String
+  kind          String
+  refId         String
+  label         String
+  searchText    String
+  properties    String      @default("{}")
+  sourceId      String
+  sourceVersion String
+  observedAt    DateTime
+  validFrom     DateTime
+  validTo       DateTime?
+  status        String      @default("active")
+  confidence    Float       @default(1)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  outEdges      GraphEdge[] @relation("from")
+  inEdges       GraphEdge[] @relation("to")
+  @@unique([scopeId, kind, refId])
+  @@index([scopeId, status, kind])
+}
+
+model GraphEdge {
+  id            String    @id
+  scopeId       String
+  relation      String
+  from          GraphNode @relation("from", fields: [fromId], references: [id], onDelete: Cascade)
+  fromId        String
+  to            GraphNode @relation("to", fields: [toId], references: [id], onDelete: Cascade)
+  toId          String
+  sourceId      String
+  sourceVersion String
+  observedAt    DateTime
+  validFrom     DateTime
+  validTo       DateTime?
+  status        String    @default("active")
+  confidence    Float     @default(1)
+  @@unique([scopeId, relation, fromId, toId])
+  @@index([scopeId, fromId, status])
+}
+
+// Sync watermark per entity kind. SQLite interim: watermark polling of source
+// updatedAt replaces the transactional outbox/CDC planned for PostgreSQL/Neo4j.
+model GraphSync {
+  id        String   @id
+  scopeId   String
+  entity    String
+  watermark DateTime
+  syncedAt  DateTime @default(now())
+  @@unique([scopeId, entity])
+}
+
+model AgentRun {
+  id           String   @id
+  scopeId      String
+  userId       String
+  key          String
+  requestHash  String
+  traceId      String
+  state        String   @default("queued")
+  tool         String
+  input        String
+  inputHash    String
+  version      String?
+  previous     String?
+  approvedBy   String?
+  approvedHash String?
+  expiresAt    DateTime?
+  result       String?
+  lastError    String? @map("error")
+  attemptCount Int     @default(0)
+  // Phase 6 subagents: children are bounded instances under a supervisor run.
+  parentRunId    String?
+  toolCallBudget Int     @default(12)
+  // Workspace linkage: the conversation a run belongs to (no FK by design;
+  // legacy chats can be deleted without cascading execution history).
+  sessionId    String?
+  // Durable-queue lease fields (worker claiming; SQLite advisory locking).
+  leaseOwner   String?
+  leaseUntil   DateTime?
+  // Bounded plan: ordered AgentStep rows executed by runtime/worker.
+  planKind     String   @default("single") // single | plan
+  // Task provenance persisted per run (R11).
+  modelId        String?
+  promptVersion  String?
+  skillVersion   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  events       AgentEvent[]
+  episodes     AgentEpisode[]
+  steps        AgentStep[]
+  @@unique([scopeId, userId, key])
+  @@index([scopeId, userId, createdAt])
+  @@index([sessionId])
+  @@index([state, leaseUntil])
+}
+
+// One bounded step of a run's plan/execute/verify/respond loop. Steps are
+// created and verified server-side; a write step always pauses the run at
+// waiting_approval before its tool executes.
+model AgentStep {
+  id        String   @id
+  runId     String
+  scopeId   String
+  idx       Int
+  tool      String
+  input     String
+  state     String   @default("queued") // queued | running | succeeded | failed | cancelled | skipped
+  result    String?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@unique([runId, idx])
+  @@index([scopeId, state])
+}
+
+// Private artifact storage metadata. Files live outside the public product
+// image directory; delivery is authenticated and ownership-checked.
+model AgentArtifact {
+  id          String   @id
+  scopeId     String
+  runId       String?
+  sessionId   String?
+  kind        String   // upload_csv | upload_xlsx | upload_txt | upload_pdf | report_csv | report_xlsx | chart_svg
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  storagePath String
+  checksum    String
+  meta        String   @default("{}") // source refs + generation inputs
+  createdBy   String
+  createdAt   DateTime @default(now())
+  @@index([scopeId, createdAt])
+  @@index([sessionId])
+}
+
+// Phase 4 memory. Episodes are derived facts from real run outcomes — never
+// model-invented. Lessons are evidence-backed proposals; activation is an
+// explicit human control action and never changes permissions or policy.
+model AgentEpisode {
+  id        String   @id
+  scopeId   String
+  runId     String
+  userId    String
+  tool      String
+  state     String
+  errorCode String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@unique([scopeId, runId])
+  @@index([scopeId, userId, createdAt])
+}
+
+model AgentLesson {
+  id         String    @id
+  scopeId    String
+  topic      String
+  statement  String
+  status     String    @default("draft")
+  evidence   String    @default("[]")
+  proposedBy String
+  reviewedBy String?
+  validFrom  DateTime
+  validTo    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  @@index([scopeId, status, topic])
+}
+
+// Phase 5 skills: versioned declarative workflows over allowlisted tools.
+// Drafts come from real corrective episodes; activation and rollback are
+// explicit human actions gated on a recorded sandbox evaluation. A skill can
+// never grant permissions, change policy or activate itself.
+model AgentSkill {
+  id            String    @id
+  scopeId       String
+  slug          String
+  version       String
+  status        String    @default("draft")
+  definition    String
+  sourceEpisodes String   @default("[]")
+  testResult    String?
+  testedAt      DateTime?
+  createdBy     String
+  activatedBy   String?
+  activatedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@unique([scopeId, slug, version])
+  @@index([scopeId, slug, status])
+}
+
+model AgentEvent {
+  id        String   @id
+  runId     String
+  name      String
+  state     String
+  // Measured phase duration (tool/model/retrieval) when the event brackets work.
+  durationMs Int?
+  // Provider-reported token usage when available; absent means unavailable.
+  promptTokens    Int?
+  completionTokens Int?
+  createdAt DateTime @default(now())
+  exportedAt DateTime?
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@index([exportedAt, createdAt])
 }

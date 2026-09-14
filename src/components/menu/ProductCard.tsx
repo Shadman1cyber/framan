@@ -42,15 +42,15 @@ export function ProductCard({
         {conflicts.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {conflicts.slice(0, 2).map((a) => (
-              <AllergenBadge key={a.id} nameFa={a.nameFa} status={a.status} />
+              <AllergenBadge key={a.id} nameFa={a.nameFa} icon={a.icon} />
             ))}
           </div>
         )}
-        <div className="mt-auto flex items-center justify-between pt-1">
-          <Price amount={product.price} size="sm" />
+        <div className="mt-auto flex flex-col items-start gap-1.5 pt-1">
           {product.ratingAvg != null && product.ratingCount > 0 && (
             <Rating value={product.ratingAvg} count={product.ratingCount} />
           )}
+          <Price amount={product.price} size="sm" />
         </div>
       </div>
     </Link>

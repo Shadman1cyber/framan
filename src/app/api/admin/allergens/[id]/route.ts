@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/db";
+import { guard } from "@/lib/api";
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!isAdmin((session?.user as { role?: string } | undefined)?.role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const g = await guard("allergens.manage");
+  if ("res" in g) return g.res;
   try {
     await prisma.allergen.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });

@@ -1,0 +1,85 @@
+services:
+  app:
+    build: .
+    container_name: farmans-cafe
+    ports:
+      - "${PORT:-3080}:${PORT:-3080}"
+    environment:
+      - DATABASE_URL=file:/app/prisma/prod.db
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3080}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - PORT=${PORT:-3080}
+      # QR codes point to this URL. Set it to your machine's LAN IP so phones
+      # on the same network can open the menu, e.g. http://192.168.1.100:3080
+      - PUBLIC_APP_URL=${PUBLIC_APP_URL:-}
+      - AI_ENABLED=${AI_ENABLED:-false}
+      - AI_PROVIDER=${AI_PROVIDER:-zhipu}
+      - AI_MODEL=${AI_MODEL:-glm-4}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      # Agent workspace (R11): flags flow into the app only.
+      - AGENT_ENABLED=${AGENT_ENABLED:-false}
+      - AGENT_WRITES_ENABLED=${AGENT_WRITES_ENABLED:-false}
+      - AGENT_SHADOW_MODE=${AGENT_SHADOW_MODE:-false}
+      - AGENT_CANARY_USERS=${AGENT_CANARY_USERS:-}
+      - AGENT_WORKSPACE=${AGENT_WORKSPACE:-false}
+      - AGENT_CAFE_ID=${AGENT_CAFE_ID:-}
+      - GRAPH_MAX_STALE_SECONDS=${GRAPH_MAX_STALE_SECONDS:-300}
+      # OpenObserve OTLP endpoint INSIDE the Compose network (R10).
+      - OPENOBSERVE_TRACES_URL=${OPENOBSERVE_TRACES_URL:-http://openobserve:5080/api/default/v1/traces}
+      - OPENOBSERVE_AUTHORIZATION=${OPENOBSERVE_AUTHORIZATION:-}
+      - OPENOBSERVE_INTERNAL_HOST=openobserve
+      - OPENOBSERVE_DASHBOARD_URL=${OPENOBSERVE_DASHBOARD_URL:-http://localhost:5080}
+    volumes:
+      - db-data:/app/prisma
+      - uploads:/app/uploads
+    restart: unless-stopped
+    depends_on:
+      - openobserve
+
+  worker:
+    build: .
+    container_name: farmans-agent-worker
+    command: node worker/dist.cjs
+    environment:
+      - DATABASE_URL=file:/app/prisma/prod.db
+      - AGENT_ENABLED=${AGENT_ENABLED:-false}
+      - AGENT_WRITES_ENABLED=${AGENT_WRITES_ENABLED:-false}
+      - AGENT_WORKSPACE=${AGENT_WORKSPACE:-false}
+      - AGENT_CAFE_ID=${AGENT_CAFE_ID:-}
+      - GRAPH_MAX_STALE_SECONDS=${GRAPH_MAX_STALE_SECONDS:-300}
+      - AI_ENABLED=${AI_ENABLED:-false}
+      - AI_MODEL=${AI_MODEL:-glm-4}
+      - OPENOBSERVE_TRACES_URL=${OPENOBSERVE_TRACES_URL:-http://openobserve:5080/api/default/v1/traces}
+      - OPENOBSERVE_AUTHORIZATION=${OPENOBSERVE_AUTHORIZATION:-}
+      - OPENOBSERVE_INTERNAL_HOST=openobserve
+      - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-}
+      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:-}
+    volumes:
+      - db-data:/app/prisma
+    restart: unless-stopped
+    depends_on:
+      - app
+
+  # Local OpenObserve (R10): telemetry UI on 127.0.0.1:5080 only; credentials
+  # come from server-side env (OPENOBSERVE_* / ZO_ROOT_USER_*), never baked in.
+  openobserve:
+    # Pinned: v0.92.2 verified (2026-09-10). Fresh spans are queryable only with
+    # ZO_QUERY_ON_WAL=true; search API: /api/{org}/_search_stream?type=traces.
+    image: public.ecr.aws/zinclabs/openobserve:v0.92.2
+    container_name: farmans-openobserve
+    ports:
+      - "127.0.0.1:5080:5080"
+    environment:
+      - ZO_ROOT_USER_EMAIL=${ZO_ROOT_USER_EMAIL:-owner@example.com}
+      - ZO_ROOT_USER_PASSWORD=${ZO_ROOT_USER_PASSWORD:-}
+      - ZO_QUERY_ON_WAL=true
+      - ZO_DATA_DIR=/data
+      - ZO_HTTP_PORT=5080
+    volumes:
+      - openobserve-data:/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  uploads:
+  openobserve-data:

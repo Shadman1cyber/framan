@@ -59,7 +59,7 @@ export default async function CategoryPage({
     const info = infos.get(p.id);
     if (!info) return true;
     if (safeOnly) {
-      if (info.allergenStatus === "UNKNOWN") return false;
+      if (info.allergenStatus === "CONTAINS") return false;
       if (info.conflictingAllergens.length > 0) return false;
     }
     return true;

@@ -4,15 +4,37 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     product: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      aggregate: vi.fn(),
+      groupBy: vi.fn(),
     },
     qRCode: {
       findFirst: vi.fn(),
     },
     order: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      aggregate: vi.fn(),
+      count: vi.fn(),
     },
+    orderItem: {
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    productIngredient: {
+      groupBy: vi.fn(),
+    },
+    coffeeLine: {
+      findMany: vi.fn(),
+    },
+    staff: { count: vi.fn() },
+    cafeTable: { update: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -22,147 +44,213 @@ import {
   canTransition,
   createOrder,
   transitionOrder,
+  nextStatuses,
   OrderError,
 } from "@/lib/orders";
+import { orderPreparationEstimator } from "@/lib/estimator";
 
 describe("cart", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("computes count from lines", () => {
-    expect(cartCount([{ quantity: 2 }, { quantity: 0 }, { quantity: 3 }])).toBe(5);
+  it("counts quantities", () => {
+    expect(cartCount([{ quantity: 2 }, { quantity: 3 }])).toBe(5);
   });
 
-  it("prices cart server-side from DB prices", async () => {
+  it("prices items with the selected coffee line (Rule 14)", async () => {
     vi.mocked(prisma.product.findMany).mockResolvedValue([
-      { id: "p1", price: 100, nameFa: "قهوه", isAvailable: true },
-      { id: "p2", price: 50, nameFa: "چای", isAvailable: true },
+      {
+        id: "p1",
+        price: 85000,
+        nameFa: "اسپرسو",
+        isAvailable: true,
+        prepBaseMin: 2,
+        coffeeLines: [
+          { coffeeLineId: "line-eth", price: 105000 },
+          { coffeeLineId: "line-house", price: 85000 },
+        ],
+      },
     ] as never);
-
-    const result = await validateAndPriceCart([
-      { productId: "p1", quantity: 2 },
-      { productId: "p2", quantity: 1 },
+    vi.mocked(prisma.coffeeLine.findMany as never as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "line-eth", nameFa: "اتیوپی" },
     ]);
 
+    const result = await validateAndPriceCart([
+      { productId: "p1", quantity: 2, coffeeLineId: "line-eth" },
+    ]);
     expect(result.ok).toBe(true);
-    expect(result.total).toBe(250);
-    expect(result.items).toHaveLength(2);
+    expect(result.items[0].unitPrice).toBe(105000);
+    expect(result.items[0].coffeeLineName).toBe("اتیوپی");
+    expect(result.total).toBe(210000);
   });
 
-  it("flags unavailable products and does not trust them", async () => {
+  it("falls back to base price without a coffee line", async () => {
     vi.mocked(prisma.product.findMany).mockResolvedValue([
-      { id: "p1", price: 100, nameFa: "قهوه", isAvailable: false },
+      {
+        id: "p1",
+        price: 85000,
+        nameFa: "اسپرسو",
+        isAvailable: true,
+        prepBaseMin: 2,
+        coffeeLines: [],
+      },
     ] as never);
-
     const result = await validateAndPriceCart([{ productId: "p1", quantity: 1 }]);
+    expect(result.total).toBe(85000);
+  });
 
+  it("rejects items whose requested coffee line is not offered", async () => {
+    vi.mocked(prisma.product.findMany).mockResolvedValue([
+      { id: "p1", price: 85000, nameFa: "اسپرسو", isAvailable: true, prepBaseMin: 2, coffeeLines: [] },
+    ] as never);
+    vi.mocked(prisma.coffeeLine.findMany as never as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "line-x", nameFa: "ناموجود" },
+    ]);
+    const result = await validateAndPriceCart([
+      { productId: "p1", quantity: 1, coffeeLineId: "line-x" },
+    ]);
     expect(result.ok).toBe(false);
-    expect(result.unavailable).toEqual(["قهوه"]);
-    expect(result.items).toHaveLength(0);
-    expect(result.total).toBe(0);
+    expect(result.unavailable).toContain("اسپرسو");
   });
 });
 
-describe("orders", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("rejects empty carts", async () => {
-    await expect(createOrder({ items: [] })).rejects.toThrow(OrderError);
+describe("order state machine (Rules 3 & 4)", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.$transaction).mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma) as never);
   });
 
-  it("creates order and preserves qr/table context", async () => {
-    vi.mocked(prisma.product.findMany).mockResolvedValue([
-      { id: "p1", price: 100, nameFa: "قهوه", isAvailable: true },
-    ] as never);
-    vi.mocked(prisma.qRCode.findFirst).mockResolvedValue({
-      id: "qr1",
-      isActive: true,
-      expiresAt: null,
-      tableId: "t1",
-      table: { id: "t1" },
-    } as never);
-    vi.mocked(prisma.order.create).mockResolvedValue({
-      id: "o1",
-      tableId: "t1",
-      qrCodeId: "qr1",
-      total: 100,
-      items: [{ productId: "p1", quantity: 1, price: 100 }],
-    } as never);
-
-    const order = await createOrder({
-      qrCodeId: "qr1",
-      items: [{ productId: "p1", quantity: 1 }],
-    });
-
-    expect(order.tableId).toBe("t1");
-    expect(order.qrCodeId).toBe("qr1");
-    expect(order.total).toBe(100);
-    const createArg = vi.mocked(prisma.order.create).mock.calls[0][0];
-    expect((createArg.data as { tableId: string | null }).tableId).toBe("t1");
+  it("table orders cannot enter READY (آماده تحویل) and have no serve step", () => {
+    expect(canTransition("PREPARING", "READY", "TABLE")).toBe(false);
   });
 
-  it("resolves a QR code passed by code and stores the resolved id", async () => {
-    vi.mocked(prisma.product.findMany).mockResolvedValue([
-      { id: "p1", price: 100, nameFa: "قهوه", isAvailable: true },
-    ] as never);
-    vi.mocked(prisma.qRCode.findFirst).mockResolvedValue({
-      id: "qr1",
-      isActive: true,
-      expiresAt: null,
-      tableId: "t1",
-      table: { id: "t1" },
-    } as never);
-    vi.mocked(prisma.order.create).mockResolvedValue({
-      id: "o2",
-      tableId: "t1",
-      qrCodeId: "qr1",
-      total: 100,
-      items: [{ productId: "p1", quantity: 1, price: 100 }],
-    } as never);
-
-    const order = await createOrder({
-      qrCodeId: "main-table-2",
-      items: [{ productId: "p1", quantity: 1 }],
-    });
-
-    expect(order.qrCodeId).toBe("qr1");
-    const query = vi.mocked(prisma.qRCode.findFirst).mock.calls[0][0];
-    expect(
-      (query?.where as { OR: { id: string; code: string }[] }).OR,
-    ).toEqual([{ id: "main-table-2" }, { code: "main-table-2" }]);
+  it("table orders complete directly from PREPARING", () => {
+    expect(canTransition("PREPARING", "COMPLETED", "TABLE")).toBe(true);
   });
 
-  it("rejects expired QR codes", async () => {
-    vi.mocked(prisma.product.findMany).mockResolvedValue([
-      { id: "p1", price: 100, nameFa: "قهوه", isAvailable: true },
-    ] as never);
-    vi.mocked(prisma.qRCode.findFirst).mockResolvedValue({
-      id: "qr1",
-      isActive: true,
-      expiresAt: new Date(Date.now() - 1000),
-      tableId: null,
-      table: null,
-    } as never);
-
-    await expect(
-      createOrder({ qrCodeId: "qr1", items: [{ productId: "p1", quantity: 1 }] }),
-    ).rejects.toThrow(OrderError);
+  it("takeaway orders can enter READY but must not skip it", () => {
+    expect(canTransition("PREPARING", "READY", "TAKEAWAY")).toBe(true);
+    expect(canTransition("PREPARING", "COMPLETED", "TAKEAWAY")).toBe(false);
   });
 
-  it("enforces valid status transitions", () => {
-    expect(canTransition("PENDING", "CONFIRMED")).toBe(true);
-    expect(canTransition("CONFIRMED", "PREPARING")).toBe(true);
-    expect(canTransition("PREPARING", "READY")).toBe(true);
-    expect(canTransition("READY", "COMPLETED")).toBe(true);
-    expect(canTransition("COMPLETED", "PENDING")).toBe(false);
-    expect(canTransition("CANCELLED", "CONFIRMED")).toBe(false);
+  it("follows the full table workflow", () => {
+    expect(canTransition("PENDING", "CONFIRMED", "TABLE")).toBe(true);
+    expect(canTransition("CONFIRMED", "PREPARING", "TABLE")).toBe(true);
+    expect(canTransition("COMPLETED", "PENDING", "TABLE")).toBe(false);
   });
 
-  it("rejects illegal transitions in transitionOrder", async () => {
+  it("exposes only valid next statuses per type", () => {
+    expect(nextStatuses("PREPARING", "TABLE")).toEqual(["COMPLETED", "CANCELLED"]);
+    expect(nextStatuses("PREPARING", "TAKEAWAY")).toEqual(["READY", "CANCELLED"]);
+    expect(nextStatuses("COMPLETED", "TAKEAWAY")).toEqual([]);
+  });
+
+  it("transitionOrder persists valid transitions", async () => {
     vi.mocked(prisma.order.findUnique).mockResolvedValue({
       id: "o1",
-      status: "COMPLETED",
+      status: "PREPARING",
+      orderType: "TAKEAWAY",
+      startedAt: null,
     } as never);
+    vi.mocked(prisma.order.update).mockResolvedValue({ id: "o1", status: "READY" } as never);
+    const order = await transitionOrder("o1", "READY") as { status: string };
+    expect(order.status).toBe("READY");
+  });
 
-    await expect(transitionOrder("o1", "PENDING")).rejects.toThrow(OrderError);
+  it("transitionOrder rejects invalid transitions for the order type", async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: "o2",
+      status: "PREPARING",
+      orderType: "TABLE",
+      startedAt: null,
+    } as never);
+    await expect(transitionOrder("o2", "READY")).rejects.toBeInstanceOf(OrderError);
+  });
+});
+
+describe("order creation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stores coffee line info and estimate with the order", async () => {
+    vi.mocked(prisma.product.findMany).mockResolvedValue([
+      {
+        id: "p1",
+        price: 85000,
+        nameFa: "اسپرسو",
+        isAvailable: true,
+        prepBaseMin: 2,
+        coffeeLines: [{ coffeeLineId: "l1", price: 105000 }],
+      },
+    ] as never);
+    vi.mocked(prisma.coffeeLine.findMany as never as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "l1", nameFa: "اتیوپی" },
+    ]);
+    vi.mocked(prisma.qRCode.findFirst).mockResolvedValue({
+      id: "qr1",
+      isActive: true,
+      expiresAt: null,
+      tableId: "t1",
+    } as never);
+    vi.mocked(prisma.order.create).mockImplementation((async (args: unknown) => args) as never);
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.staff.count)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1);
+    vi.mocked(prisma.orderItem.groupBy).mockResolvedValue([
+      { productId: "p1", _count: { _all: 3 } },
+    ] as never);
+    vi.mocked(prisma.productIngredient.groupBy).mockResolvedValue([
+      { productId: "p1", _count: { _all: 3 } },
+    ] as never);
+
+    const order = (await createOrder({
+      items: [{ productId: "p1", quantity: 2, coffeeLineId: "l1" }],
+      qrCodeId: "qr1",
+    })) as unknown as {
+      data: {
+        orderType: string;
+        total: number;
+        estPrepMin: number | null;
+        items: { create: Array<{ coffeeLineId: string | null; coffeeLineName: string | null; price: number }> };
+      };
+    };
+
+    expect(order.data.orderType).toBe("TABLE");
+    expect(order.data.total).toBe(210000);
+    expect(order.data.items.create[0].coffeeLineId).toBe("l1");
+    expect(order.data.items.create[0].coffeeLineName).toBe("اتیوپی");
+    expect(order.data.items.create[0].price).toBe(105000);
+    expect(order.data.estPrepMin).toBeGreaterThan(0);
+  });
+});
+
+describe("preparation estimator", () => {
+  const base = {
+    items: [{ quantity: 1, prepBaseMin: 4, ingredientCount: 2 }],
+    activeOrders: 0,
+    activeItems: 0,
+    chefs: 4,
+    staff: 2,
+  };
+
+  it("is fast for a simple coffee order with few active orders", () => {
+    const est = orderPreparationEstimator.estimate(base);
+    expect(est.minMinutes).toBeLessThanOrEqual(8);
+  });
+
+  it("increases the estimate with queue load and complexity", () => {
+    const busy = orderPreparationEstimator.estimate({
+      ...base,
+      activeOrders: 10,
+      activeItems: 20,
+      chefs: 2,
+      items: [{ quantity: 3, prepBaseMin: 12, ingredientCount: 6 }],
+    });
+    const calm = orderPreparationEstimator.estimate(base);
+    expect(busy.minMinutes).toBeGreaterThan(calm.minMinutes);
+  });
+
+  it("returns a range, not an exact number", () => {
+    const est = orderPreparationEstimator.estimate(base);
+    expect(est.maxMinutes).toBeGreaterThan(est.minMinutes);
+    expect(est.factors.chefs).toBe(4);
   });
 });

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/db";
+import { guard } from "@/lib/api";
 
 const schema = z.object({
   nameFa: z.string().min(1).optional(),
@@ -15,10 +13,8 @@ const schema = z.object({
 });
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!isAdmin((session?.user as { role?: string } | undefined)?.role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const g = await guard("categories.manage");
+  if ("res" in g) return g.res;
   const body = await req.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "bad input" }, { status: 400 });
@@ -27,10 +23,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!isAdmin((session?.user as { role?: string } | undefined)?.role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const g = await guard("categories.manage");
+  if ("res" in g) return g.res;
   try {
     await prisma.category.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });

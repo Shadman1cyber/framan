@@ -1,22 +1,19 @@
 export function AllergenBadge({
   nameFa,
-  status,
+  icon,
 }: {
   nameFa: string;
-  status: "CONTAINS" | "MAY_CONTAIN" | "UNKNOWN";
+  icon?: string | null;
 }) {
-  const styles =
-    status === "CONTAINS"
-      ? "border-danger/30 bg-danger/10 text-danger"
-      : status === "MAY_CONTAIN"
-      ? "border-warning/30 bg-warning/10 text-warning"
-      : "border-coffee/20 bg-beige text-espresso/60";
-  const label =
-    status === "CONTAINS" ? "حاوی" : status === "MAY_CONTAIN" ? "احتمالاً حاوی" : "نامشخص";
+  // Requirement 4: show the allergen name directly — no "حاوی:" wording.
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles}`}>
-      <span aria-hidden="true">⚠</span>
-      <span>{nameFa} · {label}</span>
+    <span className="inline-flex items-center gap-1 rounded-full border border-danger/25 bg-danger/5 px-2.5 py-0.5 text-xs font-medium text-danger">
+      {icon ? (
+        <span aria-hidden="true">{icon}</span>
+      ) : (
+        <span aria-hidden="true">⚠</span>
+      )}
+      <span>{nameFa}</span>
     </span>
   );
 }

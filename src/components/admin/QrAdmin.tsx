@@ -18,25 +18,21 @@ export type QrRow = {
 export function QrAdmin({ initial }: { initial: QrRow[] }) {
   const [items, setItems] = useState(initial);
   const [label, setLabel] = useState("");
-  const [code, setCode] = useState("");
   const [tableLabel, setTableLabel] = useState("");
   const router = useRouter();
   const { show } = useToast();
 
   async function create() {
-    const slug = code.trim();
-    if (!slug) return;
     const res = await fetch("/api/admin/qr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: slug, label: label || null, tableLabel: tableLabel || null }),
+      body: JSON.stringify({ label: label || null, tableNumber: tableLabel || null }),
     });
     if (res.ok) {
       setLabel("");
-      setCode("");
       setTableLabel("");
       router.refresh();
-      show("QR ایجاد شد", "success");
+      show("QR ایجاد شد (کد تصادفی امن تولید شد)", "success");
     } else {
       const j = await res.json().catch(() => ({}));
       show(j.error ?? "خطا", "error");
@@ -96,8 +92,11 @@ export function QrAdmin({ initial }: { initial: QrRow[] }) {
 
       <div className="card mt-6 p-4">
         <h2 className="mb-3 text-sm font-semibold">ایجاد QR</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          <input className="input" placeholder="کد (مثال: table-9)" value={code} onChange={(e) => setCode(e.target.value)} />
+        <p className="mb-3 text-xs text-muted">
+          کد QR به‌صورت خودکار و به شکل نامحدودن‌پذیر (توکن تصادفی) تولید می‌شود تا مهمانان نتوانند
+          با حدس زدن آدرس، منوی میز دیگر را باز کنند.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
           <input className="input" placeholder="برچسب (مثال: میز ۹)" value={label} onChange={(e) => setLabel(e.target.value)} />
           <input className="input" placeholder="اتصال به میز (شماره میز، اختیاری)" value={tableLabel} onChange={(e) => setTableLabel(e.target.value)} />
         </div>

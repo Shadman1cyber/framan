@@ -1,5 +1,6 @@
 "use client";
 import { useCart } from "@/components/cart/CartContext";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,13 +14,19 @@ const items = [
 export function BottomNav() {
   const pathname = usePathname();
   const { count } = useCart();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isManagement = role === "ADMIN" || role === "STAFF" || role === "OWNER" || role === "CASHIER";
+  const visibleItems = isManagement
+    ? items.filter((i) => i.href !== "/")
+    : items;
   return (
     <nav
       aria-label="ناوبری اصلی"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-coffee/10 bg-cream-50/95 backdrop-blur md:hidden"
     >
       <ul className="flex items-center justify-around pb-[env(safe-area-inset-bottom)]">
-        {items.map((i) => {
+        {visibleItems.map((i) => {
           const active = pathname === i.href || (i.href !== "/" && pathname.startsWith(i.href));
           return (
             <li key={i.href} className="flex-1">
@@ -30,11 +37,6 @@ export function BottomNav() {
               >
                 <span className="text-lg" aria-hidden="true">{i.icon}</span>
                 <span>{i.label}</span>
-                {i.href === "/cart" && count > 0 && (
-                  <span className="absolute top-1 left-1/2 ml-3 rounded-full bg-danger px-1.5 text-[10px] font-bold text-cream">
-                    {count}
-                  </span>
-                )}
               </Link>
             </li>
           );

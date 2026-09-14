@@ -1,14 +1,45 @@
-import type { Role } from "./constants";
+import { getServerSession } from "next-auth";
+import { authOptions } from "./auth";
+import {
+  normalizeRole,
+  roleHas,
+  isManagement,
+  isOwner,
+  type Permission,
+  type Role,
+} from "./constants";
 
-export function isAdmin(role?: string | null): boolean {
-  return role === "ADMIN";
+export { isAdmin, isStaffOrAdmin, requireRole } from "./constants-compat";
+
+export type SessionUser = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  role: Role;
+};
+
+/** Read the current session user with a normalized role. */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return null;
+  const role = normalizeRole((session.user as { role?: string }).role);
+  const id = (session.user as { id?: string }).id;
+  if (!role || !id) return null;
+  return {
+    id,
+    name: session.user.name ?? null,
+    email: session.user.email ?? null,
+    role,
+  };
 }
 
-export function isStaffOrAdmin(role?: string | null): boolean {
-  return role === "ADMIN" || role === "STAFF";
+/** API guard: session user must hold the permission. Returns null when unauthorized. */
+export async function requirePermission(perm: Permission): Promise<SessionUser | null> {
+  const user = await getSessionUser();
+  if (!user) return null;
+  if (!roleHas(user.role, perm)) return null;
+  return user;
 }
 
-export function requireRole(role: string | null | undefined, allowed: Role[]): boolean {
-  if (!role) return false;
-  return allowed.includes(role as Role);
-}
+export { roleHas, isManagement, isOwner, normalizeRole };
+export type { Permission, Role };

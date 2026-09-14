@@ -1,13 +1,18 @@
 export type CartItemInput = {
   productId: string;
   quantity: number;
+  coffeeLineId?: string | null;
 };
 
 export type CartItemResolved = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  coffeeLineId: string | null;
+  coffeeLineName: string | null;
+  optionPrice: number;
   name: string;
+  prepBaseMin: number;
   isAvailable: boolean;
 };
 
@@ -30,9 +35,29 @@ export async function validateAndPriceCart(
   const productIds = Array.from(new Set(items.map((i) => i.productId)));
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
-    select: { id: true, price: true, nameFa: true, isAvailable: true },
+    select: {
+      id: true,
+      price: true,
+      nameFa: true,
+      isAvailable: true,
+      prepBaseMin: true,
+      coffeeLines: { where: { isActive: true }, select: { coffeeLineId: true, price: true } },
+    },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
+
+  // Collect requested coffee lines and load their names.
+  const requestedLineIds = Array.from(
+    new Set(items.map((i) => i.coffeeLineId).filter((x): x is string => Boolean(x))),
+  );
+  const lines = requestedLineIds.length
+    ? await prisma.coffeeLine.findMany({
+        where: { id: { in: requestedLineIds }, isActive: true },
+        select: { id: true, nameFa: true },
+      })
+    : [];
+  const lineById = new Map(lines.map((l) => [l.id, l]));
+
   const resolved: CartItemResolved[] = [];
   const unavailable: string[] = [];
   for (const i of items) {
@@ -42,11 +67,34 @@ export async function validateAndPriceCart(
       unavailable.push(p.nameFa);
       continue;
     }
+
+    let unitPrice = p.price;
+    let coffeeLineId: string | null = null;
+    let coffeeLineName: string | null = null;
+    let optionPrice = 0;
+
+    if (i.coffeeLineId) {
+      const lineOption = p.coffeeLines.find((cl) => cl.coffeeLineId === i.coffeeLineId);
+      const line = lineById.get(i.coffeeLineId);
+      if (!lineOption || !line) {
+        unavailable.push(p.nameFa);
+        continue;
+      }
+      unitPrice = lineOption.price;
+      coffeeLineId = line.id;
+      coffeeLineName = line.nameFa;
+      optionPrice = lineOption.price - p.price;
+    }
+
     resolved.push({
       productId: p.id,
       quantity: i.quantity,
-      unitPrice: p.price,
+      unitPrice,
+      coffeeLineId,
+      coffeeLineName,
+      optionPrice,
       name: p.nameFa,
+      prepBaseMin: p.prepBaseMin,
       isAvailable: p.isAvailable,
     });
   }

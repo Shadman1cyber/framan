@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3080}",
+    "worker:build": "esbuild worker/bootstrap.ts --bundle --platform=node --format=cjs --outfile=worker/dist.cjs --external:@prisma/client --external:@next/env --alias:@=./src",
+    "worker": "npm run worker:build && node worker/dist.cjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

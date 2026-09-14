@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/nav/TopBar";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { CartBar } from "@/components/cart/CartBar";
-import { getProducts } from "@/lib/queries";
+import { searchProducts } from "@/lib/search";
 import { ProductCard } from "@/components/menu/ProductCard";
 import { SearchBar } from "@/components/menu/SearchBar";
 import { EmptyState } from "@/components/ui/States";
@@ -14,7 +14,7 @@ export default async function SearchPage({
   searchParams: { q?: string };
 }) {
   const q = (searchParams.q ?? "").trim();
-  const products = q ? await getProducts({ search: q }) : [];
+  const products = q ? await searchProducts(q) : [];
 
   return (
     <div className="pb-24 md:pb-12">

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { ROLES, ROLE_LABELS_FA, type Role } from "@/lib/constants";
 
 type Row = {
   id: string;
@@ -13,13 +14,13 @@ type Row = {
   createdAt: string;
 };
 
-const ROLE_OPTIONS = ["CUSTOMER", "STAFF", "ADMIN"];
+const ROLE_OPTIONS: Role[] = [ROLES.CUSTOMER, ROLES.CASHIER, ROLES.OWNER];
 
 export function UsersAdmin({ initial }: { initial: Row[] }) {
   const [items, setItems] = useState(initial);
   const { show } = useToast();
 
-  async function setRole(id: string, role: string) {
+  async function setRole(id: string, role: Role) {
     const res = await fetch(`/api/admin/users/${id}/role`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -41,7 +42,6 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
           <tr>
             <th className="p-3 text-right">نام</th>
             <th className="p-3 text-right">ایمیل</th>
-            <th className="p-3 text-right">تلفن</th>
             <th className="p-3 text-right">سفارش‌ها</th>
             <th className="p-3 text-right">امتیازها</th>
             <th className="p-3 text-right">نقش</th>
@@ -53,18 +53,17 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
             <tr key={u.id} className="border-t border-coffee/10">
               <td className="p-3 font-medium">{u.name}</td>
               <td className="p-3 text-muted">{u.email || "-"}</td>
-              <td className="p-3 text-muted">{u.phone || "-"}</td>
               <td className="p-3 text-muted">{u.orderCount}</td>
               <td className="p-3 text-muted">{u.ratingCount}</td>
               <td className="p-3">
                 <select
-                  value={u.role}
-                  onChange={(e) => setRole(u.id, e.target.value)}
+                  value={ROLE_OPTIONS.includes(u.role as Role) ? u.role : "OWNER"}
+                  onChange={(e) => setRole(u.id, e.target.value as Role)}
                   className="rounded-lg border border-coffee/15 bg-cream-50 px-2 py-1 text-xs"
                   aria-label={`نقش ${u.name}`}
                 >
                   {ROLE_OPTIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r}>{ROLE_LABELS_FA[r]}</option>
                   ))}
                 </select>
               </td>

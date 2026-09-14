@@ -14,11 +14,12 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
   const { show } = useToast();
 
   async function create() {
-    if (!slug || !name) return;
+    if (!name.trim()) return;
     const res = await fetch("/api/admin/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, nameFa: name, icon: icon || null, order: items.length + 1, isActive: true }),
+      // The tag is optional — the server auto-generates it from the name when empty.
+      body: JSON.stringify({ slug: slug.trim() || null, nameFa: name, icon: icon || null, order: items.length + 1, isActive: true }),
     });
     if (res.ok) {
       setSlug("");
@@ -26,7 +27,10 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
       setIcon("");
       router.refresh();
       show("دسته ایجاد شد", "success");
-    } else show("خطا", "error");
+    } else {
+      const j = await res.json().catch(() => ({}));
+      show(j.error ?? "خطا", "error");
+    }
   }
 
   async function toggle(id: string, isActive: boolean) {
@@ -62,7 +66,12 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
               <span aria-hidden="true">{c.icon ?? "·"}</span>
               <div>
                 <div className="font-semibold">{c.nameFa}</div>
-                <div className="text-xs text-muted">{c.slug} · {c.productCount} محصول</div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted">
+                  <span dir="ltr" className="rounded-full border border-olive/25 bg-olive-50 px-2 py-0.5 text-[10px] font-medium text-olive-600">
+                    #{c.slug}
+                  </span>
+                  <span>{c.productCount} محصول</span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -78,9 +87,23 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
         <h2 className="mb-3 text-sm font-semibold">افزودن دسته</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <input className="input" placeholder="نام فارسی" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="input" placeholder="slug (مثال: coffee)" value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <div className="relative">
+            <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-olive-600">
+              #
+            </span>
+            <input
+              dir="ltr"
+              className="input pr-8 text-left"
+              placeholder="tag (optional — e.g. coffee)"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+            />
+          </div>
           <input className="input" placeholder="ایموجی" value={icon} onChange={(e) => setIcon(e.target.value)} />
         </div>
+        <p className="mt-2 text-xs text-muted">
+          تگ در آدرس صفحه‌ی دسته استفاده می‌شود؛ اگر خالی بماند، به‌صورت خودکار از نام ساخته می‌شود.
+        </p>
         <button onClick={create} className="btn-primary mt-3">ایجاد</button>
       </div>
     </div>

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const port = process.env.PORT || 3080;
+
 const nextConfig = {
   reactStrictMode: true,
   images: {
@@ -8,7 +10,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: { allowedOrigins: ["localhost:3000"] },
+    serverActions: { allowedOrigins: [`localhost:${port}`, `127.0.0.1:${port}`] },
   },
 };
 

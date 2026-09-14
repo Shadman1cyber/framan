@@ -1,5 +1,5 @@
 "use client";
-import { signIn, getSession } from "next-auth/react";
+import { signIn, getSession, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { TopBar } from "@/components/nav/TopBar";
@@ -26,19 +26,24 @@ function LoginInner() {
     setError(null);
     setLoading(true);
     const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
     if (res?.error) {
+      setLoading(false);
       setError("ایمیل یا رمز عبور اشتباه است");
       return;
     }
     const session = await getSession();
     const role = (session?.user as { role?: string } | undefined)?.role;
-    const isStaff = role === "ADMIN" || role === "STAFF";
-    if (isStaff && (callbackUrl === "/profile" || callbackUrl === "/" || !callbackUrl)) {
-      router.push("/admin");
-    } else {
-      router.push(callbackUrl);
+    const isManagement = role === "ADMIN" || role === "STAFF" || role === "OWNER" || role === "CASHIER";
+    if (isManagement) {
+      // Don't reveal that this is a staff account — just show generic invalid credentials.
+      await signOut({ redirect: false });
+      setLoading(false);
+      setError("ایمیل یا رمز عبور اشتباه است");
+      return;
     }
+    setLoading(false);
+    router.push(callbackUrl);
+    router.refresh();
   }
 
   return (
@@ -80,8 +85,9 @@ function LoginInner() {
           </p>
           <p className="rounded-xl border border-coffee/10 bg-cream p-3 text-center text-xs text-muted">
             برای تست:<br />
-            admin@farmans.cafe / admin1234<br />
-            user@farmans.cafe / user1234
+            admin@farmans.cafe / admin1234 (مدیر)<br />
+            cashier@farmans.cafe / cashier1234 (صندوق‌دار)<br />
+            user@farmans.cafe / user1234 (مشتری)
           </p>
         </form>
       </main>

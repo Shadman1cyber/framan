@@ -1,30 +1,40 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { isAdmin } from "@/lib/guards";
 import { prisma } from "@/lib/db";
+import { guard } from "@/lib/api";
+import { slugify } from "@/lib/slug";
 
 const schema = z.object({
-  slug: z.string().min(1),
   nameFa: z.string().min(1),
   nameEn: z.string().optional().nullable(),
   icon: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  order: z.number().int(),
-  isActive: z.boolean(),
+  slug: z.string().optional().nullable(),
+  order: z.number().int().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!isAdmin((session?.user as { role?: string } | undefined)?.role)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const g = await guard("categories.manage");
+  if ("res" in g) return g.res;
   const body = await req.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "bad input" }, { status: 400 });
-  const exists = await prisma.category.findUnique({ where: { slug: parsed.data.slug } });
+  const data = parsed.data;
+  const slug = data.slug?.trim() ? slugify(data.slug) : slugify(data.nameFa);
+  const exists = await prisma.category.findUnique({ where: { slug } });
   if (exists) return NextResponse.json({ error: "slug تکراری" }, { status: 400 });
-  const cat = await prisma.category.create({ data: parsed.data });
+  const maxOrder = await prisma.category.aggregate({ _max: { order: true } });
+  const cat = await prisma.category.create({
+    data: {
+      slug,
+      nameFa: data.nameFa,
+      nameEn: data.nameEn ?? null,
+      icon: data.icon ?? null,
+      description: data.description ?? null,
+      order: data.order ?? (maxOrder._max.order ?? 0) + 1,
+      isActive: data.isActive ?? true,
+    },
+  });
   return NextResponse.json({ id: cat.id });
 }

@@ -38,15 +38,19 @@ export default function CartPage() {
           <h1 className="heading-section">سبد خرید</h1>
           <button onClick={clear} className="btn-ghost text-sm">پاک کردن</button>
         </div>
-        {tableLabel && (
+        {tableLabel ? (
           <div className="mb-4 rounded-2xl border border-olive/20 bg-olive-50 p-3 text-sm text-olive-600">
             سفارش برای {tableLabel}
+          </div>
+        ) : (
+          <div className="mb-4 rounded-2xl border border-coffee/15 bg-beige-soft p-3 text-sm text-espresso/80">
+            سفارش بیرون‌بر — پس از آماده شدن، برای تحویل اطلاع داده می‌شود.
           </div>
         )}
         <ul className="space-y-3">
           {items.map((i) => (
             <li
-              key={i.productId}
+              key={`${i.productId}::${i.coffeeLineId ?? ""}`}
               className="flex items-center gap-3 rounded-2xl border border-coffee/10 bg-cream-50 p-3"
             >
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-beige">
@@ -54,18 +58,26 @@ export default function CartPage() {
               </div>
               <div className="flex flex-1 flex-col gap-1">
                 <span className="font-semibold text-espresso">{i.name}</span>
+                {i.coffeeLineName && (
+                  <span className="w-fit rounded-full bg-olive-50 px-2 py-0.5 text-xs text-olive-600">
+                    خط قهوه: {i.coffeeLineName}
+                  </span>
+                )}
                 <Price amount={i.price} size="sm" className="text-muted" />
                 <QuantitySelector
                   value={i.quantity}
                   onChange={(n) => {
-                    if (n > i.quantity) increase(i.productId);
-                    else decrease(i.productId);
+                    if (n > i.quantity) increase(i.productId, i.coffeeLineId);
+                    else decrease(i.productId, i.coffeeLineId);
                   }}
                 />
               </div>
               <div className="flex flex-col items-end gap-2">
                 <Price amount={i.price * i.quantity} size="sm" />
-                <button onClick={() => remove(i.productId)} className="btn-ghost text-xs text-danger">
+                <button
+                  onClick={() => remove(i.productId, i.coffeeLineId)}
+                  className="btn-ghost text-xs text-danger"
+                >
                   حذف
                 </button>
               </div>
