@@ -29,6 +29,10 @@ export function SearchBar({ className }: { className?: string }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Get branch context from URL (qr or table param)
+  const qrCode = sp.get("qr") ?? sp.get("table") ?? "";
+  const branchParam = qrCode ? `&qr=${encodeURIComponent(qrCode)}` : "";
+
   useEffect(() => setQ(sp.get("q") ?? ""), [sp]);
 
   useEffect(() => {
@@ -50,7 +54,7 @@ export function SearchBar({ className }: { className?: string }) {
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(value)}`);
+        const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(value)}${branchParam}`);
         const json = await res.json();
         setSuggestions(json.suggestions ?? []);
         setOpen(true);
@@ -65,7 +69,11 @@ export function SearchBar({ className }: { className?: string }) {
 
   function go(href: string) {
     setOpen(false);
-    router.push(href);
+    // Preserve QR context when navigating
+    const url = qrCode && !href.includes("qr=") && !href.includes("table=")
+      ? `${href}${href.includes("?") ? "&" : "?"}${qrCode.startsWith("qr") ? "qr" : "table"}=${qrCode}`
+      : href;
+    router.push(url);
   }
 
   function submit() {
@@ -74,7 +82,7 @@ export function SearchBar({ className }: { className?: string }) {
       return;
     }
     setOpen(false);
-    router.push(`/search?q=${encodeURIComponent(q)}`);
+    router.push(`/search?q=${encodeURIComponent(q)}${branchParam}`);
   }
 
   const hasResults = suggestions.length > 0;

@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { useOffline } from "@/lib/offline/OfflineContext";
+import { enqueueAction } from "@/lib/offline/queue";
 
 type Cat = { id: string; slug: string; nameFa: string };
 type Diet = { id: string; key: string; nameFa: string; icon: string | null };
@@ -24,6 +26,7 @@ export function PreferencesForm({
   const [diet, setDiet] = useState<Set<string>>(new Set(initialDiet));
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const { isOnline } = useOffline();
   const { show } = useToast();
 
   function toggleDiet(id: string) {
@@ -37,27 +40,47 @@ export function PreferencesForm({
 
   async function save() {
     setSaving(true);
-    const res = await fetch("/api/profile/preferences", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        preferences: [
-          { key: "favoriteCategory", value: favoriteCategory },
-          { key: "coffeePreference", value: coffeePreference },
-          { key: "sweetOrSavory", value: sweetOrSavory },
-        ].filter((p) => p.value),
-        dietaryTagIds: Array.from(diet),
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      show("ترجیحات ذخیره شد", "success");
-      router.refresh();
-    } else show("خطا", "error");
+    const payload = {
+      preferences: [
+        { key: "favoriteCategory", value: favoriteCategory },
+        { key: "coffeePreference", value: coffeePreference },
+        { key: "sweetOrSavory", value: sweetOrSavory },
+      ].filter((p) => p.value),
+      dietaryTagIds: Array.from(diet),
+    };
+    try {
+      if (isOnline) {
+        const res = await fetch("/api/profile/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          show("ترجیحات ذخیره شد", "success");
+          router.refresh();
+        } else {
+          show("خطا", "error");
+        }
+      } else {
+        await enqueueAction({
+          type: "UPDATE_PROFILE",
+          payload,
+        });
+        show("تغییرات ذخیره شد و به محض اتصال اینترنت همگام‌سازی می‌شوند", "success");
+        router.refresh();
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="space-y-5">
+      {!isOnline && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 text-center">
+          آفلاین هستید — تغییرات در صف ذخیره و هنگام اتصال ثبت می‌شوند
+        </div>
+      )}
       <section>
         <label className="label">دسته‌ی مورد علاقه</label>
         <div className="flex flex-wrap gap-2">
@@ -132,7 +155,7 @@ export function PreferencesForm({
         </div>
       </section>
       <button onClick={save} disabled={saving} className="btn-primary w-full">
-        {saving ? "در حال ذخیره..." : "ذخیره"}
+        {saving ? "در حال ذخیره..." : isOnline ? "ذخیره" : "ذخیره آفلاین"}
       </button>
     </div>
   );

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Rating } from "@/components/ui/Rating";
 import { useToast } from "@/components/ui/Toast";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useOffline } from "@/lib/offline/OfflineContext";
+import { enqueueAction } from "@/lib/offline/queue";
 
 type Review = {
   id: string;
@@ -38,6 +40,7 @@ export function ProductRating({
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { show } = useToast();
+  const { isOnline } = useOffline();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const qrQuery = searchParams.get("qr") ?? searchParams.get("table");
@@ -51,16 +54,26 @@ export function ProductRating({
       return;
     }
     setSaving(true);
+    const payload = { productId, rating: userRating, review: review || undefined };
     try {
-      const res = await fetch("/api/ratings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, rating: userRating, review: review || undefined }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "خطا");
-      show("امتیاز شما ثبت شد؛ سپاسگزاریم", "success");
-      setSubmitted(true);
+      if (isOnline) {
+        const res = await fetch("/api/ratings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "خطا");
+        show("امتیاز شما ثبت شد؛ سپاسگزاریم", "success");
+        setSubmitted(true);
+      } else {
+        await enqueueAction({
+          type: "SUBMIT_RATING",
+          payload,
+        });
+        show("امتیاز شما ذخیره شد و به محض اتصال اینترنت ثبت می‌شود", "success");
+        setSubmitted(true);
+      }
     } catch (e) {
       show(e instanceof Error ? e.message : "خطا در ثبت امتیاز", "error");
     } finally {
@@ -78,6 +91,11 @@ export function ProductRating({
       <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-5">
         {authenticated ? (
           <>
+            {!isOnline && (
+              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 text-center">
+                آفلاین هستید — امتیاز در صف ذخیره و هنگام اتصال ثبت می‌شود
+              </div>
+            )}
             <p className="mb-3 text-sm font-medium text-espresso">
               {mine ? "امتیاز شما برای این محصول" : "به این محصول امتیاز دهید"}
             </p>
@@ -116,7 +134,7 @@ export function ProductRating({
               disabled={saving || submitted}
               className="btn-primary"
             >
-              {saving ? "در حال ثبت..." : submitted ? "ثبت شد ✓" : mine ? "به‌روزرسانی امتیاز" : "ثبت امتیاز"}
+              {saving ? "در حال ثبت..." : submitted ? "ثبت شد ✓" : mine ? "به‌روزرسانی امتیاز" : isOnline ? "ثبت امتیاز" : "ثبت امتیاز آفلاین"}
             </button>
           </>
         ) : (

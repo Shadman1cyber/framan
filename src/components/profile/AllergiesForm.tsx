@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { useOffline } from "@/lib/offline/OfflineContext";
+import { enqueueAction } from "@/lib/offline/queue";
 
 export function AllergiesForm({
   allergens,
@@ -13,6 +15,7 @@ export function AllergiesForm({
   const [selected, setSelected] = useState<Set<string>>(new Set(initial));
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const { isOnline } = useOffline();
   const { show } = useToast();
 
   function toggle(id: string) {
@@ -26,20 +29,40 @@ export function AllergiesForm({
 
   async function save() {
     setSaving(true);
-    const res = await fetch("/api/profile/allergies", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ allergenIds: Array.from(selected) }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      show("حساسیت‌ها ذخیره شد", "success");
-      router.refresh();
-    } else show("خطا در ذخیره", "error");
+    const payload = { allergenIds: Array.from(selected) };
+    try {
+      if (isOnline) {
+        const res = await fetch("/api/profile/allergies", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          show("حساسیت‌ها ذخیره شد", "success");
+          router.refresh();
+        } else {
+          show("خطا در ذخیره", "error");
+        }
+      } else {
+        await enqueueAction({
+          type: "UPDATE_PROFILE",
+          payload,
+        });
+        show("تغییرات ذخیره شد و به محض اتصال اینترنت همگام‌سازی می‌شوند", "success");
+        router.refresh();
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="space-y-4">
+      {!isOnline && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 text-center">
+          آفلاین هستید — تغییرات در صف ذخیره و هنگام اتصال ثبت می‌شوند
+        </div>
+      )}
       <ul className="grid grid-cols-2 gap-3">
         {allergens.map((a) => {
           const active = selected.has(a.id);
@@ -64,7 +87,7 @@ export function AllergiesForm({
         })}
       </ul>
       <button onClick={save} disabled={saving} className="btn-primary w-full">
-        {saving ? "در حال ذخیره..." : "ذخیره"}
+        {saving ? "در حال ذخیره..." : isOnline ? "ذخیره" : "ذخیره آفلاین"}
       </button>
     </div>
   );

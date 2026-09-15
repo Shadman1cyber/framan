@@ -3,6 +3,7 @@ import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ToastProvider } from "@/components/ui/Toast";
+import { OfflineBanner } from "@/components/offline/OfflineBanner";
 
 const vazir = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fa" dir="rtl" className={vazir.variable}>
       <body className="font-sans antialiased">
         <Providers>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <OfflineBanner />
+            {children}
+          </ToastProvider>
         </Providers>
       </body>
     </html>

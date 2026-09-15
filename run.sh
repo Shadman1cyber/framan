@@ -66,7 +66,11 @@ info "Node.js $(node --version)"
 # ── 3. Install dependencies ─────────────────────────────────────────
 if [[ ! -d node_modules ]]; then
   info "نصب وابستگی‌ها (npm install)..."
-  npm ci 2>/dev/null || npm install
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    npm install
+  fi
 else
   info "وابستگی‌ها از قبل نصب شده‌اند."
 fi
@@ -86,15 +90,22 @@ set -a; source .env; set +a
 
 # ── 5. Database setup ───────────────────────────────────────────────
 info "همگام‌سازی دیتابیس (prisma db push)..."
-npx prisma db push --skip-generate >/dev/null 2>&1 || npx prisma db push
+npx prisma generate
+npx prisma db push >/dev/null 2>&1 || npx prisma db push
 
 # Agent workspace: apply additive agent migrations when enabled (never destructive).
 # The full chain 001..007 is additive and preserves existing rows.
 if [[ "${AGENT_ENABLED:-false}" == "true" ]]; then
   info "اعمال مهاجرت‌های افزایشی دستیار (001–007)..."
-  for f in prisma/agent-migrations/00*_*.up.sql; do
-    sqlite3 "$(sed -E 's|^file:||' <<<"${DATABASE_URL#file:}")" < "$f" 2>/dev/null || true
-  done
+  # Extract SQLite file path from DATABASE_URL
+  DB_FILE="${DATABASE_URL#file:}"
+  if [[ -f "$DB_FILE" ]] && command_exists sqlite3; then
+    for f in prisma/agent-migrations/00*_*.up.sql; do
+      sqlite3 "$DB_FILE" < "$f" 2>/dev/null || true
+    done
+  else
+    warn "sqlite3 یافت نشد یا فایل دیتابیس وجود ندارد. مهاجرت‌های دستیار رد شد."
+  fi
 fi
 
 # Seed only when the database is empty.
@@ -102,7 +113,7 @@ USER_COUNT=$(npx tsx -e "
   const { PrismaClient } = require('@prisma/client');
   const p = new PrismaClient();
   p.user.count().then((c) => { console.log(c); return p.\$disconnect(); });
-")
+" 2>/dev/null || echo "0")
 if [[ "$USER_COUNT" == "0" ]]; then
   info "دیتابیس خالی است؛ در حال بارگذاری داده‌های نمونه..."
   npm run db:seed
@@ -120,10 +131,6 @@ if [[ "$MODE" == "--prod" ]]; then
   fi
   info "اجرای نسخه تولید روی پورت ${PORT}..."
   npm start
-elif [[ "$MODE" == "--docker" ]]; then
-  info "اجرای با Docker Compose (شامل worker و OpenObserve)..."
-  docker compose up --build -d
-  info "برنامه: http://localhost:${PORT:-3080} — OpenObserve: http://localhost:5080"
 else
   info "اجرای سرور توسعه روی پورت ${PORT}..."
   exec npm run dev

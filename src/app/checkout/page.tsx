@@ -5,6 +5,8 @@ import { useCart } from "@/components/cart/CartContext";
 import { TopBar } from "@/components/nav/TopBar";
 import { Price } from "@/components/ui/Price";
 import { useToast } from "@/components/ui/Toast";
+import { useOffline } from "@/lib/offline/OfflineContext";
+import { enqueueAction } from "@/lib/offline/queue";
 
 export default function CheckoutPage() {
   return (
@@ -18,6 +20,7 @@ function CheckoutInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const { items, total, clear, qrId, tableLabel, hydrated } = useCart();
+  const { isOnline } = useOffline();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -36,26 +39,39 @@ function CheckoutInner() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          qrCodeId: qrId,
-          items: items.map((i) => ({
-            productId: i.productId,
-            quantity: i.quantity,
-            coffeeLineId: i.coffeeLineId ?? undefined,
-          })),
-          customerName: name || undefined,
-          customerPhone: phone || undefined,
-          notes: notes || undefined,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "خطا");
-      submittedRef.current = true;
-      clear();
-      router.push(`/order/${json.order.id}`);
+      const orderPayload = {
+        qrCodeId: qrId,
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          coffeeLineId: i.coffeeLineId ?? undefined,
+        })),
+        customerName: name || undefined,
+        customerPhone: phone || undefined,
+        notes: notes || undefined,
+      };
+
+      if (isOnline) {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderPayload),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "خطا");
+        submittedRef.current = true;
+        clear();
+        router.push(`/order/${json.order.id}`);
+      } else {
+        await enqueueAction({
+          type: "PLACE_ORDER",
+          payload: orderPayload,
+        });
+        show("سفارش شما ذخیره شد و به محض اتصال اینترنت ثبت می‌شود", "success");
+        submittedRef.current = true;
+        clear();
+        router.push("/orders");
+      }
     } catch (err) {
       show(err instanceof Error ? err.message : "خطا در ثبت سفارش", "error");
     } finally {
@@ -85,6 +101,22 @@ function CheckoutInner() {
         {tableLabel && (
           <div className="mb-4 rounded-2xl border border-olive/20 bg-olive-50 p-3 text-sm text-olive-600">
             سفارش شما برای {tableLabel} ثبت می‌شود.
+          </div>
+        )}
+        {!isOnline && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <span className="flex items-center gap-2">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 1l22 22" />
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                <line x1="12" y1="20" x2="12.01" y2="20" />
+              </svg>
+              آفلاین هستید — سفارش در صف ذخیره و به محض اتصال ثبت می‌شود
+            </span>
           </div>
         )}
         <form onSubmit={submit} className="space-y-4">
@@ -143,7 +175,7 @@ function CheckoutInner() {
             disabled={submitting}
             className="btn-primary w-full"
           >
-            {submitting ? "در حال ثبت..." : "ثبت سفارش"}
+            {submitting ? "در حال ثبت..." : isOnline ? "ثبت سفارش" : "ذخیره برای ثبت آفلاین"}
           </button>
         </form>
       </main>
