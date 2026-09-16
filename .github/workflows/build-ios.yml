@@ -2,27 +2,32 @@ name: Build iOS
 
 on:
   push:
-    branches: [main, master]
-  workflow_dispatch:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
+  build-ios:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Set up CocoaPods
-        run: sudo gem install cocoapods
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
 
       - name: Add iOS platform
         run: npx cap add ios
@@ -30,29 +35,40 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
-      - name: Install CocoaPods dependencies
+      - name: Build iOS app
         run: |
           cd ios/App
-          pod install --repo-update
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath build/App.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO
 
-      - name: Build iOS (Debug)
+      - name: Export IPA
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -destination generic/platform=iOS -quiet
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ExportOptions.plist
+        env:
+          EXPORT_OPTIONS_PLIST: |
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ secrets.APPLE_TEAM_ID }}</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+            </dict>
+            </plist>
 
-      - name: Build iOS (Release - unsigned)
-        run: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination generic/platform=iOS CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO -quiet
-
-      - name: Upload iOS build (Debug)
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ios-debug-build
-          path: ios/App/build/
-
-      - name: Upload iOS build (Release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-release-build
-          path: ios/App/build/
+          name: ios-app
+          path: ios/App/build/export/*.ipa
