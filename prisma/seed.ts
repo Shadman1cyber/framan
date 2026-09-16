@@ -461,6 +461,27 @@ async function main() {
     ],
   });
 
+  const existingSettings = await prisma.salesFlowSettings.findFirst();
+  if (!existingSettings) {
+    await prisma.salesFlowSettings.create({
+      data: {
+        granularityMin: 30,
+        timezone: "Asia/Tehran",
+        schedules: {
+          create: [
+            { dayOfWeek: 0, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 1, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 2, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 3, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 4, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 5, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+            { dayOfWeek: 6, startTime: "09:00", endTime: "23:00", isEnabled: true, crossesMidnight: false },
+          ],
+        },
+      },
+    });
+  }
+
   const cappuccino = await prisma.product.findUnique({ where: { slug: "cappuccino" } });
   const croissant = await prisma.product.findUnique({ where: { slug: "croissant" } });
   const tiramisu = await prisma.product.findUnique({ where: { slug: "tiramisu" } });

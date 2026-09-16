@@ -42,25 +42,23 @@ export async function getRecommendations(
       ).map((u) => u.allergenId)
     : [];
 
-  const baseWhere: Parameters<typeof prisma.product.findMany>[0] = {
+  let products = await prisma.product.findMany({
     where: {
       isAvailable: true,
       ...(options.excludeProductIds?.length
         ? { id: { notIn: options.excludeProductIds } }
         : {}),
     },
-  };
-
-  let products = await prisma.product.findMany({
-    ...baseWhere,
-    include: {
+    select: {
+      id: true,
+      isFeatured: true,
       category: { select: { slug: true, nameFa: true } },
-      ingredients: { include: { ingredient: true } },
-      dietaryTags: { include: { dietaryTag: true } },
+      ingredients: { select: { ingredient: { select: { nameFa: true } } } },
+      dietaryTags: { select: { dietaryTag: { select: { key: true } } } },
       ratings: { select: { rating: true } },
       _count: { select: { orderItems: true } },
     },
-    take: 100,
+    take: 50,
   });
 
   if (strategy === "FEATURED") {

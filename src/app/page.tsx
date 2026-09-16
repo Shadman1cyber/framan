@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCategories, getProducts, getAllergens } from "@/lib/queries";
+import { getCategories, getProducts, getAllergens, getProductsByIds } from "@/lib/queries";
 import { getRecommendations } from "@/lib/recommendations";
 import { resolveQR } from "@/lib/qr";
 import { buildAllergyInfoForProducts, filterBySelectedAllergens } from "@/lib/allergies";
@@ -32,39 +32,27 @@ export default async function HomePage({
   const tableParam = searchParams.qr ? "qr" : "table";
   const baseHref = qrCode ? `/?${tableParam}=${qrCode}` : "/";
 
-  const [categories, popular, featured, allergenList] = await Promise.all([
+  const userId = session?.user ? (session.user as { id?: string }).id : null;
+
+  const [categories, popular, featured, allergenList, userAllergenNames] = await Promise.all([
     getCategories(),
     getProducts({ limit: 8 }),
     getProducts({ limit: 12 }),
     getAllergens(),
+    userId
+      ? prisma.userAllergy
+          .findMany({ where: { userId }, select: { allergen: { select: { nameFa: true } } } })
+          .then((r) => r.map((u) => u.allergen.nameFa))
+      : Promise.resolve([] as string[]),
   ]);
   const featuredProducts = featured.filter((p) => p.isFeatured);
   const recommended =
-    session?.user
-      ? await getRecommendations(
-          { userId: (session.user as { id?: string }).id },
-          "PERSONAL",
-          { limit: 6 },
-        )
+    userId
+      ? await getRecommendations({ userId }, "PERSONAL", { limit: 6 })
       : await getRecommendations({}, "FEATURED", { limit: 6 });
 
-  const recommendedProducts = (
-    await Promise.all(
-      recommended.map(async (r) => {
-        const all = await getProducts();
-        return all.find((p) => p.id === r.id);
-      }),
-    )
-  ).filter(Boolean) as Awaited<ReturnType<typeof getProducts>>;
-
-  let userAllergenNames: string[] = [];
-  if (session?.user) {
-    const ux = await prisma.userAllergy.findMany({
-      where: { userId: (session.user as { id?: string }).id },
-      include: { allergen: true },
-    });
-    userAllergenNames = ux.map((u) => u.allergen.nameFa);
-  }
+  const recommendedProductIds = recommended.map((r) => r.id);
+  const recommendedProducts = await getProductsByIds(recommendedProductIds);
 
   const selectedAllergens = (searchParams.allergens ?? "").split(",").filter(Boolean);
   const allergyInfos = await buildAllergyInfoForProducts(

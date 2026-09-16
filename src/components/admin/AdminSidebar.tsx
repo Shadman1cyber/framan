@@ -16,6 +16,8 @@ const NAV: NavItem[] = [
   { href: "/admin/staff", label: "پرسنل", icon: "👨‍🍳", ownerOnly: true },
   { href: "/admin/allergens", label: "آلرژن‌ها", icon: "⚠️", ownerOnly: true },
   { href: "/admin/financial", label: "گزارش مالی", icon: "💰", ownerOnly: true },
+  { href: "/admin/sales-flow", label: "جریان فروش", icon: "📈", ownerOnly: true },
+  { href: "/admin/sales-flow/settings", label: "تنظیمات جریان فروش", icon: "⚙️", ownerOnly: true },
   { href: "/admin/workspace", label: "فضای کاری دستیار", icon: "✨", ownerOnly: true },
   { href: "/admin/ai", label: "دستیار (قدیمی)", icon: "🤖", ownerOnly: true },
   { href: "/admin/monitoring", label: "مانیتورینگ", icon: "📈", ownerOnly: true },

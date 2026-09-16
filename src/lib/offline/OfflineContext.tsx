@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { getActionCount } from "./queue";
 import { setSyncCallbacks, syncQueue, isSyncing, triggerSyncIfOnline } from "./sync";
 import type { QueuedAction } from "./queue";
@@ -20,15 +20,29 @@ function isCapacitor(): boolean {
   return typeof window !== "undefined" && "Capacitor" in window;
 }
 
+// Cache the Network module to avoid repeated dynamic imports
+let networkModulePromise: Promise<{ Network: { getStatus: () => Promise<{ connected: boolean }>; addListener: (event: string, callback: (status: { connected: boolean }) => void) => Promise<{ remove: () => void }> } } | null> | null = null;
+
+function getNetworkModule() {
+  if (!networkModulePromise) {
+    networkModulePromise = import("@capacitor/network")
+      .then((mod) => mod as { Network: { getStatus: () => Promise<{ connected: boolean }>; addListener: (event: string, callback: (status: { connected: boolean }) => void) => Promise<{ remove: () => void }> } })
+      .catch(() => null);
+  }
+  return networkModulePromise;
+}
+
 // Get network status - uses Capacitor Network plugin if available, falls back to navigator.onLine
 async function getNetworkStatus(): Promise<boolean> {
   if (isCapacitor()) {
-    try {
-      const { Network } = await import("@capacitor/network");
-      const status = await Network.getStatus();
-      return status.connected;
-    } catch {
-      // Fall back to browser API
+    const mod = await getNetworkModule();
+    if (mod) {
+      try {
+        const status = await mod.Network.getStatus();
+        return status.connected;
+      } catch {
+        // Fall back to browser API
+      }
     }
   }
   return navigator.onLine;
@@ -38,15 +52,13 @@ async function getNetworkStatus(): Promise<boolean> {
 function addNetworkListener(callback: (online: boolean) => void): () => void {
   if (isCapacitor()) {
     let listener: { remove: () => void } | null = null;
-    import("@capacitor/network")
-      .then(({ Network }) => {
-        Network.addListener("networkStatusChange", (status) => {
+    getNetworkModule().then((mod) => {
+      if (mod) {
+        mod.Network.addListener("networkStatusChange", (status) => {
           callback(status.connected);
-        })
-          .then((l) => { listener = l; })
-          .catch(() => {});
-      })
-      .catch(() => {});
+        }).then((l) => { listener = l; }).catch(() => {});
+      }
+    });
     return () => { listener?.remove(); };
   } else {
     const handleOnline = () => callback(true);

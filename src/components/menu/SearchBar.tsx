@@ -1,6 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 type Suggestion = {
   type: "product" | "category" | "ingredient";
@@ -161,8 +162,13 @@ export function SearchBar({ className }: { className?: string }) {
                       className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-beige text-sm"
                     >
                       {s.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.image} alt="" className="h-full w-full object-cover" />
+                        <Image
+                          src={s.image}
+                          alt=""
+                          fill
+                          sizes="36px"
+                          className="h-full w-full object-cover"
+                        />
                       ) : s.type === "category" ? (
                         "🗂️"
                       ) : s.type === "ingredient" ? (
