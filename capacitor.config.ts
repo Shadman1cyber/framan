@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.farmancoffeeshop.app',
   appName: 'Farman Coffee Shop',
   server: {
-    url: 'https://your-deployed-app-url.com',
+    url: 'https://farman-cec-hesabetam.runflare.cloud',
     cleartext: true
   },
   android: {
