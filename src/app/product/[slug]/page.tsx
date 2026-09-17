@@ -182,7 +182,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
           }))}
         />
 
-        <p className="mt-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 text-xs text-muted">
+        <p className="mt-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 text-xs text-muted dark:border-dark-border dark:bg-dark-surface">
           سیستم ما ابزاری برای آگاهی از آلرژن‌هاست و تضمین پزشکی نیست.
           در صورت حساسیت شدید، لطفاً مواد تشکیل‌دهنده و شرایط تهیه را مستقیماً از کافه جویا شوید.
         </p>

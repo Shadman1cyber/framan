@@ -90,7 +90,7 @@ export default async function HomePage({
           <h1 className="heading-hero max-w-2xl">
             {visibleFeatured[0]?.nameFa ?? "منوی امروز کافه فرمان"}
           </h1>
-          <p className="mt-3 max-w-xl text-base text-espresso/70">
+          <p className="mt-3 max-w-xl text-base text-espresso/70 dark:text-dark-textSecondary">
             {visibleFeatured[0]?.description ??
               "قهوه‌ی تازه، صبحانه‌ی گرم و دسرهای دست‌ساز. هر سفارش با دقت آماده می‌شود."}
           </p>

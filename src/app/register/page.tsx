@@ -37,7 +37,7 @@ export default function RegisterPage() {
       <TopBar />
       <main className="mx-auto max-w-md px-4 py-10">
         <h1 className="heading-section mb-6">ثبت‌نام</h1>
-        <form onSubmit={submit} className="space-y-4 rounded-2xl border border-coffee/10 bg-cream-50 p-6 shadow-soft">
+        <form onSubmit={submit} className="space-y-4 rounded-2xl border border-coffee/10 bg-cream-50 p-6 shadow-soft dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card">
           {error && <p className="text-sm text-danger">{error}</p>}
           <div>
             <label className="label" htmlFor="name">نام</label>

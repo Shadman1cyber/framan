@@ -15,7 +15,20 @@ export default async function AdminOrdersPage({
   const orders = await prisma.order.findMany({
     where: status && ORDER_STATUSES.includes(status) ? { status } : {},
     orderBy: { createdAt: "desc" },
-    include: { user: true, table: true, items: { include: { product: true } } },
+    select: {
+      id: true,
+      status: true,
+      orderType: true,
+      total: true,
+      estPrepMin: true,
+      estPrepMax: true,
+      createdAt: true,
+      customerName: true,
+      customerPhone: true,
+      user: { select: { name: true } },
+      table: { select: { label: true, number: true } },
+      items: { select: { quantity: true } },
+    },
     take: 100,
   });
   return (

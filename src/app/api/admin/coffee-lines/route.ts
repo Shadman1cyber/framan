@@ -13,7 +13,7 @@ export async function GET() {
   const g = await guard("products.manage");
   if ("res" in g) return g.res;
   const lines = await prisma.coffeeLine.findMany({ orderBy: { nameFa: "asc" } });
-  return NextResponse.json({ coffeeLines: lines });
+  return NextResponse.json({ coffeeLines: lines }, { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" } });
 }
 
 export async function POST(req: Request) {

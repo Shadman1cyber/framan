@@ -26,16 +26,16 @@ export default async function CategoryPage({
   searchParams: { safe?: string; qr?: string; table?: string; allergens?: string };
 }) {
   const qrCode = searchParams.qr ?? searchParams.table ?? null;
-  const qr = qrCode ? await resolveQR(qrCode) : null;
-  const [categories, products, allergenList] = await Promise.all([
+  const [qr, categories, products, allergenList, session] = await Promise.all([
+    qrCode ? resolveQR(qrCode) : Promise.resolve(null),
     getCategories(),
     getProducts({ categorySlug: params.slug }),
     getAllergens(),
+    getServerSession(authOptions),
   ]);
   const cat = categories.find((c) => c.slug === params.slug);
   if (!cat) notFound();
 
-  const session = await getServerSession(authOptions);
   const userAllergenIds = session?.user
     ? (
         await prisma.userAllergy.findMany({

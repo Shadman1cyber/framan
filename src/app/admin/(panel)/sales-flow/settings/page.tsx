@@ -141,7 +141,7 @@ export default function SalesFlowSettingsPage() {
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 settings.granularityMin === opt.value
                   ? "bg-olive text-cream"
-                  : "bg-beige text-espresso hover:bg-coffee/10"
+                  : "bg-beige text-espresso hover:bg-coffee/10 dark:bg-dark-surfaceHover dark:text-dark-text dark:hover:bg-dark-surfaceHover/50"
               }`}
             >
               {opt.label}
@@ -172,8 +172,8 @@ export default function SalesFlowSettingsPage() {
             .slice()
             .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
             .map((schedule) => (
-              <div key={schedule.dayOfWeek} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-beige-soft">
-                <div className="w-24 sm:w-28 font-medium text-espresso">{DAYS_FA[schedule.dayOfWeek]}</div>
+              <div key={schedule.dayOfWeek} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-beige-soft dark:bg-dark-surfaceHover">
+                <div className="w-24 sm:w-28 font-medium text-espresso dark:text-dark-text">{DAYS_FA[schedule.dayOfWeek]}</div>
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"

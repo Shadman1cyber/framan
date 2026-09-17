@@ -40,9 +40,9 @@ export default async function AdminDashboard() {
           <Link key={c.label} href={c.href} className="card p-4">
             <div className="text-xs text-muted">{c.label}</div>
             {c.value != null ? (
-              <div className="mt-2 text-2xl font-bold text-espresso tabular-nums">{c.value}</div>
+              <div className="mt-2 text-2xl font-bold text-espresso dark:text-dark-text tabular-nums">{c.value}</div>
             ) : (
-              <div className="mt-2 text-lg font-bold text-espresso">
+              <div className="mt-2 text-lg font-bold text-espresso dark:text-dark-text">
                 <Price amount={financial.revenue.today ?? 0} size="md" />
               </div>
             )}
@@ -53,16 +53,16 @@ export default async function AdminDashboard() {
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="card p-4">
           <div className="text-xs text-muted">پرسنل فعال</div>
-          <div className="mt-2 text-2xl font-bold text-espresso">{ops.chefs + ops.otherStaff}</div>
+          <div className="mt-2 text-2xl font-bold text-espresso dark:text-dark-text">{ops.chefs + ops.otherStaff}</div>
           <div className="mt-1 text-xs text-muted">{ops.chefs} شف · {ops.otherStaff} سایر</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">سفارش در حال آماده‌سازی</div>
-          <div className="mt-2 text-2xl font-bold text-espresso">{ops.preparingCount}</div>
+          <div className="mt-2 text-2xl font-bold text-espresso dark:text-dark-text">{ops.preparingCount}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">درآمد ماه</div>
-          <div className="mt-2 font-bold text-espresso"><Price amount={financial.revenue.month ?? 0} size="md" /></div>
+          <div className="mt-2 font-bold text-espresso dark:text-dark-text"><Price amount={financial.revenue.month ?? 0} size="md" /></div>
         </div>
       </div>
 

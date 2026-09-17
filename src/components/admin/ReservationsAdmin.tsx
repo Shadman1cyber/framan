@@ -25,10 +25,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  RESERVED: "bg-olive-50 text-olive-600",
-  SEATED: "bg-warning/10 text-warning",
-  CANCELLED: "bg-coffee/10 text-muted",
-  NO_SHOW: "bg-danger/10 text-danger",
+  RESERVED: "bg-olive-50 text-olive-600 dark:bg-olive/20 dark:text-olive-300",
+  SEATED: "bg-warning/10 text-warning dark:bg-warning/20",
+  CANCELLED: "bg-coffee/10 text-muted dark:bg-dark-border dark:text-dark-textSecondary",
+  NO_SHOW: "bg-danger/10 text-danger dark:bg-danger/20",
 };
 
 export function ReservationsAdmin({
@@ -192,12 +192,12 @@ export function ReservationsAdmin({
       {Object.entries(grouped).map(([group, list]) =>
         list.length === 0 ? null : (
           <section key={group}>
-            <h3 className="mb-2 text-sm font-semibold text-espresso">{group}</h3>
+            <h3 className="mb-2 text-sm font-semibold text-espresso dark:text-dark-text">{group}</h3>
             <ul className="space-y-2">
               {list.map((r) => (
                 <li key={r.id} className="card flex flex-wrap items-center justify-between gap-3 p-3">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-beige text-sm font-bold text-espresso">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-beige text-sm font-bold text-espresso dark:bg-dark-surfaceHover dark:text-dark-text">
                       {r.tableNumber}
                     </span>
                     <div>

@@ -212,15 +212,15 @@ export default function SalesFlowPage() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5 mb-6">
         <div className="card p-4">
           <div className="text-xs text-muted">کل سفارش‌ها</div>
-          <div className="mt-1 text-2xl font-bold text-espresso">{formatNumber(data.summary.totalOrders)}</div>
+          <div className="mt-1 text-2xl font-bold text-espresso dark:text-dark-text">{formatNumber(data.summary.totalOrders)}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">کل درآمد</div>
-          <div className="mt-1 text-xl font-bold text-espresso">{formatToman(data.summary.totalRevenue)}</div>
+          <div className="mt-1 text-xl font-bold text-espresso dark:text-dark-text">{formatToman(data.summary.totalRevenue)}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">تعداد آیتم‌ها</div>
-          <div className="mt-1 text-2xl font-bold text-espresso">{formatNumber(data.summary.totalItems)}</div>
+          <div className="mt-1 text-2xl font-bold text-espresso dark:text-dark-text">{formatNumber(data.summary.totalItems)}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">سفارش‌های لغو</div>
@@ -299,11 +299,11 @@ export default function SalesFlowPage() {
             </thead>
             <tbody>
               {data.intervals.map((interval) => (
-                <tr key={`${interval.start}-${interval.end}`} className="border-b border-coffee/5 hover:bg-beige-soft/50">
-                  <td className="py-2 px-3 text-right text-espresso whitespace-nowrap">{interval.label}</td>
+                <tr key={`${interval.start}-${interval.end}`} className="border-b border-coffee/5 dark:border-dark-border/5 hover:bg-beige-soft/50 dark:hover:bg-dark-surfaceHover/50">
+                  <td className="py-2 px-3 text-right text-espresso dark:text-dark-text whitespace-nowrap">{interval.label}</td>
                   <td className="py-2 px-3 text-right text-muted whitespace-nowrap">{interval.dayDate}</td>
                   <td className="py-2 px-3 text-right text-muted whitespace-nowrap">{DAYS_FA[interval.dayIndex]}</td>
-                  <td className="py-2 px-3 text-right font-medium text-espresso tabular-nums">{formatNumber(interval.orders)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-espresso dark:text-dark-text tabular-nums">{formatNumber(interval.orders)}</td>
                   <td className="py-2 px-3 text-right text-muted tabular-nums">{formatNumber(interval.items)}</td>
                   <td className="py-2 px-3 text-right font-medium text-olive tabular-nums">{formatToman(interval.revenue)}</td>
                   <td className="py-2 px-3 text-right text-muted tabular-nums">

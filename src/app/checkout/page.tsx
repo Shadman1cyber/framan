@@ -99,12 +99,12 @@ function CheckoutInner() {
       <main className="mx-auto max-w-2xl px-4 py-6">
         <h1 className="heading-section mb-4">تایید نهایی</h1>
         {tableLabel && (
-          <div className="mb-4 rounded-2xl border border-olive/20 bg-olive-50 p-3 text-sm text-olive-600">
+          <div className="mb-4 rounded-2xl border border-olive/20 bg-olive-50 p-3 text-sm text-olive-600 dark:border-olive/40 dark:bg-olive/10 dark:text-olive-300">
             سفارش شما برای {tableLabel} ثبت می‌شود.
           </div>
         )}
         {!isOnline && (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber/40 dark:bg-amber/10 dark:text-amber-300">
             <span className="flex items-center gap-2">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M1 1l22 22" />
@@ -120,7 +120,7 @@ function CheckoutInner() {
           </div>
         )}
         <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+          <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
             <h2 className="mb-2 text-sm font-semibold">اقلام</h2>
             <ul className="space-y-1 text-sm">
               {items.map((i) => (
@@ -133,13 +133,13 @@ function CheckoutInner() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 flex justify-between border-t border-coffee/10 pt-3">
+            <div className="mt-3 flex justify-between border-t border-coffee/10 pt-3 dark:border-dark-border">
               <span className="font-semibold">مبلغ کل</span>
               <Price amount={total} size="md" />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+          <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
             <h2 className="mb-2 text-sm font-semibold">اطلاعات تماس (اختیاری)</h2>
             <p className="mb-3 text-xs text-muted">برای اطلاع‌رسانی درباره سفارش مفید است.</p>
             <label className="label" htmlFor="name">نام</label>

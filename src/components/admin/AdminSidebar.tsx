@@ -20,8 +20,6 @@ const NAV: NavItem[] = [
   { href: "/admin/sales-flow/settings", label: "تنظیمات جریان فروش", icon: "⚙️", ownerOnly: true },
   { href: "/admin/workspace", label: "فضای کاری دستیار", icon: "✨", ownerOnly: true },
   { href: "/admin/ai", label: "دستیار (قدیمی)", icon: "🤖", ownerOnly: true },
-  { href: "/admin/monitoring", label: "مانیتورینگ", icon: "📈", ownerOnly: true },
-  { href: "/admin/import", label: "درون‌ریزی داده", icon: "📥", ownerOnly: true },
   { href: "/admin/ratings", label: "امتیازها", icon: "⭐" },
   { href: "/admin/tables", label: "میزها", icon: "🪑" },
   { href: "/admin/reservations", label: "رزرو میزها", icon: "📅" },
@@ -47,7 +45,7 @@ function NavLinks({ role, onNavigate }: { role: string; onNavigate?: () => void 
                 className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
                   active
                     ? "bg-olive text-cream shadow-soft"
-                    : "text-espresso/80 hover:bg-beige"
+                    : "text-espresso/80 hover:bg-beige dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover"
                 }`}
               >
                 <span aria-hidden="true" className="w-5 text-center">{n.icon}</span>
@@ -66,8 +64,8 @@ function Brand() {
     <div className="mb-6 flex items-center gap-2">
       <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-olive text-cream font-bold">ف</span>
       <div className="flex flex-col leading-tight">
-        <span className="font-bold text-espresso">پنل مدیریت</span>
-        <span className="text-[11px] text-muted">کافه فرمان</span>
+        <span className="font-bold text-espresso dark:text-dark-text">پنل مدیریت</span>
+        <span className="text-[11px] text-muted dark:text-dark-textSecondary">کافه فرمان</span>
       </div>
     </div>
   );
@@ -90,24 +88,24 @@ export function AdminSidebar() {
   return (
     <>
       {/* Mobile top bar with hamburger */}
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-coffee/10 bg-cream-50/90 px-4 py-3 backdrop-blur md:hidden">
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-coffee/10 bg-cream-50/90 px-4 py-3 backdrop-blur md:hidden dark:border-dark-border dark:bg-dark-surface/90">
         <div className="flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-olive text-cream font-bold text-sm">ف</span>
-          <span className="font-bold text-espresso">پنل مدیریت</span>
+          <span className="font-bold text-espresso dark:text-dark-text">پنل مدیریت</span>
         </div>
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="باز کردن منو"
           aria-expanded={open}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-coffee/15 bg-cream-50 text-espresso hover:bg-beige"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-coffee/15 bg-cream-50 text-espresso hover:bg-beige dark:border-dark-border dark:bg-dark-surface dark:text-dark-text dark:hover:bg-dark-surfaceHover"
         >
           <span aria-hidden="true" className="text-lg">☰</span>
         </button>
       </div>
 
       {/* Desktop sidebar — attached to the RIGHT edge (natural in RTL) */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-s border-coffee/10 bg-cream-50 p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-s border-coffee/10 bg-cream-50 p-4 md:flex dark:border-dark-border dark:bg-dark-surface">
         <Brand />
         <NavLinks role={role} />
         <LogoutButton className="btn-secondary mt-4 w-full text-sm" />
@@ -121,14 +119,14 @@ export function AdminSidebar() {
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 right-0 flex w-72 flex-col border-s border-coffee/10 bg-cream-50 p-4 shadow-elevated animate-fade-in">
+          <div className="absolute inset-y-0 right-0 flex w-72 flex-col border-s border-coffee/10 bg-cream-50 p-4 shadow-elevated animate-fade-in dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card">
             <div className="flex items-center justify-between">
               <Brand />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="بستن منو"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-espresso hover:bg-beige"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-espresso hover:bg-beige dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover"
               >
                 ✕
               </button>

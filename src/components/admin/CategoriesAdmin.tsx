@@ -67,7 +67,7 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
               <div>
                 <div className="font-semibold">{c.nameFa}</div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted">
-                  <span dir="ltr" className="rounded-full border border-olive/25 bg-olive-50 px-2 py-0.5 text-[10px] font-medium text-olive-600">
+                  <span dir="ltr" className="rounded-full border border-olive/25 bg-olive-50 px-2 py-0.5 text-[10px] font-medium text-olive-600 dark:border-olive/40 dark:bg-olive/20 dark:text-olive-300">
                     #{c.slug}
                   </span>
                   <span>{c.productCount} محصول</span>

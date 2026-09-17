@@ -24,6 +24,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fa" dir="rtl" className={vazir.variable}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var resolved = theme === 'system' ? (prefersDark ? 'dark' : 'light') : (theme || (prefersDark ? 'dark' : 'light'));
+                  document.documentElement.classList.toggle('dark', resolved === 'dark');
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
         <Providers>
           <ToastProvider>

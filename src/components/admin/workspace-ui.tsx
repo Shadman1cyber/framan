@@ -70,7 +70,7 @@ export function Markdown({ text }: { text: string }) {
     }
     if (/^#{1,4}\s/.test(block)) return <h4 key={bi} className="mb-1 mt-2 font-bold">{inlineMd(block.replace(/^#{1,4}\s+/, ""))}</h4>;
     if (/^```/.test(block)) {
-      return <pre key={bi} dir="ltr" className="my-1 overflow-auto rounded bg-beige p-2 text-xs">{block.replace(/^```\w*\n?/, "").replace(/\n?```$/, "")}</pre>;
+      return <pre key={bi} dir="ltr" className="my-1 overflow-auto rounded bg-beige p-2 text-xs dark:bg-dark-surfaceHover">{block.replace(/^```\w*\n?/, "").replace(/\n?```$/, "")}</pre>;
     }
     return <p key={bi} className="my-0.5 whitespace-pre-line">{lines.map((l, i) => <span key={i}>{inlineMd(l)}{i < lines.length - 1 && <br />}</span>)}</p>;
   })}</>;
@@ -102,7 +102,7 @@ function inlineMd(s: string): ReactNode {
     <>
       {tokens.filter(t => t.v !== "").map((tk, i) =>
         tk.t === "code"
-          ? <code key={i} dir="ltr" className="rounded bg-beige px-1 text-xs">{tk.v}</code>
+          ? <code key={i} dir="ltr" className="rounded bg-beige px-1 text-xs dark:bg-dark-surfaceHover">{tk.v}</code>
           : tk.t === "bold"
             ? <strong key={i} className="font-semibold">{tk.v}</strong>
             : <span key={i}>{tk.v}</span>,

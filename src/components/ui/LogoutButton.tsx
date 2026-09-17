@@ -39,7 +39,7 @@ export function LogoutButton({
             onClick={() => setOpen(false)}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border border-coffee/15 bg-cream-50 p-6 shadow-elevated animate-fade-in"
+              className="w-full max-w-sm rounded-2xl border border-coffee/15 bg-cream-50 p-6 shadow-elevated animate-fade-in dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-start gap-3">
@@ -53,7 +53,7 @@ export function LogoutButton({
                   <h2 id="logout-title" className="heading-card">
                     از حساب خود خارج می‌شوید؟
                   </h2>
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="mt-1 text-sm text-muted dark:text-dark-textSecondary">
                     در صورت تایید، از حساب کاربری‌تان خارج می‌شوید و به صفحه اصلی بازمی‌گردید.
                   </p>
                 </div>

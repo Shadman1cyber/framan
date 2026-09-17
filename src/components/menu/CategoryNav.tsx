@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 import type { PublicCategory } from "@/lib/queries";
 
@@ -18,7 +17,7 @@ export function CategoryNav({
           <li key={c.id}>
             <Link
               href={`/menu/${c.slug}${query ? `?${query}` : ""}`}
-              className="flex min-w-[140px] flex-col items-center gap-2 rounded-2xl border border-coffee/10 bg-cream-50 p-4 transition-shadow hover:shadow-card"
+              className="flex min-w-[140px] flex-col items-center gap-2 rounded-2xl border border-coffee/10 bg-cream-50 p-4 transition-shadow hover:shadow-card dark:border-dark-border dark:bg-dark-surface"
             >
               <span className="text-3xl" aria-hidden="true">
                 {c.icon ?? "🍽️"}

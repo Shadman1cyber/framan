@@ -14,7 +14,7 @@ type Suggestion = {
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q || q.length < 1) {
-    return NextResponse.json({ suggestions: [] });
+    return NextResponse.json({ suggestions: [] }, { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } });
   }
 
   const term = `%${q}%`;
@@ -87,5 +87,5 @@ export async function GET(req: NextRequest) {
     })),
   ];
 
-  return NextResponse.json({ suggestions });
+  return NextResponse.json({ suggestions }, { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } });
 }

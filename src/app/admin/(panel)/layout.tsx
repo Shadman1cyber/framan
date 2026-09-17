@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/admin/login");
   }
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-cream dark:bg-dark-bg">
       {/* RTL: sidebar column renders first → appears on the right side */}
       <div className="mx-auto flex max-w-7xl flex-col md:flex-row">
         <AdminSidebar />

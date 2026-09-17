@@ -54,8 +54,8 @@ export function StaffAdmin({ initial }: { initial: StaffRow[] }) {
     <div className="space-y-6">
       <div className="card p-4">
         <p className="text-sm text-muted">
-          شف‌های فعال برای <span className="font-semibold text-espresso">برآورد زمان آماده‌سازی سفارش‌ها</span> استفاده می‌شوند.
-          در حال حاضر <span className="font-semibold text-olive-600">{chefs} شف فعال</span> دارید.
+          شف‌های فعال برای <span className="font-semibold text-espresso dark:text-dark-text">برآورد زمان آماده‌سازی سفارش‌ها</span> استفاده می‌شوند.
+          در حال حاضر <span className="font-semibold text-olive-600 dark:text-olive-300">{chefs} شف فعال</span> دارید.
         </p>
       </div>
       <ul className="space-y-2">

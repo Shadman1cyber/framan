@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { Price } from "@/components/ui/Price";
@@ -19,9 +18,9 @@ export function ProductCard({
   return (
     <Link
       href={`/product/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-coffee/10 bg-cream-50 shadow-soft transition-shadow hover:shadow-card"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-coffee/10 bg-cream-50 shadow-soft transition-shadow hover:shadow-card dark:border-dark-border dark:bg-dark-surface"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-beige">
+      <div className="relative aspect-[4/3] overflow-hidden bg-beige dark:bg-dark-surfaceHover">
         {product.image ? (
           <Image
             src={product.image}

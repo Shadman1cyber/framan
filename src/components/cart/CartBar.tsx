@@ -12,9 +12,9 @@ export function CartBar() {
   useEffect(() => setMounted(true), []);
   if (!mounted || count === 0) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-coffee/10 bg-cream-50/95 p-3 backdrop-blur md:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-coffee/10 bg-cream-50/95 p-3 backdrop-blur md:hidden dark:border-dark-border dark:bg-dark-surface/95">
       {!isOnline && (
-        <div className="mb-2 text-center text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded-xl">
+        <div className="mb-2 text-center text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded-xl dark:bg-amber-900/30 dark:text-amber-300">
           آفلاین — سبد ذخیره شده و هنگام اتصال همگام‌سازی می‌شود
         </div>
       )}
@@ -23,7 +23,7 @@ export function CartBar() {
         className="flex items-center justify-between rounded-2xl bg-olive px-4 py-3 text-cream shadow-elevated"
       >
         <div className="flex items-center gap-2 text-sm">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cream-50/20 text-xs font-bold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cream-50/20 text-xs font-bold dark:bg-dark-surfaceHover">
             {count}
           </span>
           <span>سبد خرید</span>

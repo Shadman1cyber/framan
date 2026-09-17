@@ -51,7 +51,7 @@ export default function CartPage() {
           {items.map((i) => (
             <li
               key={`${i.productId}::${i.coffeeLineId ?? ""}`}
-              className="flex items-center gap-3 rounded-2xl border border-coffee/10 bg-cream-50 p-3"
+              className="flex items-center gap-3 rounded-2xl border border-coffee/10 bg-cream-50 p-3 dark:border-dark-border dark:bg-dark-surface"
             >
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-beige">
                 {i.image && <Image src={i.image} alt={i.name} fill className="object-cover" />}
@@ -85,7 +85,7 @@ export default function CartPage() {
           ))}
         </ul>
 
-        <div className="mt-6 rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+        <div className="mt-6 rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
           <div className="mb-2 flex items-center justify-between text-sm text-muted">
             <span>{count} محصول</span>
             <span>جمع</span>

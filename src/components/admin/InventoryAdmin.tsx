@@ -109,15 +109,15 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
           return (
             <li key={i.id} className="card p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-espresso">{i.nameFa}</span>
+                <span className="font-semibold text-espresso dark:text-dark-text">{i.nameFa}</span>
                 {i.isAllergen && (
-                  <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] text-danger">
+                  <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] text-danger dark:bg-danger/20">
                     آلرژن
                   </span>
                 )}
                 <span
                   className={`ms-auto rounded-full px-2 py-0.5 text-xs ${
-                    isLow ? "bg-warning/10 text-warning" : "bg-olive-50 text-olive-600"
+                    isLow ? "bg-warning/10 text-warning dark:bg-warning/20" : "bg-olive-50 text-olive-600 dark:bg-olive/20 dark:text-olive-300"
                   }`}
                 >
                   {isLow ? "کم‌موجود" : "مناسب"}
@@ -157,7 +157,7 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
       {/* Desktop: table */}
       <div className="card hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
-          <thead className="bg-beige text-espresso/70">
+          <thead className="bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary">
             <tr>
               <th className="p-3 text-right">ماده اولیه</th>
               <th className="p-3 text-right">واحد</th>
@@ -173,12 +173,12 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
             {items.map((i) => {
               const isLow = i.minQuantity != null && i.stockQuantity <= i.minQuantity;
               return (
-                <tr key={i.id} className="border-t border-coffee/10">
+                <tr key={i.id} className="border-t border-coffee/10 dark:border-dark-border">
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="whitespace-nowrap font-medium text-espresso">{i.nameFa}</span>
+                      <span className="whitespace-nowrap font-medium text-espresso dark:text-dark-text">{i.nameFa}</span>
                       {i.isAllergen && (
-                        <span className="whitespace-nowrap rounded-full bg-danger/10 px-2 py-0.5 text-[10px] text-danger">
+                        <span className="whitespace-nowrap rounded-full bg-danger/10 px-2 py-0.5 text-[10px] text-danger dark:bg-danger/20">
                           آلرژن
                         </span>
                       )}
@@ -197,7 +197,7 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
                       <button
                         onClick={() => saveStock(i.id)}
                         disabled={stockEdits[i.id] == null}
-                        className="btn-ghost px-2 py-1 text-xs text-olive-600 disabled:opacity-40"
+                        className="btn-ghost px-2 py-1 text-xs text-olive-600 dark:text-olive-300 disabled:opacity-40"
                       >
                         ذخیره
                       </button>
@@ -212,9 +212,9 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
                   <td className="p-3 text-muted">{i.supplier ?? "—"}</td>
                   <td className="p-3">
                     {isLow ? (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs text-warning">کم‌موجود</span>
+                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs text-warning dark:bg-warning/20">کم‌موجود</span>
                     ) : (
-                      <span className="rounded-full bg-olive-50 px-2 py-0.5 text-xs text-olive-600">مناسب</span>
+                      <span className="rounded-full bg-olive-50 px-2 py-0.5 text-xs text-olive-600 dark:bg-olive/20 dark:text-olive-300">مناسب</span>
                     )}
                   </td>
                   <td className="p-3">

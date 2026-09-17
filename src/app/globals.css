@@ -20,6 +20,20 @@
   --radius-xl: 1.25rem;
 }
 
+.dark {
+  --color-bg: #1A1612;
+  --color-bg-soft: #241E18;
+  --color-surface: #2D241C;
+  --color-text: #F5EFE6;
+  --color-text-muted: #C4B8A8;
+  --color-primary: #8FA268;
+  --color-primary-hover: #6B8147;
+  --color-secondary: #8C6E54;
+  --color-accent: #D4A574;
+  --color-danger: #D97B5E;
+  --color-warning: #E0B262;
+}
+
 html, body {
   background: var(--color-bg);
   color: var(--color-text);
@@ -27,6 +41,7 @@ html, body {
   font-feature-settings: "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body {
@@ -44,40 +59,40 @@ button { font-family: inherit; }
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-olive px-5 py-3 font-medium text-cream transition-colors hover:bg-olive-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-olive/40 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-olive/30 bg-cream px-5 py-3 font-medium text-espresso transition-colors hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-olive/30;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-olive/30 bg-cream px-5 py-3 font-medium text-espresso transition-colors hover:bg-beige focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-olive/30 dark:border-olive/40 dark:bg-dark-surface dark:text-dark-text dark:hover:bg-dark-surfaceHover;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium text-espresso/80 transition-colors hover:bg-beige;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium text-espresso/80 transition-colors hover:bg-beige dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover;
   }
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-danger px-5 py-3 font-medium text-cream hover:opacity-90;
   }
   .card {
-    @apply rounded-2xl border border-coffee/10 bg-cream-50 shadow-soft;
+    @apply rounded-2xl border border-coffee/10 bg-cream-50 shadow-soft dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card;
   }
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-coffee/15 bg-beige-soft px-3 py-1 text-xs font-medium text-espresso/80;
+    @apply inline-flex items-center gap-1 rounded-full border border-coffee/15 bg-beige-soft px-3 py-1 text-xs font-medium text-espresso/80 dark:border-dark-border dark:bg-dark-surfaceHover dark:text-dark-textSecondary;
   }
   .chip-active {
-    @apply border-olive bg-olive/10 text-olive-600;
+    @apply border-olive bg-olive/10 text-olive-600 dark:border-olive/40 dark:bg-olive/20 dark:text-olive-300;
   }
   .input {
-    @apply w-full rounded-xl border border-coffee/15 bg-cream-50 px-4 py-3 text-espresso placeholder:text-muted focus:border-olive focus:outline-none focus:ring-2 focus:ring-olive/20;
+    @apply w-full rounded-xl border border-coffee/15 bg-cream-50 px-4 py-3 text-espresso placeholder:text-muted focus:border-olive focus:outline-none focus:ring-2 focus:ring-olive/20 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text dark:placeholder:text-muted focus:border-olive/50 dark:focus:border-olive/50;
   }
   .label {
-    @apply mb-2 block text-sm font-medium text-espresso/80;
+    @apply mb-2 block text-sm font-medium text-espresso/80 dark:text-dark-textSecondary;
   }
   .heading-hero {
-    @apply font-display text-4xl md:text-5xl font-bold leading-tight tracking-tight text-espresso;
+    @apply font-display text-4xl md:text-5xl font-bold leading-tight tracking-tight text-espresso dark:text-dark-text;
   }
   .heading-section {
-    @apply font-display text-2xl md:text-3xl font-semibold text-espresso;
+    @apply font-display text-2xl md:text-3xl font-semibold text-espresso dark:text-dark-text;
   }
   .heading-card {
-    @apply font-display text-lg font-semibold text-espresso;
+    @apply font-display text-lg font-semibold text-espresso dark:text-dark-text;
   }
   .skeleton {
-    @apply animate-pulse rounded-xl bg-beige;
+    @apply animate-pulse rounded-xl bg-beige dark:bg-dark-surfaceHover;
   }
 }
 

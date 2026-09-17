@@ -70,12 +70,12 @@ export function QrAdmin({ initial }: { initial: QrRow[] }) {
           <div key={q.id} className="card flex flex-col items-center gap-2 p-4 text-center">
             {q.dataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <a href={q.url} target="_blank" rel="noreferrer" className="rounded-lg border border-coffee/10 p-2 bg-cream-50">
+              <a href={q.url} target="_blank" rel="noreferrer" className="rounded-lg border border-coffee/10 p-2 bg-cream-50 dark:border-dark-border dark:bg-dark-surface">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={q.dataUrl} alt={`QR کد ${q.label ?? q.code}`} width={160} height={160} className="h-40 w-40" />
               </a>
             ) : (
-              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-coffee/10 text-xs text-muted">تصویر در دسترس نیست</div>
+              <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-coffee/10 text-xs text-muted dark:border-dark-border dark:bg-dark-surface">تصویر در دسترس نیست</div>
             )}
             <div className="font-semibold">{q.label ?? q.code}</div>
             <div className="text-xs text-muted">{q.tableLabel ? `میز: ${q.tableLabel}` : "منوی اصلی"} · {q.branchName}</div>

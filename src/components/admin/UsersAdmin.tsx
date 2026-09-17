@@ -38,7 +38,7 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
   return (
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-beige text-espresso/70">
+        <thead className="bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary">
           <tr>
             <th className="p-3 text-right">نام</th>
             <th className="p-3 text-right">ایمیل</th>
@@ -50,7 +50,7 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
         </thead>
         <tbody>
           {items.map((u) => (
-            <tr key={u.id} className="border-t border-coffee/10">
+            <tr key={u.id} className="border-t border-coffee/10 dark:border-dark-border">
               <td className="p-3 font-medium">{u.name}</td>
               <td className="p-3 text-muted">{u.email || "-"}</td>
               <td className="p-3 text-muted">{u.orderCount}</td>
@@ -59,7 +59,7 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
                 <select
                   value={ROLE_OPTIONS.includes(u.role as Role) ? u.role : "OWNER"}
                   onChange={(e) => setRole(u.id, e.target.value as Role)}
-                  className="rounded-lg border border-coffee/15 bg-cream-50 px-2 py-1 text-xs"
+                  className="rounded-lg border border-coffee/15 bg-cream-50 px-2 py-1 text-xs dark:border-dark-border dark:bg-dark-surface dark:text-dark-text"
                   aria-label={`نقش ${u.name}`}
                 >
                   {ROLE_OPTIONS.map((r) => (
