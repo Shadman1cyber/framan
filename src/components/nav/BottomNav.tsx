@@ -22,7 +22,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="ناوبری اصلی"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-coffee/10 bg-cream-50/95 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-coffee/10 bg-cream-50/95 backdrop-blur md:hidden dark:border-dark-border dark:bg-dark-surface/95"
     >
       <ul className="flex items-center justify-around pb-[env(safe-area-inset-bottom)]">
         {visibleItems.map((i) => {
@@ -32,7 +32,7 @@ export function BottomNav() {
               <Link
                 href={i.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex flex-col items-center gap-0.5 py-2 text-xs ${active ? "text-olive-600" : "text-espresso/60"}`}
+                className={`relative flex flex-col items-center gap-0.5 py-2 text-xs ${active ? "text-olive-600 dark:text-olive-300" : "text-espresso/60 dark:text-dark-textSecondary/60"}`}
               >
                 <span className="text-lg" aria-hidden="true">{i.icon}</span>
                 <span>{i.label}</span>

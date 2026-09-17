@@ -22,6 +22,7 @@ model User {
   orders        Order[]
   ratings       Rating[]
   dietaryTags   UserDietaryTag[]
+  @@index([role])
 }
 
 model Category {
@@ -127,6 +128,8 @@ model Product {
   coffeeLines    ProductCoffeeLine[]
   @@index([categoryId])
   @@index([isFeatured])
+  @@index([isAvailable])
+  @@index([categoryId, isAvailable])
 }
 
 model ProductImage {
@@ -280,6 +283,7 @@ model QRCode {
   branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
   table     CafeTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
   orders    Order[]
+  @@index([branchId, isActive])
 }
 
 // orderType: TABLE | TAKEAWAY
@@ -310,6 +314,8 @@ model Order {
   @@index([status])
   @@index([userId])
   @@index([orderType])
+  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -356,6 +362,30 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// Sales Flow Settings — configurable operating hours and time granularity for sales visualization
+model SalesFlowSettings {
+  id              String               @id @default(cuid())
+  granularityMin  Int                  @default(30) // 15, 30, 60, 120
+  timezone        String               @default("Asia/Tehran")
+  schedules       SalesFlowSchedule[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model SalesFlowSchedule {
+  id            String             @id @default(cuid())
+  settingsId    String
+  settings      SalesFlowSettings  @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  dayOfWeek     Int                // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime     String             // HH:mm format (e.g., "09:00")
+  endTime       String             // HH:mm format (e.g., "23:00")
+  isEnabled     Boolean            @default(true)
+  crossesMidnight Boolean           @default(false) // Schedule crosses midnight (e.g., 22:00–02:00)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  @@unique([settingsId, dayOfWeek])
 }
 
 // AI generated insight/alert, persisted for the dashboard.

@@ -36,7 +36,7 @@ export function AddToCart({
   return (
     <div className="mt-2 space-y-3">
       {hasLines && (
-        <fieldset className="rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+        <fieldset className="rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
           <legend className="px-1 text-sm font-semibold text-espresso">انتخاب خط قهوه</legend>
           <div className="flex flex-wrap gap-2">
             {lines.map((l) => {

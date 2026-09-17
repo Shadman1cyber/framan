@@ -161,8 +161,8 @@ export function OrdersAdmin({ initial, currentStatus }: { initial: Row[]; curren
                     o.status === "CANCELLED"
                       ? "bg-danger/10 text-danger"
                       : o.status === "COMPLETED"
-                        ? "bg-beige text-espresso/70"
-                        : "bg-olive-50 text-olive-600"
+                        ? "bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary"
+                        : "bg-olive-50 text-olive-600 dark:bg-olive/20 dark:text-olive-300"
                   }`}
                 >
                   {o.statusLabel}
@@ -172,7 +172,7 @@ export function OrdersAdmin({ initial, currentStatus }: { initial: Row[]; curren
               {/* Button-based workflow: only valid next steps are shown.
                   Table orders never receive a "آماده تحویل" action (Rule 3/4). */}
               {o.allowedNext.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-coffee/10 pt-3">
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-coffee/10 dark:border-dark-border pt-3">
                   {o.allowedNext.map((next) => {
                     const isCancel = next === "CANCELLED";
                     const label =

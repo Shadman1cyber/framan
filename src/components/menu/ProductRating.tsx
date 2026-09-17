@@ -88,15 +88,15 @@ export function ProductRating({
         {count > 0 && average != null && <Rating value={average} count={count} size="md" />}
       </div>
 
-      <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-5">
+      <div className="rounded-2xl border border-coffee/10 bg-cream-50 p-5 dark:border-dark-border dark:bg-dark-surface">
         {authenticated ? (
           <>
             {!isOnline && (
-              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 text-center">
+              <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 text-center dark:border-amber/40 dark:bg-amber/10 dark:text-amber-300">
                 آفلاین هستید — امتیاز در صف ذخیره و هنگام اتصال ثبت می‌شود
               </div>
             )}
-            <p className="mb-3 text-sm font-medium text-espresso">
+            <p className="mb-3 text-sm font-medium text-espresso dark:text-dark-text">
               {mine ? "امتیاز شما برای این محصول" : "به این محصول امتیاز دهید"}
             </p>
             <div className="mb-3 flex items-center gap-1" onMouseLeave={() => setHover(0)}>
@@ -111,7 +111,7 @@ export function ProductRating({
                   onMouseEnter={() => setHover(n)}
                   aria-label={`${n} ستاره`}
                   className="text-2xl transition-transform hover:scale-110"
-                  style={{ color: n <= displayValue ? "#f59e0b" : "#D8CCBC" }}
+                  style={{ color: n <= displayValue ? "var(--color-warning)" : "var(--color-text-muted)" }}
                 >
                   ★
                 </button>
@@ -158,12 +158,12 @@ export function ProductRating({
       {reviews.length > 0 && (
         <ul className="mt-4 space-y-3">
           {reviews.map((r) => (
-            <li key={r.id} className="rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+            <li key={r.id} className="rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold text-espresso">{r.userName}</span>
+                <span className="text-sm font-semibold text-espresso dark:text-dark-text">{r.userName}</span>
                 <Rating value={r.rating} />
               </div>
-              {r.review && <p className="text-sm text-espresso/80">{r.review}</p>}
+              {r.review && <p className="text-sm text-espresso/80 dark:text-dark-textSecondary">{r.review}</p>}
               <p className="mt-1 text-[11px] text-muted">
                 {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(r.createdAt))}
               </p>

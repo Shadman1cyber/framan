@@ -9,7 +9,7 @@ export function CafeBrand({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span className="flex flex-col leading-tight">
-          <span className="font-display text-base font-bold text-espresso">کافه فرمان</span>
+          <span className="font-display text-base font-bold text-espresso dark:text-dark-text">کافه فرمان</span>
           <span className="text-[11px] text-muted">منوی دیجیتال</span>
         </span>
       )}

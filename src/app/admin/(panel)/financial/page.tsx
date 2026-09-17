@@ -45,7 +45,7 @@ export default async function FinancialPage() {
         {cards.map((c) => (
           <div key={c.label} className="card p-4">
             <div className="text-xs text-muted">{c.label}</div>
-            <div className="mt-2 text-lg font-bold text-espresso">{c.value}</div>
+            <div className="mt-2 text-lg font-bold text-espresso dark:text-dark-text">{c.value}</div>
           </div>
         ))}
       </div>
@@ -79,7 +79,7 @@ export default async function FinancialPage() {
               <span>{formatToman(inventory.reduce((s, i) => s + (i.lowStockCost ?? 0), 0))}</span>
             </li>
           </ul>
-          <p className="mt-3 rounded-xl bg-beige-soft p-2 text-[11px] leading-relaxed text-muted">
+          <p className="mt-3 rounded-xl bg-beige-soft p-2 text-[11px] leading-relaxed text-muted dark:bg-dark-surfaceHover">
             درآمد از سفارش‌های ثبت‌شده محاسبه می‌شود. هزینه‌ها و سود واقعی پس از ثبت خریدها و
             ثبت داده‌های هزینه (بخش درون‌ریزی) در دسترس قرار می‌گیرد و در این نسخه برآورد نمی‌شود.
           </p>

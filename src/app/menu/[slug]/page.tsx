@@ -26,34 +26,39 @@ export default async function CategoryPage({
   searchParams: { safe?: string; qr?: string; table?: string; allergens?: string };
 }) {
   const qrCode = searchParams.qr ?? searchParams.table ?? null;
-  const qr = qrCode ? await resolveQR(qrCode) : null;
-  const [categories, products, allergenList] = await Promise.all([
+  const [qr, categories, products, allergenList, session] = await Promise.all([
+    qrCode ? resolveQR(qrCode) : Promise.resolve(null),
     getCategories(),
     getProducts({ categorySlug: params.slug }),
     getAllergens(),
+    getServerSession(authOptions),
   ]);
   const cat = categories.find((c) => c.slug === params.slug);
   if (!cat) notFound();
 
-  const session = await getServerSession(authOptions);
   const userAllergenIds = session?.user
     ? (
         await prisma.userAllergy.findMany({
           where: { userId: (session.user as { id?: string }).id },
+          select: { allergenId: true },
         })
       ).map((u) => u.allergenId)
     : [];
 
-  const allergenIds = new Set(userAllergenIds);
-  const userAllergens = session?.user
-    ? await prisma.allergen.findMany({ where: { id: { in: Array.from(allergenIds) } } })
-    : [];
+  const selectedAllergens = (searchParams.allergens ?? "").split(",").filter(Boolean);
+  const allAllergenIds = [...new Set([...userAllergenIds, ...selectedAllergens])];
+
+  const [userAllergens, infos] = await Promise.all([
+    userAllergenIds.length > 0
+      ? prisma.allergen.findMany({ where: { id: { in: userAllergenIds } } })
+      : Promise.resolve([]),
+    buildAllergyInfoForProducts(
+      products.map((p) => p.id),
+      allAllergenIds,
+    ),
+  ]);
   const userAllergenNames = userAllergens.map((a) => a.nameFa);
 
-  const infos = await buildAllergyInfoForProducts(
-    products.map((p) => p.id),
-    Array.from(allergenIds),
-  );
   const safeOnly = searchParams.safe === "1";
   const list = products.filter((p) => {
     const info = infos.get(p.id);
@@ -65,13 +70,8 @@ export default async function CategoryPage({
     return true;
   });
 
-  const selectedAllergens = (searchParams.allergens ?? "").split(",").filter(Boolean);
-  const explicitInfos = await buildAllergyInfoForProducts(
-    list.map((p) => p.id),
-    selectedAllergens,
-  );
   const filtered = selectedAllergens.length
-    ? filterBySelectedAllergens(list, explicitInfos, selectedAllergens)
+    ? filterBySelectedAllergens(list, infos, selectedAllergens)
     : list;
   const conflictNames = [...new Set([
     ...userAllergenNames,

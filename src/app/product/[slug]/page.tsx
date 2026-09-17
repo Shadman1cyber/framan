@@ -17,23 +17,17 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const product = await getProductBySlug(params.slug);
+  const [product, session] = await Promise.all([
+    getProductBySlug(params.slug),
+    getServerSession(authOptions),
+  ]);
   if (!product) notFound();
 
-  const session = await getServerSession(authOptions);
   const userId = session?.user ? (session.user as { id?: string }).id : null;
-  const userAllergenIds = userId
-    ? (
-        await prisma.userAllergy.findMany({
-          where: { userId },
-        })
-      ).map((u) => u.allergenId)
-    : [];
-  const infos = await buildAllergyInfoForProducts([product.id], userAllergenIds);
-  const info = infos.get(product.id)!;
-
-  // Ratings data (viewing does not require auth — Rule 6)
-  const [recentRatings, myRating] = await Promise.all([
+  const [userAllergenIds, recentRatings, myRating] = await Promise.all([
+    userId
+      ? prisma.userAllergy.findMany({ where: { userId }, select: { allergenId: true } }).then((r) => r.map((u) => u.allergenId))
+      : Promise.resolve([] as string[]),
     prisma.rating.findMany({
       where: { productId: product.id },
       orderBy: { createdAt: "desc" },
@@ -44,8 +38,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
       ? prisma.rating.findUnique({
           where: { userId_productId: { userId, productId: product.id } },
         })
-      : null,
+      : Promise.resolve(null),
   ]);
+
+  const infos = await buildAllergyInfoForProducts([product.id], userAllergenIds);
+  const info = infos.get(product.id)!;
 
   const gallery = product.images.length
     ? product.images
@@ -185,7 +182,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
           }))}
         />
 
-        <p className="mt-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 text-xs text-muted">
+        <p className="mt-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 text-xs text-muted dark:border-dark-border dark:bg-dark-surface">
           سیستم ما ابزاری برای آگاهی از آلرژن‌هاست و تضمین پزشکی نیست.
           در صورت حساسیت شدید، لطفاً مواد تشکیل‌دهنده و شرایط تهیه را مستقیماً از کافه جویا شوید.
         </p>

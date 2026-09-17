@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 
 export type SelectableAllergen = { id: string; key: string; nameFa: string };
@@ -22,7 +21,7 @@ export function AllergenSelector({
   return (
     <section
       aria-labelledby="allergen-filter-heading"
-      className="mb-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 shadow-soft"
+      className="mb-8 rounded-2xl border border-coffee/10 bg-cream-50 p-4 shadow-soft dark:border-dark-border dark:bg-dark-surface"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">

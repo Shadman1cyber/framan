@@ -20,7 +20,7 @@ export function OfflineBanner() {
   if (!isOnline) {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 animate-slide-down"
+        className="fixed top-0 left-0 right-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 animate-slide-down dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300"
         role="status"
         aria-live="polite"
       >
@@ -43,7 +43,7 @@ export function OfflineBanner() {
   if (isSyncing) {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-50 border-b border-olive-200 bg-olive-50 px-4 py-2 text-center text-sm text-olive-800 animate-slide-down"
+        className="fixed top-0 left-0 right-0 z-50 border-b border-olive-200 bg-olive-50 px-4 py-2 text-center text-sm text-olive-800 animate-slide-down dark:border-olive-900 dark:bg-olive-900/30 dark:text-olive-300"
         role="status"
         aria-live="polite"
       >
@@ -60,7 +60,7 @@ export function OfflineBanner() {
   if (lastSyncStatus === "synced") {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-50 border-b border-olive-200 bg-olive-50 px-4 py-2 text-center text-sm text-olive-800 animate-slide-down"
+        className="fixed top-0 left-0 right-0 z-50 border-b border-olive-200 bg-olive-50 px-4 py-2 text-center text-sm text-olive-800 animate-slide-down dark:border-olive-900 dark:bg-olive-900/30 dark:text-olive-300"
         role="status"
         aria-live="polite"
       >
@@ -77,7 +77,7 @@ export function OfflineBanner() {
   if (pendingCount > 0) {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 animate-slide-down"
+        className="fixed top-0 left-0 right-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-800 animate-slide-down dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-300"
         role="status"
         aria-live="polite"
       >
@@ -88,7 +88,7 @@ export function OfflineBanner() {
           <span>{pendingCount} تغییر در صف انتظار همگام‌سازی</span>
           <button
             onClick={forceSync}
-            className="ml-3 text-xs underline hover:text-amber-900"
+            className="ml-3 text-xs underline hover:text-amber-900 dark:hover:text-amber-300"
             disabled={isSyncing}
           >
             همگام‌سازی الان

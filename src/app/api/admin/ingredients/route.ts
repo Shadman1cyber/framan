@@ -24,7 +24,7 @@ export async function GET() {
     orderBy: { nameFa: "asc" },
     include: { _count: { select: { products: true } } },
   });
-  return NextResponse.json({ ingredients });
+  return NextResponse.json({ ingredients }, { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" } });
 }
 
 export async function POST(req: Request) {

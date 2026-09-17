@@ -175,3 +175,13 @@ export async function getAllergens() {
 export async function getDietaryTags() {
   return prisma.dietaryTag.findMany({ orderBy: { nameFa: "asc" } });
 }
+
+export async function getProductsByIds(ids: string[]): Promise<PublicProduct[]> {
+  if (ids.length === 0) return [];
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids }, isAvailable: true },
+    orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
+    include: productInclude as never,
+  });
+  return products.map((p) => mapProduct(p as unknown as ProductWithRelations));
+}

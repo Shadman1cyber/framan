@@ -118,11 +118,11 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{t.label ?? `میز ${t.number}`}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      t.isOccupied ? "bg-danger/10 text-danger" : "bg-olive-50 text-olive-600"
-                    }`}
-                  >
+<span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    t.isOccupied ? "bg-danger/10 text-danger dark:bg-danger/20" : "bg-olive-50 text-olive-600 dark:bg-olive/20 dark:text-olive-300"
+                  }`}
+                >
                     {t.isOccupied ? "اشغال" : "آزاد"}
                   </span>
                 </div>
@@ -131,7 +131,7 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
                   {t.occupiedAt && ` · از ${new Intl.DateTimeFormat("fa-IR", { timeStyle: "short" }).format(new Date(t.occupiedAt))}`}
                 </div>
                 {t.nextReservation && (
-                  <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning">
+                  <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning dark:bg-warning/20">
                     📅 رزرو بعدی: {t.nextReservation.customerName} — ساعت{" "}
                     {new Intl.DateTimeFormat("fa-IR", { timeStyle: "short" }).format(
                       new Date(t.nextReservation.reservedAt),
@@ -146,7 +146,7 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
                 disabled={busyId === t.id}
                 className={
                   t.isOccupied
-                    ? "rounded-xl border border-olive/30 bg-olive-50 px-3 py-1.5 text-xs font-medium text-olive-700 transition-colors hover:bg-olive-100 disabled:opacity-50"
+                    ? "rounded-xl border border-olive/30 bg-olive-50 px-3 py-1.5 text-xs font-medium text-olive-700 transition-colors hover:bg-olive-100 disabled:opacity-50 dark:border-olive/40 dark:bg-olive/20 dark:text-olive-300 dark:hover:bg-olive/30"
                     : "rounded-xl border border-danger/30 bg-danger/5 px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
                 }
               >

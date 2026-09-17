@@ -151,8 +151,8 @@ export function AiAdmin({
       {/* Enable/disable switch */}
       <div className="card flex flex-wrap items-center justify-between gap-4 p-5">
         <div>
-          <h2 className="text-sm font-semibold text-espresso">وضعیت دستیار هوشمند</h2>
-          <p className="mt-1 text-xs text-muted">
+          <h2 className="text-sm font-semibold text-espresso dark:text-dark-text">وضعیت دستیار هوشمند</h2>
+          <p className="mt-1 text-xs text-muted dark:text-dark-textSecondary">
             سرویس: {settings.provider} · مدل: {settings.model}
             <br />
             {settings.hasApiKey
@@ -169,12 +169,12 @@ export function AiAdmin({
           className={`relative inline-flex h-10 w-24 items-center overflow-hidden rounded-full border transition-colors ${
             settings.enabled
               ? "border-olive bg-olive text-cream"
-              : "border-coffee/20 bg-beige text-espresso/70"
+              : "border-coffee/20 bg-beige text-espresso/70 dark:border-dark-border dark:bg-dark-surfaceHover dark:text-dark-textSecondary"
           }`}
         >
           <span
             aria-hidden="true"
-            className={`absolute top-1 h-7 w-7 rounded-full bg-cream-50 shadow-soft transition-all duration-200 ${
+            className={`absolute top-1 h-7 w-7 rounded-full bg-cream-50 shadow-soft transition-all duration-200 dark:bg-dark-text ${
               settings.enabled ? "left-1" : "right-1"
             }`}
           />
@@ -193,19 +193,19 @@ export function AiAdmin({
         {/* History sidebar */}
         <aside className="card flex max-h-[560px] flex-col overflow-hidden p-3" aria-label="تاریخچه گفتگوها">
           <div className="mb-2 flex items-center justify-between px-1">
-            <h3 className="text-sm font-semibold text-espresso">گفتگوها</h3>
+            <h3 className="text-sm font-semibold text-espresso dark:text-dark-text">گفتگوها</h3>
             <button
               type="button"
               onClick={newChat}
               disabled={!settings.enabled}
-              className="rounded-lg bg-olive px-2.5 py-1 text-xs font-medium text-cream transition-colors hover:bg-olive-600 disabled:opacity-40"
+              className="rounded-lg bg-olive px-2.5 py-1 text-xs font-medium text-cream transition-colors hover:bg-olive-600 disabled:opacity-40 dark:hover:bg-olive-600"
             >
               + گفتگوی جدید
             </button>
           </div>
           <ul className="flex-1 space-y-1 overflow-y-auto">
             {sessions.length === 0 && (
-              <li className="px-2 py-6 text-center text-xs text-muted">
+              <li className="px-2 py-6 text-center text-xs text-muted dark:text-dark-textSecondary">
                 هنوز گفتگویی ندارید.
               </li>
             )}
@@ -215,11 +215,13 @@ export function AiAdmin({
                   type="button"
                   onClick={() => loadSession(s.id)}
                   className={`w-full rounded-xl px-3 py-2 text-right transition-colors ${
-                    activeSessionId === s.id ? "bg-olive/10 text-olive-700" : "hover:bg-beige"
+                    activeSessionId === s.id
+                      ? "bg-olive/10 text-olive-700 dark:bg-olive/20 dark:text-olive-300"
+                      : "hover:bg-beige dark:hover:bg-dark-surfaceHover"
                   }`}
                 >
-                  <span className="block truncate text-xs font-medium text-espresso">{s.title}</span>
-                  <span className="block text-[10px] text-muted">
+                  <span className="block truncate text-xs font-medium text-espresso dark:text-dark-text">{s.title}</span>
+                  <span className="block text-[10px] text-muted dark:text-dark-textSecondary">
                     {s.messageCount} پیام ·{" "}
                     {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
                       new Date(s.updatedAt),
@@ -247,10 +249,10 @@ export function AiAdmin({
             ) : messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
                 <span aria-hidden="true" className="text-3xl">🤖</span>
-                <p className="text-sm font-medium text-espresso">
+                <p className="text-sm font-medium text-espresso dark:text-dark-text">
                   سوال خود را بپرسید
                 </p>
-                <p className="max-w-sm text-xs leading-relaxed text-muted">
+                <p className="max-w-sm text-xs leading-relaxed text-muted dark:text-dark-textSecondary">
                   دستیار به داده‌های فروش، انبار و عملیاتی کافه دسترسی کنترل‌شده دارد و فقط تحلیل ارائه می‌دهد.
                   مثلاً: «اگر سفارش‌ها ۳۰٪ زیاد شود شف‌ها کافی هستند؟»
                 </p>
@@ -265,7 +267,7 @@ export function AiAdmin({
                     className={`max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                       m.role === "user"
                         ? "bg-olive text-cream"
-                        : "border border-coffee/10 bg-cream text-espresso"
+                        : "border border-coffee/10 bg-cream text-espresso dark:border-dark-border dark:bg-dark-surface dark:text-dark-text"
                     }`}
                   >
                     {m.content}
@@ -275,13 +277,13 @@ export function AiAdmin({
             )}
             {asking && (
               <div className="flex justify-end">
-                <div className="rounded-2xl border border-coffee/10 bg-cream px-4 py-2.5 text-sm text-muted">
+                <div className="rounded-2xl border border-coffee/10 bg-cream px-4 py-2.5 text-sm text-muted dark:border-dark-border dark:bg-dark-surface dark:text-dark-textSecondary">
                   در حال تحلیل داده‌ها…
                 </div>
               </div>
             )}
           </div>
-          <form onSubmit={ask} className="flex gap-2 border-t border-coffee/10 bg-cream-50 p-3">
+          <form onSubmit={ask} className="flex gap-2 border-t border-coffee/10 bg-cream-50 p-3 dark:border-dark-border dark:bg-dark-surface">
             <input
               className="input flex-1"
               placeholder={settings.enabled ? "سوال خود را بنویسید..." : "دستیار غیرفعال است"}
@@ -305,7 +307,7 @@ export function AiAdmin({
           </button>
         </div>
         {insights.length === 0 ? (
-          <div className="card p-6 text-center text-sm text-muted">هشداری ثبت نشده است.</div>
+          <div className="card p-6 text-center text-sm text-muted dark:text-dark-textSecondary">هشداری ثبت نشده است.</div>
         ) : (
           <ul className="space-y-2">
             {insights.map((i) => (
@@ -320,21 +322,21 @@ export function AiAdmin({
                 }`}
               >
                 <div className="mb-1 flex items-center gap-2">
-                  <span
+<span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
                       i.severity === "CRITICAL"
-                        ? "bg-danger/10 text-danger"
+                        ? "bg-danger/10 text-danger dark:bg-danger/20 dark:text-danger"
                         : i.severity === "WARNING"
-                          ? "bg-warning/10 text-warning"
-                          : "bg-olive-50 text-olive-600"
+                        ? "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning"
+                        : "bg-olive/10 text-olive-600 dark:bg-olive/20 dark:text-olive-300"
                     }`}
                   >
                     {KIND_LABELS[i.kind] ?? i.kind}
                   </span>
-                  <span className="text-sm font-semibold text-espresso">{i.title}</span>
+                  <span className="text-sm font-semibold text-espresso dark:text-dark-text">{i.title}</span>
                 </div>
-                <p className="text-xs leading-relaxed text-espresso/75">{i.body}</p>
-                <p className="mt-1 text-[10px] text-muted">
+                <p className="text-xs leading-relaxed text-espresso/75 dark:text-dark-textSecondary">{i.body}</p>
+                <p className="mt-1 text-[10px] text-muted dark:text-dark-textSecondary">
                   {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
                     new Date(i.createdAt),
                   )}

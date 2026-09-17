@@ -14,7 +14,7 @@ export async function GET() {
   const g = await guard("staff.manage");
   if ("res" in g) return g.res;
   const staff = await prisma.staff.findMany({ orderBy: { createdAt: "desc" } });
-  return NextResponse.json({ staff });
+  return NextResponse.json({ staff }, { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" } });
 }
 
 export async function POST(req: Request) {

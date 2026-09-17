@@ -5,6 +5,7 @@ const withPWA = require("next-pwa")({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
+  buildExcludes: [/worker/],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
@@ -44,6 +45,8 @@ const withPWA = require("next-pwa")({
 
 const nextConfig = {
   reactStrictMode: true,
+  compress: true,
+  output: "standalone",
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
@@ -52,6 +55,7 @@ const nextConfig = {
   },
   experimental: {
     serverActions: { allowedOrigins: [`localhost:${port}`, `127.0.0.1:${port}`] },
+    optimizePackageImports: ["@prisma/client", "zod", "date-fns", "bcryptjs"],
   },
 };
 

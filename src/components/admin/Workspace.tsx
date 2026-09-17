@@ -274,64 +274,64 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
       <p className="mb-4 text-sm text-muted">گفتگو، اجرای کارهای چندمرحله‌ای، تأیید تغییرات کسب‌وکار، فایل‌ها و گزارش‌ها — همه در یک‌جا.</p>
 
       {status !== null && (
-        <p role="status" className={`mb-3 rounded-lg p-2 text-xs ${status.enabled ? (status.writes ? "bg-green-50 text-green-800" : "bg-amber-50 text-amber-800") : "bg-red-50 text-red-800"}`}>
+        <p role="status" className={`mb-3 rounded-lg p-2 text-xs ${status.enabled ? (status.writes ? "bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300") : "bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-300"}`}>
           موتور اجرا: {status.enabled ? "فعال" : "خاموش (kill switch)"} · تغییرات کسب‌وکار: {status.writes ? "باز" : "بسته"}
           {status.shadow ? " · حالت سایه" : ""} · صف تأیید: {status.approvalQueue} · در حال اجرا: {status.running}
         </p>
       )}
-      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{error} <button type="button" className="underline" onClick={() => setError("")}>بستن</button></p>}
+      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error} <button type="button" className="underline" onClick={() => setError("")}>بستن</button></p>}
 
       <div className="grid gap-4 lg:grid-cols-[240px_1fr_320px]">
         <aside className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-lg:fixed max-lg:inset-y-2 max-lg:right-2 max-lg:z-40 max-lg:w-72 ${sidebarOpen ? "" : "max-lg:hidden"}`} aria-label="گفتگوها">
           <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-sm font-semibold text-espresso">گفتگوها</h2>
+            <h2 className="text-sm font-semibold text-espresso dark:text-dark-text">گفتگوها</h2>
             <button type="button" onClick={() => void (async () => {
               const j = await api("sessions", { method: "POST", body: JSON.stringify({}) });
               await refreshSessions();
               await openSession((j.session as { id: string }).id);
-            })()} className="rounded-lg bg-olive px-2 py-1 text-xs font-medium text-cream hover:bg-olive-600" aria-label="گفتگوی جدید">+ جدید</button>
+            })()} className="rounded-lg bg-olive px-2 py-1 text-xs font-medium text-cream hover:bg-olive-600 dark:hover:bg-olive-600" aria-label="گفتگوی جدید">+ جدید</button>
           </div>
           <ul className="flex-1 space-y-1 overflow-y-auto">
-            {sessions.length === 0 && <li className="px-2 py-4 text-center text-xs text-muted">گفتگویی ندارید.</li>}
+            {sessions.length === 0 && <li className="px-2 py-4 text-center text-xs text-muted dark:text-dark-textSecondary">گفتگویی ندارید.</li>}
             {sessions.map(s => (
               <li key={s.id} className="group relative">
                 {editing === s.id ? (
                   <div className="flex gap-1 p-1">
                     <input className="input text-xs" value={editTitle} onChange={e => setEditTitle(e.target.value)} aria-label="عنوان گفتگو" autoFocus onKeyDown={e => { if (e.key === "Enter") void renameSession(s.id); if (e.key === "Escape") setEditing(null); }} />
-                    <button type="button" className="rounded bg-olive px-2 text-xs text-cream" onClick={() => void renameSession(s.id)} aria-label="ذخیره نام">✓</button>
+                    <button type="button" className={`rounded bg-olive px-2 text-xs text-cream`} onClick={() => void renameSession(s.id)} aria-label="ذخیره نام">✓</button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => void openSession(s.id)} className={`w-full rounded-xl px-3 py-2 text-right transition-colors ${activeId === s.id ? "bg-olive/10 text-olive-700" : "hover:bg-beige"}`}>
-                    <span className="block truncate text-xs font-medium text-espresso">{s.title}</span>
-                    <span className="block text-[10px] text-muted">{s.messageCount} پیام · {faTime(s.updatedAt)}</span>
+                  <button type="button" onClick={() => void openSession(s.id)} className={`w-full rounded-xl px-3 py-2 text-right transition-colors ${activeId === s.id ? "bg-olive/10 text-olive-700 dark:bg-olive/20 dark:text-olive-300" : "hover:bg-beige dark:hover:bg-dark-surfaceHover"}`}>
+                    <span className="block truncate text-xs font-medium text-espresso dark:text-dark-text">{s.title}</span>
+                    <span className="block text-[10px] text-muted dark:text-dark-textSecondary">{s.messageCount} پیام · {faTime(s.updatedAt)}</span>
                   </button>
                 )}
                 <span className="absolute left-2 top-2 hidden gap-1 group-hover:flex">
-                  <button type="button" aria-label={`تغییر نام ${s.title}`} onClick={() => { setEditing(s.id); setEditTitle(s.title); }} className="rounded-full bg-beige px-1.5 text-[10px]">✎</button>
-                  <button type="button" aria-label={`بایگانی ${s.title}`} onClick={() => void archiveSession(s.id)} className="rounded-full bg-beige px-1.5 text-[10px]">📥</button>
+                  <button type="button" aria-label={`تغییر نام ${s.title}`} onClick={() => { setEditing(s.id); setEditTitle(s.title); }} className="rounded-full bg-beige px-1.5 text-[10px] dark:bg-dark-surfaceHover">✎</button>
+                  <button type="button" aria-label={`بایگانی ${s.title}`} onClick={() => void archiveSession(s.id)} className="rounded-full bg-beige px-1.5 text-[10px] dark:bg-dark-surfaceHover">📥</button>
                 </span>
               </li>
             ))}
           </ul>
-          <button type="button" className="mt-1 rounded border p-1 text-[11px] text-muted hover:bg-beige lg:hidden" onClick={() => setSidebarOpen(false)}>بستن فهرست</button>
+          <button type="button" className="mt-1 rounded border p-1 text-[11px] text-muted dark:text-dark-textSecondary hover:bg-beige dark:hover:bg-dark-surfaceHover lg:hidden" onClick={() => setSidebarOpen(false)}>بستن فهرست</button>
         </aside>
 
         <section className="card flex min-h-[520px] flex-col overflow-hidden" aria-label="گفتگو">
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
             {loading ? (
-              <p className="py-12 text-center text-sm text-muted">در حال بارگذاری…</p>
+              <p className="py-12 text-center text-sm text-muted dark:text-dark-textSecondary">در حال بارگذاری…</p>
             ) : legacyView ? (
-              <div className="rounded-xl bg-amber-50 p-3 text-sm">
-                <p className="mb-2 text-xs font-semibold text-amber-800">آرشیو قدیمی — فقط‌خواندنی</p>
+<div className="rounded-xl bg-amber-50 p-3 text-sm dark:bg-amber-900/30">
+                  <p className="mb-2 text-xs font-semibold text-amber-800 dark:text-amber-300">آرشیو قدیمی — فقط‌خواندنی</p>
                 {legacyView.map(m => (
-                  <div key={m.id} className={`mb-1 max-w-[85%] rounded-2xl px-3 py-2 text-xs ${m.role === "user" ? "ms-auto bg-olive/80 text-cream" : "me-auto border border-coffee/10 bg-cream"}`}>{m.content}</div>
+                  <div key={m.id} className={`mb-1 max-w-[85%] rounded-2xl px-3 py-2 text-xs ${m.role === "user" ? "ms-auto bg-olive/80 text-cream" : "me-auto border border-coffee/10 bg-cream dark:border-dark-border dark:bg-dark-surface dark:text-dark-text"}`}>{m.content}</div>
                 ))}
               </div>
             ) : messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 py-12 text-center">
                 <span aria-hidden="true" className="text-3xl">☕</span>
-                <p className="text-sm font-medium text-espresso">{activeId ? "گفتگو خالی است" : "یک گفتگو شروع کنید"}</p>
-                <p className="max-w-md text-xs leading-relaxed text-muted">سؤال بپرسید (فروش، انبار، سفارش‌ها)، کار چندمرحله‌ای بدهید یا فایل بارگذاری کنید. تغییرات کسب‌وکار فقط با کارت تأیید شما اجرا می‌شود.</p>
+                <p className="text-sm font-medium text-espresso dark:text-dark-text">{activeId ? "گفتگو خالی است" : "یک گفتگو شروع کنید"}</p>
+                <p className="max-w-md text-xs leading-relaxed text-muted dark:text-dark-textSecondary">سؤال بپرسید (فروش، انبار، سفارش‌ها)، کار چندمرحله‌ای بدهید یا فایل بارگذاری کنید. تغییرات کسب‌وکار فقط با کارت تأیید شما اجرا می‌شود.</p>
                 {!activeId && <button type="button" className="btn-primary text-sm" onClick={() => void (async () => {
                   const j = await api("sessions", { method: "POST", body: JSON.stringify({}) });
                   await refreshSessions();
@@ -341,7 +341,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
             ) : (
               messages.map(m => (
                 <div key={m.id} className={`flex ${m.role === "user" ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "bg-olive text-cream" : "border border-coffee/10 bg-cream text-espresso"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.role === "user" ? "bg-olive text-cream" : "border border-coffee/10 bg-cream text-espresso dark:border-dark-border dark:bg-dark-surface dark:text-dark-text"}`}>
                     {m.role === "user" ? m.content : <AnswerBubble text={m.content} />}
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
             )}
             {pending && (
               <div className="flex justify-end" role="status">
-                <div className="rounded-2xl border border-coffee/10 bg-cream px-4 py-2.5 text-sm text-muted">در حال بررسی درخواست و ساخت برنامه…</div>
+                <div className="rounded-2xl border border-coffee/10 bg-cream px-4 py-2.5 text-sm text-muted dark:border-dark-border dark:bg-dark-surface dark:text-dark-textSecondary">در حال بررسی درخواست و ساخت برنامه…</div>
               </div>
             )}
           </div>
@@ -357,7 +357,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
           {visibleRuns.length > 0 && (
             <div className="mx-3 mb-2 flex flex-wrap gap-2">
               {visibleRuns.map(r => (
-                <button key={r.id} type="button" className={`rounded-full border px-3 py-1 text-xs ${r.state === "waiting_approval" ? "border-amber-400 bg-amber-50" : "border-coffee/20 bg-cream"}`} onClick={() => void openRun(r.id)}>
+                <button key={r.id} type="button" className={`rounded-full border px-3 py-1 text-xs ${r.state === "waiting_approval" ? "border-amber-400 bg-amber-50 dark:bg-amber-900/30" : "border-coffee/20 bg-cream dark:border-dark-border dark:bg-dark-surface dark:hover:bg-dark-surfaceHover"}`} onClick={() => void openRun(r.id)}>
                   <span className={`me-1 inline-block h-1.5 w-1.5 rounded-full ${r.state === "running" ? "animate-pulse bg-olive" : r.state === "waiting_approval" ? "bg-amber-500" : "bg-coffee/30"}`} aria-hidden="true" />
                   {TOOL_FA[r.tool] ?? r.tool} · {RUN_STATE_FA[r.state] ?? r.state}
                 </button>
@@ -367,11 +367,11 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
 
           {approvalRun && <ApprovalCard run={approvalRun} onApprove={() => void control("approve", approvalRun)} onReject={() => void control("reject", approvalRun)} />}
 
-          <form onSubmit={e => { e.preventDefault(); void send(); }} className="border-t border-coffee/10 bg-cream-50 p-3">
+          <form onSubmit={e => { e.preventDefault(); void send(); }} className="border-t border-coffee/10 bg-cream-50 p-3 dark:border-dark-border dark:bg-dark-surface">
             {attachments.length > 0 && (
               <ul className="mb-2 flex flex-wrap gap-1">
                 {attachments.map(a => (
-                  <li key={a.id} className="rounded-full bg-beige px-2 py-0.5 text-[11px]">
+                  <li key={a.id} className="rounded-full bg-beige px-2 py-0.5 text-[11px] dark:bg-dark-surfaceHover">
                     {a.filename}
                     <button type="button" aria-label={`حذف پیوست ${a.filename}`} onClick={() => setAttachments(x => x.filter(y => y.id !== a.id))}> ✕</button>
                   </li>
@@ -400,30 +400,30 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
 
         <section className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-lg:fixed max-lg:inset-y-2 max-lg:left-2 max-lg:z-40 max-lg:w-80 ${panelOpen ? "" : "max-lg:hidden"}`} aria-label="پنل خروجی و پیش‌نمایش">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-espresso">خروجی و پیش‌نمایش</h2>
-            <button type="button" className="text-xs text-muted underline" onClick={() => setPanelOpen(false)}>بستن</button>
+            <h2 className="text-sm font-semibold text-espresso dark:text-dark-text">خروجی و پیش‌نمایش</h2>
+            <button type="button" className="text-xs text-muted dark:text-dark-textSecondary underline" onClick={() => setPanelOpen(false)}>بستن</button>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto pe-1">
             {activeRun ? (
               <>
                 <RunOutput run={activeRun} artifacts={artifacts} />
                 {["succeeded", "failed", "cancelled"].includes(activeRun.state) && <CorrectionBox onCorrect={note => control("correct", activeRun, { note })} />}
-                <details className="rounded border border-coffee/15 p-2 text-[11px]">
-                  <summary className="cursor-pointer text-muted">شناسه‌ها و جزئیات فنی</summary>
+<details className="rounded border border-coffee/15 p-2 text-[11px] dark:border-dark-border">
+                  <summary className="cursor-pointer text-muted dark:text-dark-textSecondary">شناسه‌ها و جزئیات فنی</summary>
                   <p dir="ltr" className="break-all">Run: {activeRun.id}<br />Trace: {activeRun.traceId}<br />Model: {activeRun.modelId ?? "—"}<br />Prompt: {activeRun.promptVersion ?? "—"}<br />Skill: {activeRun.skillVersion ?? "—"}</p>
                   {activeRun.events && <ul dir="ltr" className="mt-1">{activeRun.events.map(e => <li key={e.id}>{e.name} · {e.state}</li>)}</ul>}
                 </details>
               </>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-muted">گزارش‌های آماده (مبنا: سفارش‌های تکمیل‌شده، Asia/Tehran):</p>
+                <p className="text-xs text-muted dark:text-dark-textSecondary">گزارش‌های آماده (مبنا: سفارش‌های تکمیل‌شده، Asia/Tehran):</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <input type="date" value={reportDay} onChange={e => setReportDay(e.target.value)} aria-label="روز گزارش" className="input w-36 text-xs" />
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_report_csv")}>CSV</button>
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_report_xlsx")}>اکسل</button>
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_chart_svg")}>نمودار</button>
                 </div>
-                <p className="text-[10px] leading-relaxed text-muted">این عدد جمع ارزش سفارش‌های تکمیل‌شده است؛ وصولی نقدی یا سود نیست.</p>
+                <p className="text-[10px] leading-relaxed text-muted dark:text-dark-textSecondary">این عدد جمع ارزش سفارش‌های تکمیل‌شده است؛ وصولی نقدی یا سود نیست.</p>
                 <ArtifactList artifacts={artifacts} />
               </div>
             )}
@@ -442,24 +442,24 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
         </button>
         {manageOpen && (
           <div className="card mt-2 space-y-4 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coffee/10 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coffee/10 p-3 dark:border-dark-border">
               <div className="text-xs">
-                <p className="font-semibold text-espresso">سرویس مدل: {settings.provider} · مدل: {settings.model}</p>
-                <p className="text-muted">{settings.hasApiKey ? "کلید API از متغیر محیطی خوانده می‌شود (سمت سرور)." : "کلید API تنظیم نشده (ZHIPU_API_KEY)."}</p>
+                <p className="font-semibold text-espresso dark:text-dark-text">سرویس مدل: {settings.provider} · مدل: {settings.model}</p>
+                <p className="text-muted dark:text-dark-textSecondary">{settings.hasApiKey ? "کلید API از متغیر محیطی خوانده می‌شود (سمت سرور)." : "کلید API تنظیم نشده (ZHIPU_API_KEY)."}</p>
               </div>
-              <button type="button" role="switch" aria-checked={settings.enabled} onClick={() => void toggleAiEnabled(!settings.enabled)} className={`rounded-full border px-3 py-1 text-xs ${settings.enabled ? "border-olive bg-olive text-cream" : "border-coffee/20 bg-beige"}`}>
+              <button type="button" role="switch" aria-checked={settings.enabled} onClick={() => void toggleAiEnabled(!settings.enabled)} className={`rounded-full border px-3 py-1 text-xs ${settings.enabled ? "border-olive bg-olive text-cream" : "border-coffee/20 bg-beige dark:border-coffee/30 dark:bg-dark-surfaceHover"}`}>
                 دستیار تحلیلی: {settings.enabled ? "روشن" : "خاموش"}
               </button>
             </div>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-espresso">درس‌ها (پیشنهادها و فعال‌سازی)</h3>
-              {lessons.length === 0 && <p className="text-xs text-muted">درسی ثبت نشده است.</p>}
+              <h3 className="mb-2 text-sm font-semibold text-espresso dark:text-dark-text">درس‌ها (پیشنهادها و فعال‌سازی)</h3>
+              {lessons.length === 0 && <p className="text-xs text-muted dark:text-dark-textSecondary">درسی ثبت نشده است.</p>}
               <ul className="space-y-2">
                 {lessons.map(l => (
-                  <li key={l.id} className="rounded border border-coffee/10 p-2 text-xs">
-                    <p><span className="rounded-full bg-beige px-2 py-0.5 text-[10px]">{l.status === "draft" ? "پیش‌نویس" : l.status === "active" ? "فعال" : l.status}</span> <strong>{l.topic}</strong></p>
+                  <li key={l.id} className="rounded border border-coffee/10 p-2 text-xs dark:border-dark-border">
+                    <p><span className="rounded-full bg-beige px-2 py-0.5 text-[10px] dark:bg-dark-surfaceHover">{l.status === "draft" ? "پیش‌نویس" : l.status === "active" ? "فعال" : l.status}</span> <strong>{l.topic}</strong></p>
                     <p className="mt-1">{l.statement}</p>
-                    {l.evidence?.length > 0 && <p className="mt-1 text-muted" dir="ltr">evidence: {l.evidence.map(e => e.id.slice(0, 8)).join(", ")}</p>}
+                    {l.evidence?.length > 0 && <p className="mt-1 text-muted dark:text-dark-textSecondary" dir="ltr">evidence: {l.evidence.map(e => e.id.slice(0, 8)).join(", ")}</p>}
                     <div className="mt-1 flex gap-2">
                       {l.status === "draft" && <>
                         <button type="button" className="btn-primary text-[11px]" onClick={() => void lessonAction(l.id, "activate")}>فعال‌سازی</button>
@@ -472,21 +472,21 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
               </ul>
             </div>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-espresso">اسکیل‌ها (نسخه‌ها، آزمون، فعال‌سازی، بازگشت)</h3>
-              {skills.length === 0 && <p className="text-xs text-muted">اسکیلی ثبت نشده است.</p>}
+              <h3 className="mb-2 text-sm font-semibold text-espresso dark:text-dark-text">اسکیل‌ها (نسخه‌ها، آزمون، فعال‌سازی، بازگشت)</h3>
+              {skills.length === 0 && <p className="text-xs text-muted dark:text-dark-textSecondary">اسکیلی ثبت نشده است.</p>}
               <ul className="space-y-2">
                 {skills.map(s => {
                   const unevaluable = s.testResult?.evaluated === false;
                   return (
-                    <li key={s.id} className="rounded border border-coffee/10 p-2 text-xs">
+                    <li key={s.id} className="rounded border border-coffee/10 p-2 text-xs dark:border-dark-border">
                       <p><strong dir="ltr">{s.slug}</strong> <span dir="ltr" className="text-muted">v{s.version}</span> · {s.status === "draft" ? "پیش‌نویس" : s.status === "active" ? "فعال" : "بازنشسته"}
-                        {unevaluable && <span className="ms-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">معیار ارزیابی‌ناپذیر — تأییدنشده</span>}
+                        {unevaluable && <span className="ms-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">معیار ارزیابی‌ناپذیر — تأییدنشده</span>}
                       </p>
                       <p className="mt-1 text-muted">{s.definition?.description}</p>
                       {s.testResult && (
                         <details className="mt-1">
                           <summary className="cursor-pointer text-muted">نتیجه آزمون: {s.testResult.passed ? "قبول" : "مردود"}</summary>
-                          <pre dir="ltr" className="mt-1 max-h-40 overflow-auto rounded bg-beige p-1 text-[10px]">{JSON.stringify(s.testResult, null, 1)}</pre>
+                          <pre dir="ltr" className="mt-1 max-h-40 overflow-auto rounded bg-beige p-1 text-[10px] dark:bg-dark-surfaceHover">{JSON.stringify(s.testResult, null, 1)}</pre>
                         </details>
                       )}
                       <div className="mt-1 flex flex-wrap gap-2">
@@ -501,15 +501,15 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
                           setError("");
                           try { const j = await api("skills/run", { method: "POST", body: JSON.stringify({ slug: s.slug }) }); setActiveRun(j.run as Run); setPanelOpen(true); await refreshAll(); } catch (e) { setError(e instanceof Error ? e.message : "خطا"); }
                         })()}>اجرا</button>
-                        <details className="w-full"><summary className="cursor-pointer text-muted">تعریف نسخه</summary><pre dir="ltr" className="max-h-40 overflow-auto text-[10px]">{JSON.stringify(s.definition, null, 1)}</pre></details>
+                        <details className="w-full"><summary className="cursor-pointer text-muted dark:text-dark-textSecondary">تعریف نسخه</summary><pre dir="ltr" className="max-h-40 overflow-auto text-[10px]">{JSON.stringify(s.definition, null, 1)}</pre></details>
                       </div>
                     </li>
                   );
                 })}
               </ul>
             </div>
-            <details className="rounded border border-coffee/15 p-2 text-[11px]">
-              <summary className="cursor-pointer text-muted">وضعیت پیکربندی (server-side)</summary>
+            <details className="rounded border border-coffee/15 p-2 text-[11px] dark:border-dark-border">
+              <summary className="cursor-pointer text-muted dark:text-dark-textSecondary">وضعیت پیکربندی (server-side)</summary>
               <ul className="mt-1 space-y-0.5">
                 <li>موتور اجرا: {featureFlags.agentEnabled ? "فعال" : "غیرفعال (AGENT_ENABLED=false)"}</li>
                 <li>نسخه پرامپت: {status?.promptVersion ?? "—"}</li>
@@ -522,12 +522,12 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
 
         {legacySessions.length > 0 && (
           <details className="card mt-4 p-3">
-            <summary className="cursor-pointer text-xs text-muted">آرشیو گفتگوهای قدیمی (نسخه قبل — فقط‌خواندنی، {legacySessions.length} گفتگو)</summary>
+            <summary className="cursor-pointer text-xs text-muted dark:text-dark-textSecondary">آرشیو گفتگوهای قدیمی (نسخه قبل — فقط‌خواندنی، {legacySessions.length} گفتگو)</summary>
             <ul className="mt-2 space-y-1">
               {legacySessions.map(s => (
-                <li key={s.id} className="flex items-center justify-between rounded border border-coffee/10 px-2 py-1 text-xs">
-                  <button type="button" className="underline" onClick={() => void openLegacy(s.id)}>👁 {s.title} <span className="text-muted">({s.messageCount} پیام)</span></button>
-                  <span className="text-[10px] text-amber-700">فقط‌خواندنی</span>
+                <li key={s.id} className="flex items-center justify-between rounded border border-coffee/10 px-2 py-1 text-xs dark:border-dark-border">
+                  <button type="button" className="underline text-espresso dark:text-dark-text" onClick={() => void openLegacy(s.id)}>👁 {s.title} <span className="text-muted dark:text-dark-textSecondary">({s.messageCount} پیام)</span></button>
+                  <span className="text-[10px] text-amber-700 dark:text-amber-300">فقط‌خواندنی</span>
                 </li>
               ))}
             </ul>

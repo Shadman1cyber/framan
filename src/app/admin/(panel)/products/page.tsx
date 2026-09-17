@@ -9,7 +9,16 @@ export const dynamic = "force-dynamic";
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
     orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
-    include: { category: true, _count: { select: { ratings: true } } },
+    select: {
+      id: true,
+      nameFa: true,
+      slug: true,
+      price: true,
+      image: true,
+      isAvailable: true,
+      category: { select: { nameFa: true } },
+      _count: { select: { ratings: true } },
+    },
   });
   return (
     <div>
@@ -19,7 +28,7 @@ export default async function AdminProductsPage() {
       </div>
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-beige text-espresso/70">
+          <thead className="bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary">
             <tr>
               <th className="p-3 text-right">محصول</th>
               <th className="p-3 text-right">دسته</th>
@@ -31,10 +40,10 @@ export default async function AdminProductsPage() {
           </thead>
           <tbody>
             {products.map((p) => (
-              <tr key={p.id} className="border-t border-coffee/10">
+              <tr key={p.id} className="border-t border-coffee/10 dark:border-dark-border">
                 <td className="p-3">
                   <div className="flex items-center gap-3">
-                    <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-beige">
+                    <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-beige dark:bg-dark-surfaceHover">
                       {p.image && <Image src={p.image} alt={p.nameFa} fill className="object-cover" sizes="40px" />}
                     </div>
                     <div>

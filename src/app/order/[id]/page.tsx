@@ -68,7 +68,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
         )}
 
         {!isCancelled && (
-          <ol className="mb-6 flex items-center justify-between rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+          <ol className="mb-6 flex items-center justify-between rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
             {steps.map((s, i) => {
               const done = i <= currentStep;
               return (
@@ -121,7 +121,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
           </div>
         )}
 
-        <section className="mb-4 rounded-2xl border border-coffee/10 bg-cream-50 p-4">
+        <section className="mb-4 rounded-2xl border border-coffee/10 bg-cream-50 p-4 dark:border-dark-border dark:bg-dark-surface">
           <h2 className="mb-3 text-sm font-semibold">اقلام</h2>
           <ul className="space-y-2 text-sm">
             {order.items.map((it) => (
@@ -145,7 +145,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
         </section>
 
         {order.notes && (
-          <p className="rounded-2xl border border-coffee/10 bg-cream-50 p-3 text-sm">
+          <p className="rounded-2xl border border-coffee/10 bg-cream-50 p-3 text-sm dark:border-dark-border dark:bg-dark-surface">
             یادداشت: {order.notes}
           </p>
         )}

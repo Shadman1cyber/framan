@@ -11,6 +11,7 @@ type Toast = { id: number; kind: "success" | "error" | "info"; message: string }
 
 const ToastContext = createContext<{
   show: (msg: string, kind?: Toast["kind"]) => void;
+  dismiss: (id: number) => void;
 } | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -20,24 +21,35 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((t) => [...t, { id, message, kind }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3000);
   }, []);
+  const dismiss = useCallback((id: number) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  }, []);
   return (
-    <ToastContext.Provider value={{ show }}>
+    <ToastContext.Provider value={{ show, dismiss }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-[100] flex flex-col items-center gap-2 px-4">
+      <div className="pointer-events-none fixed inset-x-0 top-20 z-[100] flex flex-col items-center gap-2 px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={
-              "pointer-events-auto animate-fade-in rounded-xl border px-4 py-2 text-sm shadow-elevated backdrop-blur " +
+              "pointer-events-auto animate-fade-in rounded-xl border px-4 py-2 text-sm shadow-elevated backdrop-blur flex items-center justify-between gap-3 " +
               (t.kind === "success"
-                ? "border-olive/30 bg-olive-50 text-olive-600"
+                ? "border-olive/30 bg-olive-50 text-olive-600 dark:border-olive/40 dark:bg-olive/10 dark:text-olive-300"
                 : t.kind === "error"
-                ? "border-danger/30 bg-danger/10 text-danger"
-                : "border-coffee/20 bg-cream-50 text-espresso")
+                ? "border-danger/30 bg-danger/10 text-danger dark:border-danger/40 dark:bg-danger/10 dark:text-danger"
+                : "border-coffee/20 bg-coffee/10 text-espresso dark:border-dark-border dark:bg-coffee/10 dark:text-dark-text")
             }
             role="status"
           >
-            {t.message}
+            <span>{t.message}</span>
+            <button
+              type="button"
+              onClick={() => dismiss(t.id)}
+              className="ms-3 flex-shrink-0 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+              aria-label="بستن"
+            >
+              ✕
+            </button>
           </div>
         ))}
       </div>
