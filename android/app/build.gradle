@@ -16,10 +16,39 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // True when a real upload keystore is provided via env (CI secrets or local export).
+    // Keep this outside signingConfigs/buildTypes so both blocks share it.
+    def hasUploadKeystore = System.getenv("ANDROID_KEYSTORE_PATH") != null
+            && System.getenv("ANDROID_KEYSTORE_PASSWORD") != null
+            && System.getenv("ANDROID_KEY_ALIAS") != null
+            && System.getenv("ANDROID_KEY_PASSWORD") != null
+            && new File(System.getenv("ANDROID_KEYSTORE_PATH")).exists()
+    signingConfigs {
+        // Only defines `release` when a real upload keystore exists.
+        // Otherwise buildTypes.release falls back to signingConfigs.debug so
+        // `assembleRelease` still produces an *installable* (debug-signed) APK
+        // instead of an unsigned APK that Android always rejects with
+        // "App not installed".
+        if (hasUploadKeystore) {
+            release {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
+        debug {
+            // Explicit: debug builds use the standard debug key.
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Use upload key when present, otherwise debug key so APK stays installable.
+            // Replace with a real upload keystore before Play Store distribution.
+            signingConfig hasUploadKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
