@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { ToastProvider } from "@/components/ui/Toast";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
+import { LedgerSyncBadge } from "@/components/offline/LedgerSyncBadge";
 
 const vazir = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <ToastProvider>
             <OfflineBanner />
+            <LedgerSyncBadge />
             {children}
           </ToastProvider>
         </Providers>
