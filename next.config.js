@@ -57,6 +57,8 @@ const nextConfig = {
     ],
   },
   experimental: {
+    // Required on Next 14 for src/instrumentation.ts (DB self-heal on boot).
+    instrumentationHook: true,
     serverActions: {
       allowedOrigins: [
         ...new Set([

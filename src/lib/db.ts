@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * anchor here; relative URLs are left for Prisma's own resolution
  * (schema-dir relative) so local dev keeps working untouched.
  */
-function ensureSqliteDir() {
+export function ensureSqliteDir() {
   const raw = process.env.DATABASE_URL;
   if (!raw?.startsWith("file:")) return;
   const p = raw.slice("file:".length).split("?")[0];
