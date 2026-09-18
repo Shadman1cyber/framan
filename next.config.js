@@ -51,6 +51,12 @@ const nextConfig = {
   // node_modules and starts via `next start`, and standalone mode breaks
   // that (`next start` refuses to run) plus relative SQLite resolution.
   images: {
+    // Unoptimized: product photos live on Unsplash and the hosting network
+    // cannot reach it server-side (fetchExternalImage ETIMEDOUT). With this,
+    // <Image> renders a plain <img> and the *browser* loads the photo
+    // directly — no server fetch, no timeout spam. Revisit if photos are
+    // ever vendored into public/.
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "plus.unsplash.com" },
