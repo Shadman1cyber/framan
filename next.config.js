@@ -47,7 +47,9 @@ const withPWA = require("next-pwa")({
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
-  output: "standalone",
+  // NOTE: no `output: "standalone"` — the Docker image ships full
+  // node_modules and starts via `next start`, and standalone mode breaks
+  // that (`next start` refuses to run) plus relative SQLite resolution.
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
@@ -55,7 +57,28 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: { allowedOrigins: [`localhost:${port}`, `127.0.0.1:${port}`] },
+    serverActions: {
+      allowedOrigins: [
+        ...new Set([
+          `localhost:${port}`,
+          `127.0.0.1:${port}`,
+          // Temporary Runflare domain (production). Required for Server Actions
+          // + NextAuth behind Runflare's HTTPS proxy.
+          "farman-7hm-hesabetam.runflare.cloud",
+          // Allow any extra origin configured via env (NEXTAUTH_URL / PUBLIC_APP_URL).
+          ...[process.env.NEXTAUTH_URL, process.env.PUBLIC_APP_URL]
+            .filter(Boolean)
+            .map((u) => {
+              try {
+                return new URL(u).host;
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean),
+        ]),
+      ],
+    },
     optimizePackageImports: ["@prisma/client", "zod", "date-fns", "bcryptjs"],
   },
 };

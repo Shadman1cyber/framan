@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # DATABASE_URL is only needed at runtime; prisma generate works without a live DB.
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && npm run build && npm run worker:build
 
 # ── runtime ──────────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -22,7 +22,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3080
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001
+RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001 \
+  && apk add --no-cache sqlite3
 
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
@@ -31,12 +32,16 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/worker ./worker
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 
 # Volume for the SQLite database and uploaded images.
-RUN mkdir -p /app/prisma /app/uploads && chown -R nextjs:nodejs /app
+RUN mkdir -p /app/prisma /app/uploads && chown -R nextjs:nodejs /app \
+  && chmod +x /app/scripts/docker-entrypoint.sh
 VOLUME ["/app/prisma", "/app/uploads"]
 
 USER nextjs
 EXPOSE 3080
 
-CMD ["npx", "next", "start", "-p", "3080", "-H", "0.0.0.0"]
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
+CMD ["sh", "-c", "npx next start -p ${PORT:-3080} -H 0.0.0.0"]
