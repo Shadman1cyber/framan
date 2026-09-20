@@ -752,3 +752,61 @@ model AgentEvent {
 
   @@index([exportedAt, createdAt])
 }
+
+model LedgerEntry {
+  id              String    @id
+  scopeId         String
+  entryType       String    // ORDER_COMPLETED | ORDER_CANCELLED | EXPENSE | REVERSAL | CORRECTION
+  referenceType   String    @default("order")
+  referenceId     String?
+  reversalOf      String?
+  amount          Int       // signed toman (credit +, refund/void −)
+  currency        String    @default("TOMAN")
+  occurredAt      DateTime  // client timestamp (audit/display)
+  accountId       String    @default("cash")
+  deviceId        String
+  idempotencyKey  String
+  serverSequence  Int?
+  serverReceivedAt DateTime?
+  metadata        String    @default("{}")
+  createdAt       DateTime  @default(now())
+  @@index([scopeId, occurredAt])
+  @@index([scopeId, accountId])
+  @@index([referenceType, referenceId])
+  @@unique([scopeId, idempotencyKey])
+  @@unique([scopeId, reversalOf])
+  @@unique([scopeId, serverSequence])
+}
+
+// Server-side outbox/idempotency record: (scope, idempotency_key) is unique so
+// a retried or crashed-and-replayed push can never produce a second effect.
+model SyncOperation {
+  id             String    @id // operation_id (UUID)
+  scopeId        String
+  idempotencyKey String
+  entityType     String    // ledger_entry
+  entityId       String
+  operationType  String    // CREATE_TRANSACTION | REVERSE_TRANSACTION | CORRECT_TRANSACTION
+  payload        String    // JSON
+  requestHash    String
+  createdBy      String
+  status         String    @default("applied") // applied | rejected
+  result         String    @default("{}")
+  serverSequence Int?
+  deviceId       String?
+  clientTimestamp DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@unique([scopeId, idempotencyKey])
+  @@index([scopeId, serverSequence])
+}
+
+// Diagnostic record of devices that have pushed/pulled. Identity for
+// authorization is always the session user; device_id is never trusted.
+model SyncDevice {
+  id          String   @id
+  scopeId     String
+  lastSeenAt  DateTime @default(now())
+  userAgent   String?
+  @@index([scopeId, lastSeenAt])
+}
