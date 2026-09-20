@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -9,7 +10,8 @@ import { AgentRuntime } from "./runtime";
 import { skillDefinitionSchema } from "./contracts";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-skills-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("skills");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -48,7 +50,7 @@ const definition = (over: object = {}) => ({
   steps: [{ tool: "get_ai_status", input: {} }], successCriteria: [{ type: "step_succeeded", step: 0 }], ...over,
 });
 
-describe("material-cost profit: only with sufficient real data", () => {
+d("material-cost profit: only with sufficient real data", () => {
   const profitRun = async (from: string, to: string) => {
     const run = await runtime.create("owner", { key: randomUUID(), proposal: { tool: "calculate_profit_report", input: { from, to } } });
     const executed = await runtime.execute("owner", run.id);
@@ -99,7 +101,7 @@ describe("material-cost profit: only with sufficient real data", () => {
   });
 });
 
-describe("skill drafts from corrective experience", () => {
+d("skill drafts from corrective experience", () => {
   it("requires real in-scope episodes as learning source", async () => {
     await expect(runtime.createSkillDraft("owner", { ...definition(), sourceEpisodes: ["ghost"] })).rejects.toThrow("EVIDENCE_NOT_FOUND");
     const episodeId = await makeEpisode("برای بستن روز، دستیار باید فعال باشد");
@@ -119,7 +121,7 @@ describe("skill drafts from corrective experience", () => {
   });
 });
 
-describe("sandbox evaluation", () => {
+d("sandbox evaluation", () => {
   it("returns run-path-shaped receipts for every read tool (no sandbox divergence)", async () => {
     // Minimal live source rows so every read tool has real data.
     const cat = await db.category.create({ data: { slug: "hot-" + randomUUID(), nameFa: "نوشیدنی گرم" } });
@@ -187,7 +189,7 @@ describe("sandbox evaluation", () => {
   });
 });
 
-describe("promotion, rollback and governance", () => {
+d("promotion, rollback and governance", () => {
   it("activation requires a recorded passing evaluation and explicit ai.configure", async () => {
     const episodeId = await makeEpisode();
     const draft = await runtime.createSkillDraft("owner", { ...definition(), sourceEpisodes: [episodeId] });

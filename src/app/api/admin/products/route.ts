@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { guard } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 import { productSchema } from "@/lib/product-schema";
+import { invalidateMenuCache } from "@/lib/cache";
 
 export async function POST(req: Request) {
   const g = await guard("products.manage");
@@ -64,5 +65,6 @@ export async function POST(req: Request) {
       },
     },
   });
+  await invalidateMenuCache(product.id, product.slug);
   return NextResponse.json({ id: product.id });
 }

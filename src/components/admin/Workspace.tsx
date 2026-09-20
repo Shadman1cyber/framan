@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Artifact, ChatMessage, Lesson, Run, Session, Skill, Status } from "./workspace-types";
 import { AnswerBubble, ApprovalCard, ArtifactList, RunOutput } from "./workspace-panels";
 import { TOOL_FA, RUN_STATE_FA, faError, faTime } from "./workspace-ui";
+import { JalaliDateInput } from "@/components/ui/JalaliInputs";
+import { todayGregorianInput } from "@/lib/jalali";
 
 type Props = {
   aiSettings: { enabled: boolean; provider: string; model: string; hasApiKey: boolean };
@@ -31,7 +33,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [settings, setSettings] = useState(aiSettings);
-  const [reportDay, setReportDay] = useState(new Date().toISOString().slice(0, 10));
+  const [reportDay, setReportDay] = useState(() => todayGregorianInput());
   const [editing, setEditing] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [legacyView, setLegacyView] = useState<ChatMessage[] | null>(null);
@@ -281,8 +283,8 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
       )}
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error} <button type="button" className="underline" onClick={() => setError("")}>بستن</button></p>}
 
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr_320px]">
-        <aside className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-lg:fixed max-lg:inset-y-2 max-lg:right-2 max-lg:z-40 max-lg:w-72 ${sidebarOpen ? "" : "max-lg:hidden"}`} aria-label="گفتگوها">
+      <div className="grid gap-4 xl:grid-cols-[200px_minmax(0,1fr)_260px]">
+        <aside className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-xl:fixed max-xl:top-[calc(env(safe-area-inset-top)+0.5rem)] max-xl:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] max-xl:right-2 max-xl:z-40 max-xl:w-72 ${sidebarOpen ? "" : "max-xl:hidden"}`} aria-label="گفتگوها">
           <div className="mb-2 flex items-center justify-between px-1">
             <h2 className="text-sm font-semibold text-espresso dark:text-dark-text">گفتگوها</h2>
             <button type="button" onClick={() => void (async () => {
@@ -313,7 +315,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
               </li>
             ))}
           </ul>
-          <button type="button" className="mt-1 rounded border p-1 text-[11px] text-muted dark:text-dark-textSecondary hover:bg-beige dark:hover:bg-dark-surfaceHover lg:hidden" onClick={() => setSidebarOpen(false)}>بستن فهرست</button>
+          <button type="button" className="mt-1 rounded border p-1 text-[11px] text-muted hover:bg-beige dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover xl:hidden" onClick={() => setSidebarOpen(false)}>بستن فهرست</button>
         </aside>
 
         <section className="card flex min-h-[520px] flex-col overflow-hidden" aria-label="گفتگو">
@@ -398,7 +400,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
           </form>
         </section>
 
-        <section className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-lg:fixed max-lg:inset-y-2 max-lg:left-2 max-lg:z-40 max-lg:w-80 ${panelOpen ? "" : "max-lg:hidden"}`} aria-label="پنل خروجی و پیش‌نمایش">
+        <section className={`card flex max-h-[640px] flex-col overflow-hidden p-3 max-xl:fixed max-xl:top-[calc(env(safe-area-inset-top)+0.5rem)] max-xl:bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] max-xl:left-2 max-xl:z-40 max-xl:w-80 max-xl:max-w-[calc(100%-1rem)] ${panelOpen ? "" : "max-xl:hidden"}`} aria-label="پنل خروجی و پیش‌نمایش">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-espresso dark:text-dark-text">خروجی و پیش‌نمایش</h2>
             <button type="button" className="text-xs text-muted dark:text-dark-textSecondary underline" onClick={() => setPanelOpen(false)}>بستن</button>
@@ -418,7 +420,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
               <div className="space-y-2">
                 <p className="text-xs text-muted dark:text-dark-textSecondary">گزارش‌های آماده (مبنا: سفارش‌های تکمیل‌شده، Asia/Tehran):</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input type="date" value={reportDay} onChange={e => setReportDay(e.target.value)} aria-label="روز گزارش" className="input w-36 text-xs" />
+                  <JalaliDateInput value={reportDay} onChange={setReportDay} ariaLabel="روز گزارش" />
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_report_csv")}>CSV</button>
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_report_xlsx")}>اکسل</button>
                   <button type="button" className="btn-secondary text-xs" onClick={() => void generateReport("sales_chart_svg")}>نمودار</button>
@@ -431,7 +433,7 @@ export function Workspace({ aiSettings, featureFlags }: Props) {
         </section>
       </div>
 
-      <div className="mt-2 flex gap-2 lg:hidden">
+      <div className="mt-2 flex gap-2 xl:hidden">
         <button type="button" className="btn-secondary text-xs" onClick={() => setSidebarOpen(true)} aria-expanded={sidebarOpen}>گفتگوها</button>
         <button type="button" className="btn-secondary text-xs" onClick={() => setPanelOpen(true)} aria-expanded={panelOpen}>پنل خروجی</button>
       </div>

@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Child = { id: string; tool: string; state: string; result: { enabled?: boolean; total?: number } | null; lastError: string | null };
@@ -80,7 +81,7 @@ export function AgentControls() {
       <p className="break-all text-xs" dir="ltr">Run: {active.id}<br />Trace: {active.traceId}</p>
       {active.state === "waiting_approval" && <div className="space-y-2">
         <p>عملیات: تغییر فعال بودن دستیار؛ مقدار جدید: {safeParse(active.input).enabled ? "فعال" : "غیرفعال"}؛ مقدار قبل: {safeParse(active.previous).enabled ? "فعال" : "غیرفعال"}</p>
-        <p className="text-xs">مهلت تأیید: {active.expiresAt ? new Date(active.expiresAt).toLocaleString("fa-IR") : "—"}. برای برگشت، درخواست معکوس تازه ثبت کنید.</p>
+        <p className="text-xs">مهلت تأیید: {active.expiresAt ? formatJalaliDateTime(active.expiresAt) : "—"}. برای برگشت، درخواست معکوس تازه ثبت کنید.</p>
         <button className="btn-primary" disabled={busy} onClick={() => control("approve")}>همین تغییر را تأیید می‌کنم</button>
         <button className="btn-secondary" disabled={busy} onClick={() => control("reject")}>رد درخواست</button>
       </div>}

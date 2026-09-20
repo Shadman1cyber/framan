@@ -14,3 +14,5 @@ artifacts/
 graphify-out/
 tsconfig.tsbuildinfo
 worker/dist.cjs
+ios/App/build-device/
+ios/App/build-sim/

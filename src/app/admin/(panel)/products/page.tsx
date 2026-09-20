@@ -26,7 +26,7 @@ export default async function AdminProductsPage() {
         <h1 className="heading-section">محصولات</h1>
         <Link href="/admin/products/new" className="btn-primary">+ افزودن محصول</Link>
       </div>
-      <div className="card overflow-hidden">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary">
             <tr>

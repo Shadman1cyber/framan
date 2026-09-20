@@ -35,6 +35,7 @@ export const PERMISSIONS = [
   "allergens.manage",
   "users.manage",
   "ratings.moderate",
+  "customers.loyalty",
   "qr.manage",
   "finance.view",
   "ai.use",
@@ -52,6 +53,7 @@ const CASHIER_PERMS: Permission[] = [
   "tables.manage",
   "qr.manage",
   "ratings.moderate",
+  "customers.loyalty",
 ];
 const OWNER_PERMS: Permission[] = [...PERMISSIONS];
 

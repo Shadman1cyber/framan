@@ -1,4 +1,5 @@
 import { TopBar } from "@/components/nav/TopBar";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -49,7 +50,7 @@ export default async function OrdersPage() {
                       سفارش {o.id.slice(-6).toUpperCase()}
                     </span>
                     <span className="text-xs text-muted">
-                      {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(o.createdAt)}
+                      {formatJalaliDateTime(o.createdAt)}
                     </span>
                   </div>
                   <div className="mb-2 flex flex-wrap items-center gap-1 text-xs text-muted">

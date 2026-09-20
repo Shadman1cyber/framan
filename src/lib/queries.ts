@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { cached, cacheKeys, CACHE_TTL } from "@/lib/cache";
 
 export type PublicProduct = {
   id: string;
@@ -102,22 +103,24 @@ function mapProduct(p: ProductWithRelations): PublicProduct {
 }
 
 export async function getCategories(): Promise<PublicCategory[]> {
-  const cats = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { order: "asc" },
-    include: { _count: { select: { products: true } } },
+  return cached(cacheKeys.categories, CACHE_TTL.MENU, async () => {
+    const cats = await prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { order: "asc" },
+      include: { _count: { select: { products: true } } },
+    });
+    return cats.map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      nameFa: c.nameFa,
+      nameEn: c.nameEn,
+      icon: c.icon,
+      description: c.description,
+      image: c.image,
+      order: c.order,
+      productCount: c._count.products,
+    }));
   });
-  return cats.map((c) => ({
-    id: c.id,
-    slug: c.slug,
-    nameFa: c.nameFa,
-    nameEn: c.nameEn,
-    icon: c.icon,
-    description: c.description,
-    image: c.image,
-    order: c.order,
-    productCount: c._count.products,
-  }));
 }
 
 export async function getProducts(opts: {
@@ -125,43 +128,50 @@ export async function getProducts(opts: {
   search?: string;
   limit?: number;
 } = {}): Promise<PublicProduct[]> {
-  const products = await prisma.product.findMany({
-    where: {
-      isAvailable: true,
-      ...(opts.categorySlug ? { category: { slug: opts.categorySlug } } : {}),
-      ...(opts.search
-        ? {
-            OR: [
-              { nameFa: { contains: opts.search } },
-              { nameEn: { contains: opts.search } },
-              { description: { contains: opts.search } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
-    include: productInclude as never,
-    take: opts.limit ?? 100,
+  const key = cacheKeys.products(opts);
+  return cached(key, CACHE_TTL.MENU, async () => {
+    const products = await prisma.product.findMany({
+      where: {
+        isAvailable: true,
+        ...(opts.categorySlug ? { category: { slug: opts.categorySlug } } : {}),
+        ...(opts.search
+          ? {
+              OR: [
+                { nameFa: { contains: opts.search } },
+                { nameEn: { contains: opts.search } },
+                { description: { contains: opts.search } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
+      include: productInclude as never,
+      take: opts.limit ?? 100,
+    });
+    return products.map((p) => mapProduct(p as unknown as ProductWithRelations));
   });
-  return products.map((p) => mapProduct(p as unknown as ProductWithRelations));
 }
 
 export async function getProductBySlug(slug: string): Promise<PublicProduct | null> {
-  const p = await prisma.product.findUnique({
-    where: { slug },
-    include: productInclude as never,
+  return cached(cacheKeys.productSlug(slug), CACHE_TTL.PRODUCT, async () => {
+    const p = await prisma.product.findUnique({
+      where: { slug },
+      include: productInclude as never,
+    });
+    if (!p) return null;
+    return mapProduct(p as unknown as ProductWithRelations);
   });
-  if (!p) return null;
-  return mapProduct(p as unknown as ProductWithRelations);
 }
 
 export async function getProductById(id: string): Promise<PublicProduct | null> {
-  const p = await prisma.product.findUnique({
-    where: { id },
-    include: productInclude as never,
+  return cached(cacheKeys.productId(id), CACHE_TTL.PRODUCT, async () => {
+    const p = await prisma.product.findUnique({
+      where: { id },
+      include: productInclude as never,
+    });
+    if (!p) return null;
+    return mapProduct(p as unknown as ProductWithRelations);
   });
-  if (!p) return null;
-  return mapProduct(p as unknown as ProductWithRelations);
 }
 
 export async function getCategoryBySlug(slug: string) {
@@ -169,11 +179,15 @@ export async function getCategoryBySlug(slug: string) {
 }
 
 export async function getAllergens() {
-  return prisma.allergen.findMany({ orderBy: { nameFa: "asc" } });
+  return cached(cacheKeys.allergens, CACHE_TTL.MENU, () =>
+    prisma.allergen.findMany({ orderBy: { nameFa: "asc" } }),
+  );
 }
 
 export async function getDietaryTags() {
-  return prisma.dietaryTag.findMany({ orderBy: { nameFa: "asc" } });
+  return cached(cacheKeys.dietaryTags, CACHE_TTL.MENU, () =>
+    prisma.dietaryTag.findMany({ orderBy: { nameFa: "asc" } }),
+  );
 }
 
 export async function getProductsByIds(ids: string[]): Promise<PublicProduct[]> {

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -12,7 +13,8 @@ import { AgentRuntime } from "./runtime";
 import { proposalSchema } from "./contracts";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-agent-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("runtime");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -41,7 +43,7 @@ beforeEach(async () => {
 });
 afterAll(async () => { await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env; });
 
-describe("real SQLite agent execution", () => {
+d("real SQLite agent execution", () => {
   it("reads source and persists verification trace", async () => {
     const run = await read(); const result = await runtime.execute("owner", run.id);
     expect(result.state).toBe("succeeded"); expect(JSON.parse(result.result!).enabled).toBe(false);
@@ -115,7 +117,7 @@ describe("real SQLite agent execution", () => {
 });
 
 
-describe("phase 2 recovery and races", () => {
+d("phase 2 recovery and races", () => {
   it("records policy rejections durably without changing retryable state", async () => {
     const run = await create(); await runtime.control("owner", run.id, "approve", run.inputHash);
     process.env.AGENT_WRITES_ENABLED = "false";
@@ -219,7 +221,7 @@ describe("phase 2 recovery and races", () => {
   }, 60000);
 });
 
-describe("transport and atomic rollback", () => {
+d("transport and atomic rollback", () => {
   it("rolls back a real mutation when persisting its verification event fails", async () => {
     const run = await create(); await runtime.control("owner", run.id, "approve", run.inputHash);
     await db.$executeRawUnsafe("CREATE TRIGGER fail_receipt BEFORE INSERT ON AgentEvent WHEN NEW.name = 'tool.verified' BEGIN SELECT RAISE(ABORT, 'test receipt failure'); END");
@@ -293,7 +295,7 @@ describe("transport and atomic rollback", () => {
   });
 });
 
-describe("conversation and answer regressions", () => {
+d("conversation and answer regressions", () => {
   it("creates a session for the first question and persists the worker answer exactly once", async () => {
     const planner = vi.fn(async () => ({ steps: [{ tool: "get_ai_status" as const, input: {} }] }));
     const rt = new AgentRuntime(db, planner);

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -8,14 +9,14 @@ import { randomUUID } from "crypto";
 import { AgentRuntime } from "./runtime";
 
 /**
- * R04 worker tests against a real disposable SQLite file: atomic claiming,
+ * R04 worker tests against a real disposable database schema: atomic claiming,
  * lease/heartbeat, worker restart recovery (SIGKILL mid-loop), and the
  * app+worker sharing one database without duplicate effects.
  */
 
 const dir = mkdtempSync(join(tmpdir(), "farman-worker-test-"));
-const url = `file:${join(dir, "test.db")}`;
-writeFileSync(join(dir, "test.db"), "");
+const url = testDatabaseUrl("worker");
+const d = postgresReachable() ? describe : describe.skip;
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
 const env = { ...process.env };
@@ -53,7 +54,7 @@ function waitFor(worker: ReturnType<typeof startWorker>, text: string, timeoutMs
   });
 }
 
-describe("durable queue worker (R04)", () => {
+d("durable queue worker (R04)", () => {
   it("claims and executes queued runs atomically; concurrent claimers never double-run", async () => {
     const run = await queue();
     const [a, b] = [startWorker(), startWorker()];

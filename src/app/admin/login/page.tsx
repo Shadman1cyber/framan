@@ -2,7 +2,6 @@
 import { Suspense, useState } from "react";
 import { signIn, getSession, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CafeBrand } from "@/components/nav/CafeBrand";
 
 export default function AdminLoginPage() {
   return (
@@ -15,7 +14,10 @@ export default function AdminLoginPage() {
 function AdminLoginInner() {
   const router = useRouter();
   const sp = useSearchParams();
-  const callbackUrl = sp.get("callbackUrl") ?? "/admin";
+  const requestedCallback = sp.get("callbackUrl") ?? "/admin";
+  const callbackUrl = /^\/admin(?:\/[^\\?#]*)?(?:\?[^\\#]*)?$/.test(requestedCallback) && !requestedCallback.startsWith("/admin/login")
+    ? requestedCallback
+    : "/admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,24 +48,24 @@ function AdminLoginInner() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-espresso p-4">
+    <main className="admin-login flex min-h-dvh items-center justify-center bg-dark-bg p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <span
             aria-hidden="true"
-            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cream text-2xl font-bold text-espresso"
+            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-coffee-light/20 bg-cream text-2xl font-bold text-espresso"
           >
             ف
           </span>
-          <h1 className="heading-section text-cream">پنل مدیریت کافه فرمان</h1>
-          <p className="text-xs text-cream/60">
+          <h1 className="font-display text-2xl font-semibold text-espresso md:text-3xl">پنل مدیریت کافه ۱۳</h1>
+          <p className="text-xs text-espresso/60">
             ورود اختصاصی صندوق‌دار و مدیر کافه
           </p>
         </div>
 
         <form
           onSubmit={submit}
-          className="space-y-4 rounded-3xl border border-coffee-light/30 bg-cream-50 p-6 shadow-elevated dark:border-coffee/20 dark:bg-dark-surface dark:shadow-elevated"
+          className="space-y-4 rounded-3xl border border-coffee-light/30 bg-[#3a2c20] p-6 shadow-elevated dark:border-coffee/25 dark:bg-[#3a2c20] dark:shadow-elevated"
         >
           <div className="flex items-center justify-center gap-2 text-xs font-medium text-espresso/70">
             <span aria-hidden="true">🔐</span>
@@ -79,7 +81,7 @@ function AdminLoginInner() {
             <input
               id="email"
               type="email"
-              className="input"
+              className="input !border-coffee-light/25 dark:!bg-dark-surfaceHover"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -92,7 +94,7 @@ function AdminLoginInner() {
             <input
               id="password"
               type="password"
-              className="input"
+              className="input !border-coffee-light/25 dark:!bg-dark-surfaceHover"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -103,14 +105,10 @@ function AdminLoginInner() {
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? "در حال ورود..." : "ورود به پنل مدیریت"}
           </button>
-          <p className="text-center text-[11px] text-muted">
+          <p className="native-customer-link text-center text-[11px] text-muted">
             حساب مشتری دارید؟ از <a href="/login" className="text-olive-600 hover:underline">صفحه ورود مشتریان</a> استفاده کنید.
           </p>
         </form>
-
-        <div className="mt-6 flex justify-center">
-          <CafeBrand compact />
-        </div>
       </div>
     </main>
   );

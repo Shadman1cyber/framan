@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -8,7 +9,8 @@ import { randomUUID } from "crypto";
 import { AgentRuntime } from "./runtime";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-release-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("release");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -27,7 +29,7 @@ beforeEach(async () => {
 });
 afterAll(async () => { await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env; });
 
-describe("gradual release flags", () => {
+d("gradual release flags", () => {
   it("shadow mode exercises reads but blocks writes with an observable code", async () => {
     process.env.AGENT_SHADOW_MODE = "true";
     const read = await runtime.create("owner", { key: randomUUID(), proposal: { tool: "get_ai_status", input: {} } });

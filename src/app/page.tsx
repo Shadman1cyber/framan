@@ -88,7 +88,7 @@ export default async function HomePage({
         <section className="mb-10 md:mb-14">
           <p className="mb-2 text-sm font-medium text-olive-600">پیشنهاد امروز</p>
           <h1 className="heading-hero max-w-2xl">
-            {visibleFeatured[0]?.nameFa ?? "منوی امروز کافه فرمان"}
+            {visibleFeatured[0]?.nameFa ?? "منوی امروز کافه ۱۳"}
           </h1>
           <p className="mt-3 max-w-xl text-base text-espresso/70 dark:text-dark-textSecondary">
             {visibleFeatured[0]?.description ??
@@ -117,7 +117,7 @@ export default async function HomePage({
                 عضو شوید و تخفیف بگیرید
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-cream/85">
-                به باشگاه مشتریان کافه فرمان بپیوندید؛ نسبت به تخفیف‌های ویژه،
+                به باشگاه مشتریان کافه ۱۳ بپیوندید؛ نسبت به تخفیف‌های ویژه،
                 مناسبت‌ها و پیشنهادهای اختصاصی زودتر از همه آگاه می‌شوید
                 و از امتیازهای خرید هر بار لذت می‌برید.
               </p>

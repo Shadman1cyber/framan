@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { prisma } from "@/lib/db";
 import { TopBar } from "@/components/nav/TopBar";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -38,13 +39,14 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
       : `سفارش ${order.id.slice(-6).toUpperCase()}`;
 
   return (
-    <div className="pb-24 md:pb-12">
-      <TopBar />
+    <div className="order-detail pb-24 md:pb-12">
+      <div className="native-customer-link"><TopBar /></div>
       <main className="mx-auto max-w-2xl px-4 py-6">
+        <div className="native-only mb-4"><Link href="/admin/orders" className="btn-secondary">بازگشت به سفارش‌ها</Link></div>
         <h1 className="heading-section mb-2">{orderTitle}</h1>
         <p className="mb-6 text-sm text-muted">
           کد پیگیری: {order.id.slice(-6).toUpperCase()} · ثبت شده در{" "}
-          {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(order.createdAt)}
+          {formatJalaliDateTime(order.createdAt)}
         </p>
 
         <div className="mb-4 flex flex-wrap gap-2">
@@ -101,7 +103,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
 
         {/* Post-order rating CTA */}
         {isCompleted && (
-          <div className="mb-4 rounded-2xl border border-coffee/15 bg-beige-soft p-4">
+          <div className="native-customer-link mb-4 rounded-2xl border border-coffee/15 bg-beige-soft p-4">
             <p className="mb-2 text-sm font-semibold text-espresso">نظر شما برای ما ارزشمند است</p>
             <p className="mb-3 text-xs text-muted">
               با ثبت امتیاز به بهبود کیفیت کمک کنید. (ورود برای ثبت امتیاز لازم است)
@@ -150,7 +152,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
           </p>
         )}
       </main>
-      <BottomNav />
+      <div className="native-customer-link"><BottomNav /></div>
     </div>
   );
 }

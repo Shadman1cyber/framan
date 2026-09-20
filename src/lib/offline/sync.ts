@@ -2,6 +2,7 @@
 
 import { getQueuedActions, removeAction, updateAction } from "./queue";
 import type { QueuedAction } from "./queue";
+import { isAllowedOfflineAdminMutation, type OfflineAdminMutation } from "./admin-mutation";
 
 type SyncStatus = "idle" | "syncing" | "error" | "synced";
 
@@ -14,6 +15,12 @@ type SyncCallbacks = {
 
 let syncInProgress = false;
 let callbacks: SyncCallbacks = {};
+
+class SyncActionError extends Error {
+  constructor(message: string, public kind: "transient" | "conflict") {
+    super(message);
+  }
+}
 
 export function setSyncCallbacks(cb: SyncCallbacks) {
   callbacks = cb;
@@ -31,8 +38,9 @@ async function placeOrderAPI(payload: Record<string, unknown>) {
 }
 
 async function updateProfileAPI(payload: Record<string, unknown>) {
-  const res = await fetch("/api/profile", {
-    method: "PATCH",
+  const path = Array.isArray(payload.allergenIds) ? "/api/profile/allergies" : "/api/profile/preferences";
+  const res = await fetch(path, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -52,7 +60,49 @@ async function submitRatingAPI(payload: Record<string, unknown>) {
   return json;
 }
 
-async function executeAction(action: QueuedAction): Promise<void> {
+async function getCurrentActorId(): Promise<string | null> {
+  try {
+    const response = await fetch("/api/auth/session", { cache: "no-store" });
+    if (!response.ok) return null;
+    const session = await response.json() as { user?: { id?: string } };
+    return session.user?.id ?? null;
+  } catch {
+    throw new SyncActionError("سرور در دسترس نیست", "transient");
+  }
+}
+
+async function executeAdminMutation(action: QueuedAction, currentActorId: string | null): Promise<void> {
+  const mutation = action.payload as OfflineAdminMutation;
+  if (!currentActorId) {
+    throw new SyncActionError("برای همگام‌سازی دوباره با حساب ثبت‌کننده وارد شوید", "transient");
+  }
+  if (!action.actorId || action.actorId !== currentActorId) {
+    throw new SyncActionError("این تغییر باید با همان حساب کاربری ثبت‌کننده همگام شود", "conflict");
+  }
+  if (!isAllowedOfflineAdminMutation(mutation)) {
+    throw new SyncActionError("این تغییر دیگر در فهرست عملیات آفلاین مجاز نیست", "conflict");
+  }
+  try {
+    const response = await fetch(mutation.path, {
+      method: mutation.method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Farman-Mutation-Id": action.id,
+      },
+      body: JSON.stringify(mutation.body),
+    });
+    const json = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) {
+      const transient = [408, 425, 429, 502, 503, 504].includes(response.status);
+      throw new SyncActionError(json.error ?? "اعمال تغییر انجام نشد", transient ? "transient" : "conflict");
+    }
+  } catch (error) {
+    if (error instanceof SyncActionError) throw error;
+    throw new SyncActionError("ارتباط با سرور قطع شد", "transient");
+  }
+}
+
+async function executeAction(action: QueuedAction, currentActorId: string | null): Promise<void> {
   const { type, payload } = action;
 
   switch (type) {
@@ -64,6 +114,9 @@ async function executeAction(action: QueuedAction): Promise<void> {
       break;
     case "SUBMIT_RATING":
       await submitRatingAPI(payload as Record<string, unknown>);
+      break;
+    case "ADMIN_MUTATION":
+      await executeAdminMutation(action, currentActorId);
       break;
     default:
       throw new Error(`Unknown action type: ${(type as string)}`);
@@ -125,18 +178,30 @@ export async function syncQueue(): Promise<void> {
 
   try {
     const actions = await getQueuedActions();
-    const pendingActions = actions.filter((a) => a.retryCount < 5);
+    const pendingActions = actions.filter((a) =>
+      a.state !== "conflict" && (a.type === "ADMIN_MUTATION" || a.retryCount < 5),
+    );
+    const currentActorId = pendingActions.some((action) => action.type === "ADMIN_MUTATION")
+      ? await getCurrentActorId()
+      : null;
 
     for (const action of pendingActions) {
       try {
-        await executeAction(action);
+        await executeAction(action, currentActorId);
         await removeAction(action.id);
         callbacks.onActionSynced?.(action);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        const updatedAction = { ...action, retryCount: action.retryCount + 1, lastError: error.message };
+        const kind = err instanceof SyncActionError ? err.kind : "transient";
+        const updatedAction: QueuedAction = {
+          ...action,
+          retryCount: kind === "transient" ? action.retryCount + 1 : action.retryCount,
+          state: kind === "conflict" ? "conflict" : "pending",
+          lastError: error.message,
+        };
         await updateAction(updatedAction);
         callbacks.onActionFailed?.(action, error);
+        if (kind === "transient") break;
       }
     }
 

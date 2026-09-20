@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -8,7 +9,8 @@ import { randomUUID } from "crypto";
 import { AgentRuntime } from "./runtime";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-subagent-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("subagents");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -30,7 +32,7 @@ const supervisor = async () => runtime.create("owner", { key: randomUUID(), prop
 const spawn = (parentId: string, proposal: object, role: "data_research" | "finance" = "data_research") =>
   runtime.control("owner", parentId, "spawn", undefined, undefined, { task: "زیرکار مستقل پژوهش", role, proposal } as never);
 
-describe("bounded subagents", () => {
+d("bounded subagents", () => {
   it("spawns a bounded child with subset tools and executes it with full governance", async () => {
     const parent = await supervisor();
     const child = await spawn(parent.id, { tool: "get_ai_status", input: {} });

@@ -3,8 +3,9 @@
 /* Shared presentational pieces of the workspace (R01). Pure display helpers,
  * no data fetching — keeps the main component lean and reviewable. */
 
-export const faTime = (iso: string) =>
-  new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+import { formatJalaliDateTime } from "@/lib/jalali";
+
+export const faTime = (iso: string) => formatJalaliDateTime(iso);
 
 export const RUN_STATE_FA: Record<string, string> = {
   queued: "آماده اجرا", waiting_approval: "منتظر تأیید شما", paused: "متوقف شده", running: "در حال اجرا",

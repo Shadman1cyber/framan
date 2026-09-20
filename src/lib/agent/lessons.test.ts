@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -8,7 +9,8 @@ import { randomUUID } from "crypto";
 import { AgentRuntime } from "./runtime";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-lessons-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("lessons");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -41,7 +43,7 @@ const failedRun = async () => {
   return run;
 };
 
-describe("episodic memory", () => {
+d("episodic memory", () => {
   it("records episodes from real outcomes, never from the model", async () => {
     const ok = await readRun(); const bad = await failedRun();
     expect(await db.agentEpisode.findUnique({ where: { scopeId_runId: { scopeId: SC, runId: ok.id } } })).toMatchObject({ state: "succeeded", errorCode: null, note: null });
@@ -57,7 +59,7 @@ describe("episodic memory", () => {
   });
 });
 
-describe("evidence-backed lessons", () => {
+d("evidence-backed lessons", () => {
   it("requires real, terminal, caller-owned evidence", async () => {
     await expect(runtime.proposeLesson("owner", { topic: "topic", statement: "متن درس", evidence: ["nonexistent"] })).rejects.toThrow("EVIDENCE_NOT_FOUND");
     const run = await runtime.create("owner", { key: randomUUID(), proposal: { tool: "get_ai_status", input: {} } });
@@ -105,7 +107,7 @@ describe("evidence-backed lessons", () => {
   });
 });
 
-describe("list_lessons tool end-to-end", () => {
+d("list_lessons tool end-to-end", () => {
   it("a valid correction reaches the next response with provenance", async () => {
     const bad = await failedRun();
     await runtime.control("owner", bad.id, "correct", undefined, "برای نوشتن، ابتدا AGENT_WRITES_ENABLED را فعال کن");

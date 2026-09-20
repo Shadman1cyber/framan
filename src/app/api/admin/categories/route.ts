@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { guard } from "@/lib/api";
 import { slugify } from "@/lib/slug";
+import { invalidateMenuCache } from "@/lib/cache";
 
 const schema = z.object({
   nameFa: z.string().min(1),
@@ -36,5 +37,6 @@ export async function POST(req: Request) {
       isActive: data.isActive ?? true,
     },
   });
+  await invalidateMenuCache();
   return NextResponse.json({ id: cat.id });
 }

@@ -32,9 +32,10 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/src ./src
 
-# Volume for the SQLite database and uploaded images.
-RUN mkdir -p /app/prisma /app/uploads && chown -R nextjs:nodejs /app
-VOLUME ["/app/prisma", "/app/uploads"]
+# Volume for uploaded images. Database is PostgreSQL (see docker-compose.yml);
+# the cache is Redis — no local DB files are needed any more.
+RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app
+VOLUME ["/app/uploads"]
 
 USER nextjs
 EXPOSE 3080
