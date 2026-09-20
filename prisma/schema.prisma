@@ -705,3 +705,27 @@ model SyncDevice {
   userAgent   String?
   @@index([scopeId, lastSeenAt])
 }
+
+// Append-only inventory movement (migration 009). One row per stock change;
+// Ingredient.stockQuantity is the mutable snapshot advanced additively inside
+// the same transaction that inserts the row. Corrections are new rows.
+// serverSequence shares the per-scope sequence space with LedgerEntry so a
+// single pull cursor stays totally ordered across both change kinds.
+model StockMovement {
+  id               String    @id
+  scopeId          String
+  ingredientId     String
+  delta            Float
+  reason           String
+  occurredAt       DateTime
+  deviceId         String
+  idempotencyKey   String
+  serverSequence   Int?
+  serverReceivedAt DateTime?
+  createdAt        DateTime  @default(now())
+  @@index([scopeId, occurredAt])
+  @@index([scopeId, ingredientId])
+  @@index([ingredientId])
+  @@unique([scopeId, idempotencyKey])
+  @@unique([scopeId, serverSequence])
+}

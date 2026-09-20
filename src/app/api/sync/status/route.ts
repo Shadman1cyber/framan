@@ -16,9 +16,10 @@ export async function GET() {
       { status: 403 },
     );
   }
-  const [cursor, entryCount, last] = await Promise.all([
+  const [cursor, entryCount, movementCount, last] = await Promise.all([
     nextCursorAfter(prisma, scope),
     prisma.ledgerEntry.count({ where: { scopeId: scope } }),
+    prisma.stockMovement.count({ where: { scopeId: scope } }),
     prisma.ledgerEntry.findFirst({
       where: { scopeId: scope },
       orderBy: { serverSequence: "desc" },
@@ -29,6 +30,7 @@ export async function GET() {
     scope,
     cursor,
     entry_count: entryCount,
+    movement_count: movementCount,
     last_applied_at: last?.serverReceivedAt?.toISOString() ?? null,
     server_time: new Date().toISOString(),
   });
