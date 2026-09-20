@@ -7,10 +7,13 @@ import { prisma } from "./db";
 import { validateAndPriceCart, type CartItemInput } from "./cart";
 import { orderPreparationEstimator } from "./estimator";
 import { transitionOrderAtomic } from "./business/orders-write";
+import type { Prisma } from "@prisma/client";
 
 export type CreateOrderInput = {
   userId?: string | null;
   qrCodeId?: string | null;
+  /** Trusted management flow only; customer routes must never pass this field. */
+  manualTableId?: string | null;
   items: CartItemInput[];
   customerName?: string;
   customerPhone?: string;
@@ -42,7 +45,7 @@ async function countActiveLoad() {
   };
 }
 
-export async function createOrder(input: CreateOrderInput) {
+export async function createOrder(input: CreateOrderInput, transaction?: Prisma.TransactionClient) {
   if (!input.items.length) {
     throw new OrderError("EMPTY_CART", "سبد خرید خالی است");
   }
@@ -71,6 +74,13 @@ export async function createOrder(input: CreateOrderInput) {
     }
     qrCodeId = qr.id;
     tableId = qr.tableId;
+  } else if (input.manualTableId) {
+    const table = await prisma.cafeTable.findFirst({
+      where: { id: input.manualTableId, isActive: true },
+      select: { id: true },
+    });
+    if (!table) throw new OrderError("INVALID_TABLE", "میز معتبر نیست");
+    tableId = table.id;
   }
 
   const orderType: OrderType = tableId ? "TABLE" : "TAKEAWAY";
@@ -105,33 +115,49 @@ export async function createOrder(input: CreateOrderInput) {
     estimate = null;
   }
 
-  const order = await prisma.order.create({
-    data: {
-      userId: input.userId ?? null,
-      qrCodeId,
-      tableId,
-      orderType,
-      status: "PENDING",
-      total: priced.total,
-      customerName: input.customerName ?? null,
-      customerPhone: input.customerPhone ?? null,
-      notes: input.notes ?? null,
-      estPrepMin: estimate?.minMinutes ?? null,
-      estPrepMax: estimate?.maxMinutes ?? null,
-      prepFactors: estimate ? JSON.stringify(estimate.factors) : null,
-      items: {
-        create: priced.items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          price: i.unitPrice,
-          coffeeLineId: i.coffeeLineId,
-          coffeeLineName: i.coffeeLineName,
-          optionPrice: i.optionPrice,
-        })),
+  const persist = async (tx: Prisma.TransactionClient) => {
+    const created = await tx.order.create({
+      data: {
+        userId: input.userId ?? null,
+        qrCodeId,
+        tableId,
+        orderType,
+        status: "PENDING",
+        total: priced.total,
+        customerName: input.customerName ?? null,
+        customerPhone: input.customerPhone ?? null,
+        notes: input.notes ?? null,
+        estPrepMin: estimate?.minMinutes ?? null,
+        estPrepMax: estimate?.maxMinutes ?? null,
+        prepFactors: estimate ? JSON.stringify(estimate.factors) : null,
+        items: {
+          create: priced.items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            price: i.unitPrice,
+            coffeeLineId: i.coffeeLineId,
+            coffeeLineName: i.coffeeLineName,
+            optionPrice: i.optionPrice,
+          })),
+        },
       },
-    },
-    include: { items: true, table: true, qrCode: true },
-  });
+      include: { items: true, table: true, qrCode: true },
+    });
+    if (input.manualTableId && tableId) {
+      await tx.cafeTable.update({
+        where: { id: tableId },
+        data: { isOccupied: true, occupiedAt: new Date() },
+      });
+    }
+    try {
+      await (tx as unknown as { orderStageEvent: { create: (a: unknown) => Promise<unknown> } }).orderStageEvent.create({
+        data: { orderId: created.id, stage: "CREATED" },
+      });
+    } catch { /* best effort */ }
+    return created;
+  };
+
+  const order = transaction ? await persist(transaction) : await prisma.$transaction(persist);
 
   return order;
 }

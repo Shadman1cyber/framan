@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -9,7 +10,8 @@ import { syncGraph, graphFreshness } from "./graph/sync";
 /** R09 regression: unchanged/empty catalog categories must not make a freshly
  *  synchronized graph immediately stale; neighbor nodes honor validity. */
 const dir = mkdtempSync(join(tmpdir(), "farman-graph-fresh-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("graph-freshness");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 
@@ -20,7 +22,7 @@ beforeAll(async () => {
 afterAll(async () => { await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env; });
 const env = { ...process.env };
 
-describe("graph freshness (R09)", () => {
+d("graph freshness (R09)", () => {
   it("an unchanged catalog synced long ago stays fresh relative to sync time", async () => {
     // Source rows exist with old updatedAt; sync runs NOW.
     await db.category.create({ data: { id: "c1", slug: "coffee", nameFa: "قهوه", updatedAt: new Date(Date.now() - 10 * 86400000) } });

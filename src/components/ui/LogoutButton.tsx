@@ -54,7 +54,7 @@ export function LogoutButton({
                     از حساب خود خارج می‌شوید؟
                   </h2>
                   <p className="mt-1 text-sm text-muted dark:text-dark-textSecondary">
-                    در صورت تایید، از حساب کاربری‌تان خارج می‌شوید و به صفحه اصلی بازمی‌گردید.
+                    در صورت تایید، از حساب کاربری‌تان خارج می‌شوید.
                   </p>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrder, OrderError } from "@/lib/orders";
+import { invalidateOrdersCache } from "@/lib/cache";
 import { z } from "zod";
 import { normalizeRole } from "@/lib/constants";
 import { prisma } from "@/lib/db";
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
 
     const userId = session?.user ? (session.user as { id?: string }).id : undefined;
     const order = await createOrder({ ...parsed.data, userId });
+    await invalidateOrdersCache();
     return NextResponse.json({ order });
   } catch (e) {
     if (e instanceof OrderError) {

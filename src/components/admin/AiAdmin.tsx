@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -223,9 +224,7 @@ export function AiAdmin({
                   <span className="block truncate text-xs font-medium text-espresso dark:text-dark-text">{s.title}</span>
                   <span className="block text-[10px] text-muted dark:text-dark-textSecondary">
                     {s.messageCount} پیام ·{" "}
-                    {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
-                      new Date(s.updatedAt),
-                    )}
+                    {formatJalaliDateTime(s.updatedAt)}
                   </span>
                 </button>
                 <button
@@ -337,9 +336,7 @@ export function AiAdmin({
                 </div>
                 <p className="text-xs leading-relaxed text-espresso/75 dark:text-dark-textSecondary">{i.body}</p>
                 <p className="mt-1 text-[10px] text-muted dark:text-dark-textSecondary">
-                  {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
-                    new Date(i.createdAt),
-                  )}
+                  {formatJalaliDateTime(i.createdAt)}
                 </p>
               </li>
             ))}

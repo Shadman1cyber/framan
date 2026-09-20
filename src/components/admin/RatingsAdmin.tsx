@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDate } from "@/lib/jalali";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -45,7 +46,7 @@ export function RatingsAdmin({ initial }: { initial: Row[] }) {
               <div className="mt-1 text-sm">{r.review ?? <span className="text-muted">بدون نظر</span>}</div>
               <div className="mt-1 text-xs text-muted">
                 {r.userName} · {r.userEmail || "-"} ·{" "}
-                {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(r.createdAt))}
+                {formatJalaliDate(r.createdAt)}
               </div>
             </div>
             <button onClick={() => del(r.id)} className="btn-ghost shrink-0 text-xs text-danger">حذف</button>

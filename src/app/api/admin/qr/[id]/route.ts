@@ -9,7 +9,7 @@ const schema = z.object({
 });
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const g = await guard("qr.manage");
+  const g = await guard("qr.manage", "qr");
   if ("res" in g) return g.res;
   const body = await req.json();
   const parsed = schema.safeParse(body);
@@ -19,7 +19,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const g = await guard("qr.manage");
+  const g = await guard("qr.manage", "qr");
   if ("res" in g) return g.res;
   await prisma.qRCode.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

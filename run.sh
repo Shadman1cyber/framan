@@ -88,25 +88,14 @@ if [[ ! -f .env ]]; then
 fi
 set -a; source .env; set +a
 
-# ── 5. Database setup ───────────────────────────────────────────────
+# ── 5. Database setup (PostgreSQL) ──────────────────────────────────
 info "همگام‌سازی دیتابیس (prisma db push)..."
 npx prisma generate
 npx prisma db push >/dev/null 2>&1 || npx prisma db push
 
-# Agent workspace: apply additive agent migrations when enabled (never destructive).
-# The full chain 001..007 is additive and preserves existing rows.
-if [[ "${AGENT_ENABLED:-false}" == "true" ]]; then
-  info "اعمال مهاجرت‌های افزایشی دستیار (001–007)..."
-  # Extract SQLite file path from DATABASE_URL
-  DB_FILE="${DATABASE_URL#file:}"
-  if [[ -f "$DB_FILE" ]] && command_exists sqlite3; then
-    for f in prisma/agent-migrations/00*_*.up.sql; do
-      sqlite3 "$DB_FILE" < "$f" 2>/dev/null || true
-    done
-  else
-    warn "sqlite3 یافت نشد یا فایل دیتابیس وجود ندارد. مهاجرت‌های دستیار رد شد."
-  fi
-fi
+# NOTE: the legacy agent migrations prisma/agent-migrations/*.sql are SQLite
+# syntax (PRAGMA/BEGIN IMMEDIATE) and must NOT run against Postgres. The same
+# tables are already part of prisma/schema.prisma and are created by db push.
 
 # Seed only when the database is empty.
 USER_COUNT=$(npx tsx -e "

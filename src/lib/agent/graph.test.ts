@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -10,7 +11,8 @@ import { graphFreshness, syncGraph } from "./graph/sync";
 import { RETRIEVAL_BUDGET, searchCatalog } from "./graph/retrieval";
 
 const dir = mkdtempSync(join(tmpdir(), "farman-graph-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("graph");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -46,7 +48,7 @@ const seedCatalog = async () => {
   return { category, allergen, ingredient, tag, product };
 };
 
-describe("graph synchronization", () => {
+d("graph synchronization", () => {
   it("backfills nodes and edges with full provenance and watermarks", async () => {
     const { product } = await seedCatalog();
     await sync();
@@ -115,7 +117,7 @@ describe("graph synchronization", () => {
   });
 });
 
-describe("search_catalog agent tool", () => {
+d("search_catalog agent tool", () => {
   it("runs end-to-end with provenance, relations and freshness", async () => {
     await seedCatalog();
     const run = await runtime.create("owner", { key: randomUUID(), proposal: { tool: "search_catalog", input: { query: "لاته" } } });

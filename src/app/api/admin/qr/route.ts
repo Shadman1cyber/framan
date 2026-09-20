@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const g = await guard("qr.manage");
+  const g = await guard("qr.manage", "qr");
   if ("res" in g) return g.res;
   const body = await req.json();
   const parsed = schema.safeParse(body);

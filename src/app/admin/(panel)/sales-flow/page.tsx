@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { formatNumber, formatToman } from "@/lib/format";
+import { JalaliDateInput } from "@/components/ui/JalaliInputs";
+import { formatJalaliDate, formatJalaliDateTime, todayGregorianInput } from "@/lib/jalali";
+import { WaitTimePanel } from "@/components/admin/WaitTimePanel";
 
 type SalesFlowInterval = {
   start: string;
@@ -132,6 +135,46 @@ export default function SalesFlowPage() {
     return data.intervals.length > 16;
   }, [data]);
 
+  // Gregorian YYYY-MM-DD helpers (Tehran "today"), used by the wait-time panel
+  const shiftGregorian = useCallback((greg: string, deltaDays: number): string => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(greg);
+    if (!m) return greg;
+    const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) + deltaDays * 86400000);
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`;
+  }, []);
+
+  const monthAgoGregorian = useCallback((greg: string): string => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(greg);
+    if (!m) return greg;
+    const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    const p2 = (n: number) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${p2(d.getUTCMonth() + 1)}-${p2(d.getUTCDate())}`;
+  }, []);
+
+  // Wait-time panel follows the same range as the sales-flow data
+  const waitRange = useMemo(() => {
+    const today = todayGregorianInput();
+    if (range === "custom") {
+      let from = customFrom || shiftGregorian(today, -13);
+      let to = customTo || today;
+      if (from > to) [from, to] = [to, from];
+      return { from, to };
+    }
+    if (range === "yesterday") {
+      const y = shiftGregorian(today, -1);
+      return { from: y, to: y };
+    }
+    if (range === "week") {
+      return { from: shiftGregorian(today, -6), to: today };
+    }
+    if (range === "month") {
+      return { from: monthAgoGregorian(today), to: today };
+    }
+    return { from: today, to: today };
+  }, [range, customFrom, customTo, shiftGregorian, monthAgoGregorian]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -169,20 +212,8 @@ export default function SalesFlowPage() {
           </select>
           {range === "custom" && (
             <>
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="input w-auto"
-                placeholder="از تاریخ"
-              />
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="input w-auto"
-                placeholder="تا تاریخ"
-              />
+              <JalaliDateInput value={customFrom} onChange={setCustomFrom} className="input w-auto" ariaLabel="از تاریخ" />
+              <JalaliDateInput value={customTo} onChange={setCustomTo} className="input w-auto" ariaLabel="تا تاریخ" />
             </>
           )}
           <label className="flex items-center gap-2 text-sm ml-4">
@@ -196,7 +227,7 @@ export default function SalesFlowPage() {
           </label>
           {lastRefresh && (
             <span className="text-xs text-muted ml-2">
-              آخرین بروزرسانی: {lastRefresh.toLocaleTimeString("fa-IR")}
+              آخرین بروزرسانی: {formatJalaliDateTime(lastRefresh)}
             </span>
           )}
           <button
@@ -260,7 +291,7 @@ export default function SalesFlowPage() {
                 <div
                   className="w-full rounded-t bg-olive/70 transition-all group-hover:bg-olive cursor-pointer"
                   style={{ height: `${Math.max(4, (interval.revenue / maxRevenue) * 140)}px` }}
-                  title={`${interval.label} (${interval.dayDate}): ${formatToman(interval.revenue)} | سفارش‌ها: ${formatNumber(interval.orders)} | آیتم‌ها: ${formatNumber(interval.items)}`}
+                  title={`${interval.label} (${formatJalaliDate(interval.dayDate)}): ${formatToman(interval.revenue)} | سفارش‌ها: ${formatNumber(interval.orders)} | آیتم‌ها: ${formatNumber(interval.items)}`}
                 />
                 <div className="mt-1 text-[10px] text-center text-muted whitespace-nowrap">
                   {interval.label}
@@ -301,7 +332,7 @@ export default function SalesFlowPage() {
               {data.intervals.map((interval) => (
                 <tr key={`${interval.start}-${interval.end}`} className="border-b border-coffee/5 dark:border-dark-border/5 hover:bg-beige-soft/50 dark:hover:bg-dark-surfaceHover/50">
                   <td className="py-2 px-3 text-right text-espresso dark:text-dark-text whitespace-nowrap">{interval.label}</td>
-                  <td className="py-2 px-3 text-right text-muted whitespace-nowrap">{interval.dayDate}</td>
+                  <td className="py-2 px-3 text-right text-muted whitespace-nowrap">{formatJalaliDate(interval.dayDate)}</td>
                   <td className="py-2 px-3 text-right text-muted whitespace-nowrap">{DAYS_FA[interval.dayIndex]}</td>
                   <td className="py-2 px-3 text-right font-medium text-espresso dark:text-dark-text tabular-nums">{formatNumber(interval.orders)}</td>
                   <td className="py-2 px-3 text-right text-muted tabular-nums">{formatNumber(interval.items)}</td>
@@ -324,6 +355,12 @@ export default function SalesFlowPage() {
         </div>
       </div>
 
+      <div className="card p-4 mb-6">
+        <h2 className="mb-1 text-sm font-semibold">⏱️ زمان انتظار و گلوگاه‌ها</h2>
+        <p className="mb-3 text-xs text-muted">این بخش روی بازهٔ زمانی انتخاب‌شدهٔ بالای صفحه اعمال می‌شود.</p>
+        <WaitTimePanel from={waitRange.from} to={waitRange.to} />
+      </div>
+
       <div className="mt-4 card p-4">
         <h2 className="mb-3 text-sm font-semibold">تنظیمات جاری</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -338,8 +375,8 @@ export default function SalesFlowPage() {
           <div>
             <span className="text-muted">بازه نمایش: </span>
             <span className="font-medium">
-              {formatInTimeZone(data.summary.from, data.settings.timezone, "yyyy/MM/dd")} تا
-              {formatInTimeZone(data.summary.to, data.settings.timezone, "yyyy/MM/dd")}
+              {formatJalaliDate(data.summary.from)} تا
+              {formatJalaliDate(data.summary.to)}
             </span>
           </div>
           <div>
@@ -350,19 +387,4 @@ export default function SalesFlowPage() {
       </div>
     </div>
   );
-}
-
-// Helper function for timezone formatting (client-side)
-function formatInTimeZone(dateString: string, timeZone: string, format: string): string {
-  try {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("fa-IR", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
-  } catch {
-    return dateString.slice(0, 10);
-  }
 }

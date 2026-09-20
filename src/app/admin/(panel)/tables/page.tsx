@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { TablesAdmin } from "@/components/admin/TablesAdmin";
+import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminTablesPage() {
+  const user = await requireAdminPage("tables");
   const now = new Date();
   const tables = await prisma.cafeTable.findMany({
     orderBy: [{ isActive: "desc" }, { number: "asc" }],
@@ -20,7 +22,7 @@ export default async function AdminTablesPage() {
   return (
     <div>
       <h1 className="heading-section mb-6">میزها</h1>
-      <TablesAdmin
+      <TablesAdmin canManageStructure={user.role === "OWNER"}
         initial={tables.map((t) => ({
           id: t.id,
           number: t.number,

@@ -3,6 +3,7 @@ import { OrdersAdmin } from "@/components/admin/OrdersAdmin";
 import type { OrderStatus, OrderType } from "@/lib/constants";
 import { ORDER_STATUSES, orderStatusLabel } from "@/lib/constants";
 import { nextStatuses } from "@/lib/orders";
+import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,9 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: { status?: string };
 }) {
+  await requireAdminPage("orders");
   const status = searchParams.status as OrderStatus | undefined;
-  const orders = await prisma.order.findMany({
+  const [orders, products, tables] = await Promise.all([prisma.order.findMany({
     where: status && ORDER_STATUSES.includes(status) ? { status } : {},
     orderBy: { createdAt: "desc" },
     select: {
@@ -30,7 +32,15 @@ export default async function AdminOrdersPage({
       items: { select: { quantity: true } },
     },
     take: 100,
-  });
+  }), prisma.product.findMany({
+    where: { isAvailable: true },
+    orderBy: [{ category: { order: "asc" } }, { order: "asc" }],
+    select: { id: true, nameFa: true, price: true },
+  }), prisma.cafeTable.findMany({
+    where: { isActive: true },
+    orderBy: { number: "asc" },
+    select: { id: true, number: true, label: true },
+  })]);
   return (
     <div>
       <h1 className="heading-section mb-6">سفارش‌ها</h1>
@@ -55,6 +65,8 @@ export default async function AdminOrdersPage({
           };
         })}
         currentStatus={status}
+        products={products}
+        tables={tables}
       />
     </div>
   );

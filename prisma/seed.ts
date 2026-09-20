@@ -380,7 +380,7 @@ async function main() {
   }
 
   const cafe = await prisma.cafe.create({
-    data: { nameFa: "کافه فرمان", nameEn: "Farmans Cafe", slug: "farmans" },
+    data: { nameFa: "کافه ۱۳", nameEn: "Cafe 13", slug: "farmans" },
   });
   const branch = await prisma.branch.create({
     data: {
@@ -423,7 +423,7 @@ async function main() {
   await prisma.user.create({
     data: {
       name: "مدیر کافه",
-      email: "admin@farmans.cafe",
+      email: "admin@cafe13.ir",
       passwordHash: ownerPassword,
       role: "OWNER",
     },
@@ -432,7 +432,7 @@ async function main() {
   await prisma.user.create({
     data: {
       name: "صندوق‌دار",
-      email: "cashier@farmans.cafe",
+      email: "cashier@cafe13.ir",
       passwordHash: cashierPassword,
       role: "CASHIER",
     },
@@ -496,8 +496,8 @@ async function main() {
   }
 
   console.log("✅ Seed completed");
-  console.log("Owner:   admin@farmans.cafe   / admin1234");
-  console.log("Cashier: cashier@farmans.cafe / cashier1234");
+  console.log("Owner:   admin@cafe13.ir   / admin1234");
+  console.log("Cashier: cashier@cafe13.ir / cashier1234");
   console.log("User:    user@farmans.cafe    / user1234");
 }
 

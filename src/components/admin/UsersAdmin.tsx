@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDate } from "@/lib/jalali";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { ROLES, ROLE_LABELS_FA, type Role } from "@/lib/constants";
@@ -68,7 +69,7 @@ export function UsersAdmin({ initial }: { initial: Row[] }) {
                 </select>
               </td>
               <td className="p-3 text-xs text-muted">
-                {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(u.createdAt))}
+                {formatJalaliDate(u.createdAt)}
               </td>
             </tr>
           ))}

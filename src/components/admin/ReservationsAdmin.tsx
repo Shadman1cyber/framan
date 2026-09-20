@@ -1,6 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { useOffline } from "@/lib/offline/OfflineContext";
+import { JalaliDateInput } from "@/components/ui/JalaliInputs";
+import { todayGregorianInput, formatJalaliDateTime } from "@/lib/jalali";
 
 type Reservation = {
   id: string;
@@ -44,12 +47,13 @@ export function ReservationsAdmin({
     customerName: "",
     customerPhone: "",
     guests: 2,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayGregorianInput(),
     time: "19:00",
     durationMin: 60,
   });
   const [busy, setBusy] = useState(false);
   const { show } = useToast();
+  const { mutateAdmin } = useOffline();
 
   function toIso(): string {
     // Interpret date+time as local time.
@@ -65,23 +69,21 @@ export function ReservationsAdmin({
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/reservations", {
+      const result = await mutateAdmin<{ id: string }>({
+        path: "/api/admin/reservations",
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           tableId: form.tableId,
           customerName: form.customerName.trim(),
           customerPhone: form.customerPhone || null,
           guests: form.guests,
           reservedAt: toIso(),
           durationMin: form.durationMin,
-        }),
+        },
       });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "خطا");
-      show("رزرو ثبت شد", "success");
+      show(result.queued ? "رزرو آفلاین ذخیره شد و بعد از اتصال ثبت می‌شود" : "رزرو ثبت شد", "success");
       setForm((f) => ({ ...f, customerName: "", customerPhone: "" }));
-      await reload();
+      if (!result.queued) await reload();
     } catch (err) {
       show(err instanceof Error ? err.message : "خطا", "error");
     } finally {
@@ -97,18 +99,44 @@ export function ReservationsAdmin({
   }
 
   async function setStatus(id: string, status: string) {
-    const res = await fetch(`/api/admin/reservations/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
+    try {
+      const result = await mutateAdmin({
+        path: `/api/admin/reservations/${id}`,
+        method: "PUT",
+        body: { status },
+      });
       setItems((xs) => xs.map((r) => (r.id === id ? { ...r, status } : r)));
       show(
-        status === "SEATED" ? "مشتری نشست؛ میز اشغال شد" : `وضعیت: ${STATUS_LABELS[status]}`,
+        result.queued
+          ? "تغییر وضعیت رزرو آفلاین ذخیره شد"
+          : status === "SEATED" ? "مشتری نشست؛ میز اشغال شد" : `وضعیت: ${STATUS_LABELS[status]}`,
         "success",
       );
-    } else show("خطا", "error");
+    } catch (error) {
+      show(error instanceof Error ? error.message : "خطا", "error");
+    }
+  }
+
+  async function extend(r: Reservation) {
+    const raw = window.prompt("چند دقیقه به زمان اشغال اضافه شود؟", "30");
+    if (raw == null) return;
+    const minutes = Number(raw);
+    if (!Number.isInteger(minutes) || minutes < 1) {
+      show("مدت تمدید را به دقیقه و بیشتر از صفر وارد کنید", "error");
+      return;
+    }
+    const durationMin = r.durationMin + minutes;
+    try {
+      const result = await mutateAdmin({
+        path: `/api/admin/reservations/${r.id}`,
+        method: "PUT",
+        body: { durationMin },
+      });
+      setItems((current) => current.map((item) => item.id === r.id ? { ...item, durationMin } : item));
+      show(result.queued ? "تمدید آفلاین ذخیره شد" : `زمان اشغال ${minutes} دقیقه تمدید شد`, "success");
+    } catch (error) {
+      show(error instanceof Error ? error.message : "تمدید انجام نشد", "error");
+    }
   }
 
   async function del(id: string) {
@@ -165,8 +193,8 @@ export function ReservationsAdmin({
             <input type="number" min={1} max={40} className="input" value={form.guests} onChange={(e) => setForm({ ...form, guests: Number(e.target.value) })} />
           </label>
           <label className="block">
-            <span className="label">تاریخ</span>
-            <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <span className="label">تاریخ (شمسی)</span>
+            <JalaliDateInput value={form.date} onChange={(g) => setForm({ ...form, date: g })} className="input" ariaLabel="تاریخ رزرو" />
           </label>
           <label className="block">
             <span className="label">ساعت</span>
@@ -174,11 +202,7 @@ export function ReservationsAdmin({
           </label>
           <label className="block">
             <span className="label">مدت (دقیقه)</span>
-            <select className="input" value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: Number(e.target.value) })}>
-              {[30, 60, 90, 120, 180].map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+            <input type="number" min={15} max={480} step={5} className="input" value={form.durationMin} onChange={(e) => setForm({ ...form, durationMin: Number(e.target.value) })} />
           </label>
           <div className="flex items-end">
             <button type="submit" disabled={busy} className="btn-primary w-full">
@@ -208,15 +232,16 @@ export function ReservationsAdmin({
                         </span>
                       </div>
                       <div className="text-xs text-muted">
-                        {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
-                          new Date(r.reservedAt),
-                        )}{" "}
+                        {formatJalaliDateTime(r.reservedAt)}{" "}
                         · {r.guests} نفر · {r.durationMin} دقیقه
                         {r.customerPhone ? ` · ${r.customerPhone}` : ""}
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {(r.status === "RESERVED" || r.status === "SEATED") && (
+                      <button onClick={() => extend(r)} className="btn-secondary text-xs">تمدید زمان</button>
+                    )}
                     {r.status === "RESERVED" && (
                       <>
                         <button onClick={() => setStatus(r.id, "SEATED")} className="btn-secondary text-xs">

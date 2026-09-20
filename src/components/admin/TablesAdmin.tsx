@@ -1,7 +1,9 @@
 "use client";
+import { formatJalaliDateTime, formatJalaliTime } from "@/lib/jalali";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import { useOffline } from "@/lib/offline/OfflineContext";
 
 type Row = {
   id: string;
@@ -16,13 +18,14 @@ type Row = {
   nextReservation: { customerName: string; reservedAt: string } | null;
 };
 
-export function TablesAdmin({ initial }: { initial: Row[] }) {
+export function TablesAdmin({ initial, canManageStructure }: { initial: Row[]; canManageStructure: boolean }) {
   const [items, setItems] = useState(initial);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [number, setNumber] = useState("");
   const [label, setLabel] = useState("");
   const router = useRouter();
   const { show } = useToast();
+  const { mutateAdmin } = useOffline();
 
   async function create() {
     if (!number.trim()) return;
@@ -56,13 +59,12 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
 
   async function setOccupied(id: string, isOccupied: boolean) {
     setBusyId(id);
-    const res = await fetch(`/api/admin/tables/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isOccupied }),
-    });
-    setBusyId(null);
-    if (res.ok) {
+    try {
+      const result = await mutateAdmin({
+        path: `/api/admin/tables/${id}`,
+        method: "PUT",
+        body: { isOccupied },
+      });
       setItems((xs) =>
         xs.map((t) =>
           t.id === id
@@ -70,8 +72,15 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
             : t,
         ),
       );
-      show(isOccupied ? "میز اشغال شد" : "میز آزاد شد", "success");
-    } else show("خطا", "error");
+      show(
+        result.queued ? "وضعیت میز آفلاین ذخیره شد" : isOccupied ? "میز اشغال شد" : "میز آزاد شد",
+        "success",
+      );
+    } catch (error) {
+      show(error instanceof Error ? error.message : "خطا", "error");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function del(id: string) {
@@ -128,14 +137,12 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
                 </div>
                 <div className="text-xs text-muted">
                   {t.branchName} · {t.orderCount} سفارش · {t.qrCount} QR
-                  {t.occupiedAt && ` · از ${new Intl.DateTimeFormat("fa-IR", { timeStyle: "short" }).format(new Date(t.occupiedAt))}`}
+                  {t.occupiedAt && ` · از ${formatJalaliTime(t.occupiedAt)}`}
                 </div>
                 {t.nextReservation && (
                   <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning dark:bg-warning/20">
                     📅 رزرو بعدی: {t.nextReservation.customerName} — ساعت{" "}
-                    {new Intl.DateTimeFormat("fa-IR", { timeStyle: "short" }).format(
-                      new Date(t.nextReservation.reservedAt),
-                    )}
+                    {formatJalaliDateTime(t.nextReservation.reservedAt)}
                   </div>
                 )}
               </div>
@@ -152,23 +159,27 @@ export function TablesAdmin({ initial }: { initial: Row[] }) {
               >
                 {t.isOccupied ? "آزادسازی میز" : "اشغال دستی میز"}
               </button>
-              <button onClick={() => toggleActive(t.id, t.isActive)} className="btn-ghost text-xs">
-                {t.isActive ? "غیرفعال" : "فعال"}
-              </button>
-              <button onClick={() => del(t.id)} className="btn-ghost text-xs text-danger">حذف</button>
+              {canManageStructure && (
+                <>
+                  <button onClick={() => toggleActive(t.id, t.isActive)} className="btn-ghost text-xs">
+                    {t.isActive ? "غیرفعال" : "فعال"}
+                  </button>
+                  <button onClick={() => del(t.id)} className="btn-ghost text-xs text-danger">حذف</button>
+                </>
+              )}
             </div>
           </li>
         ))}
       </ul>
 
-      <div className="card p-4">
+      {canManageStructure && <div className="card p-4">
         <h2 className="mb-3 text-sm font-semibold">افزودن میز</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input className="input" placeholder="شماره میز (مثال: 9)" value={number} onChange={(e) => setNumber(e.target.value)} />
           <input className="input" placeholder="برچسب (مثال: میز کنار پنجره)" value={label} onChange={(e) => setLabel(e.target.value)} />
         </div>
         <button onClick={create} className="btn-primary mt-3">ایجاد</button>
-      </div>
+      </div>}
     </div>
   );
 }

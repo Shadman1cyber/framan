@@ -1,16 +1,25 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { getActionCount } from "./queue";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { getQueueStats, OFFLINE_QUEUE_CHANGED_EVENT } from "./queue";
 import { setSyncCallbacks, syncQueue, isSyncing, triggerSyncIfOnline } from "./sync";
-import type { QueuedAction } from "./queue";
+import {
+  executeOrQueueAdminMutation,
+  type OfflineAdminMutation,
+  type OfflineMutationResult,
+} from "./admin-mutation";
 
 type OfflineContextValue = {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  conflictCount: number;
   lastSyncStatus: "idle" | "synced" | "error";
   forceSync: () => void;
+  mutateAdmin: <T extends Record<string, unknown> = Record<string, unknown>>(
+    mutation: OfflineAdminMutation,
+  ) => Promise<OfflineMutationResult<T>>;
 };
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -73,16 +82,31 @@ function addNetworkListener(callback: (online: boolean) => void): () => void {
 }
 
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
   const [isOnline, setIsOnline] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [conflictCount, setConflictCount] = useState(0);
   const [lastSyncStatus, setLastSyncStatus] = useState<"idle" | "synced" | "error">("idle");
+
+  const refreshStats = useCallback(() => {
+    getQueueStats()
+      .then((stats) => {
+        setPendingCount(stats.total);
+        setConflictCount(stats.conflicts);
+      })
+      .catch(() => {
+        setPendingCount(0);
+        setConflictCount(0);
+      });
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     // Initial check
     getNetworkStatus().then(setIsOnline);
-    getActionCount().then(setPendingCount).catch(() => setPendingCount(0));
+    refreshStats();
 
     // Set up network listener
     const cleanup = addNetworkListener((online) => {
@@ -106,48 +130,56 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener("focus", handleFocus);
+    window.addEventListener(OFFLINE_QUEUE_CHANGED_EVENT, refreshStats);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cleanup();
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(OFFLINE_QUEUE_CHANGED_EVENT, refreshStats);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [refreshStats]);
 
   useEffect(() => {
     setSyncCallbacks({
       onStatusChange: (status) => {
+        setSyncing(status === "syncing");
         if (status === "synced" || status === "error") {
           setLastSyncStatus(status);
         }
       },
-      onActionSynced: () => {
-        getActionCount().then(setPendingCount).catch(() => setPendingCount(0));
-      },
-      onActionFailed: () => {
-        getActionCount().then(setPendingCount).catch(() => setPendingCount(0));
-      },
-      onAllSynced: () => {
-        getActionCount().then(setPendingCount).catch(() => setPendingCount(0));
-      },
+      onActionSynced: refreshStats,
+      onActionFailed: refreshStats,
+      onAllSynced: refreshStats,
     });
-  }, []);
+  }, [refreshStats]);
 
   const forceSync = useCallback(() => {
     if (isOnline && !isSyncing()) {
-      syncQueue();
+      void syncQueue();
     }
   }, [isOnline]);
+
+  const mutateAdmin = useCallback(async <T extends Record<string, unknown> = Record<string, unknown>>(
+    mutation: OfflineAdminMutation,
+  ) => {
+    const actorId = (session?.user as { id?: string } | undefined)?.id ?? "";
+    const result = await executeOrQueueAdminMutation<T>({ actorId, online: isOnline, mutation });
+    refreshStats();
+    return result;
+  }, [isOnline, refreshStats, session?.user]);
 
   return (
     <OfflineContext.Provider
       value={{
         isOnline,
-        isSyncing: isSyncing(),
+        isSyncing: syncing,
         pendingCount,
+        conflictCount,
         lastSyncStatus,
         forceSync,
+        mutateAdmin,
       }}
     >
       {children}

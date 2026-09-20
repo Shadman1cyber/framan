@@ -4,6 +4,7 @@ import { guard } from "@/lib/api";
 import { slugify } from "@/lib/slug";
 import { productSchema } from "@/lib/product-schema";
 import { deleteImageByUrl } from "@/lib/storage";
+import { invalidateMenuCache } from "@/lib/cache";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const g = await guard("products.manage");
@@ -79,6 +80,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     if (!newImageUrls.includes(url)) await deleteImageByUrl(url);
   }
 
+  await invalidateMenuCache(params.id, existing.slug);
   return NextResponse.json({ ok: true });
 }
 
@@ -93,6 +95,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     if (!product) return NextResponse.json({ error: "محصول یافت نشد" }, { status: 404 });
     await prisma.product.delete({ where: { id: params.id } });
     for (const img of product.images) await deleteImageByUrl(img.url);
+    await invalidateMenuCache(params.id, product.slug);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "محصول قابل حذف نیست" }, { status: 400 });
