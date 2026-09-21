@@ -84,12 +84,29 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Sync Capacitor iOS shell (regenerates Podfile + copies www/)
+      - name: Sync Capacitor iOS shell
         # The app UI itself is native SwiftUI (SceneDelegate -> FarmanRootView),
-        # but AppDelegate still `import Capacitor`, so pods must be present.
+        # but AppDelegate still `import Capacitor`, so the native shell must be synced.
+        # NOTE: this repo is SPM-only (CapApp-SPM/Package.swift). Capacitor 8 does
+        # NOT generate ios/App/Podfile when all plugins ship Package.swift, so a
+        # missing Podfile is expected and must NOT fail the job.
         # `cap sync` never overwrites your Swift files (AppDelegate/SceneDelegate/
         # FarmanNativeApp.swift) - it only copies web assets + updates plugins.
-        run: npx cap sync ios
+        run: |
+          npx cap sync ios
+
+          echo "--- iOS shell diagnostics ---"
+          ls -la ios/App/ || true
+          find ios -maxdepth 3 -type f \( -name 'Podfile*' -o -name 'capacitor.config.*' -o -name 'Package.swift' \) -print || true
+          if [ ! -f ios/App/App.xcodeproj/project.pbxproj ]; then
+            echo "::error::Missing ios/App/App.xcodeproj/project.pbxproj - native iOS shell is incomplete."
+            exit 1
+          fi
+          if [ -f ios/App/Podfile ]; then
+            echo "Podfile found - CocoaPods install will run."
+          else
+            echo "::notice::No ios/App/Podfile (SPM-only project) - CocoaPods step will be skipped."
+          fi
 
       - name: Cache CocoaPods
         uses: actions/cache@v4
@@ -100,10 +117,15 @@ jobs:
             ${{ runner.os }}-pods-
 
       - name: Install CocoaPods dependencies
+        # SPM-only repos have no Podfile - skip instead of failing with
+        # "[!] No Podfile found in the project directory."
         run: |
+          if [ ! -f "$GITHUB_WORKSPACE/ios/App/Podfile" ]; then
+            echo "::notice::Skipping pod install - no ios/App/Podfile (SPM-only Capacitor project)."
+            exit 0
+          fi
           pod --version || sudo gem install cocoapods
-          cd "$PROJECT_DIR"
-          pod install --repo-update
+          pod install --repo-update --project-directory="$GITHUB_WORKSPACE/ios/App"
 
       - name: Resolve Swift packages
         run: |
