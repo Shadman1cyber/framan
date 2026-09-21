@@ -1,20 +1,10 @@
 import { prisma } from "./db";
+import { ALL_CASHIER_TAB_IDS, type CashierTabId } from "./cashier-tabs";
 
-export const CASHIER_TABS = [
-  { id: "dashboard", label: "داشبورد", href: "/admin" },
-  { id: "orders", label: "سفارش‌ها", href: "/admin/orders" },
-  { id: "customers", label: "باشگاه مشتریان", href: "/admin/customers" },
-  { id: "ratings", label: "امتیازها", href: "/admin/ratings" },
-  { id: "tables", label: "میزها", href: "/admin/tables" },
-  { id: "reservations", label: "رزرو میزها", href: "/admin/reservations" },
-  { id: "qr", label: "کدهای QR", href: "/admin/qr" },
-  { id: "leaves", label: "مرخصی‌ها", href: "/admin/leaves" },
-] as const;
-
-export type CashierTabId = (typeof CASHIER_TABS)[number]["id"];
+export { CASHIER_TABS, type CashierTabId } from "./cashier-tabs";
 
 const SETTING_KEY = "cashier.enabledTabs";
-const ALL_TAB_IDS = CASHIER_TABS.map((tab) => tab.id);
+const ALL_TAB_IDS = ALL_CASHIER_TAB_IDS;
 
 export async function getEnabledCashierTabs(): Promise<CashierTabId[]> {
   const setting = await prisma.setting.findUnique({ where: { key: SETTING_KEY } });
