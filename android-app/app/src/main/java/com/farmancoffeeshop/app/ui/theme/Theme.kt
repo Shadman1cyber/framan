@@ -5,31 +5,44 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Warm premium café palette (matches the web app's aesthetic).
-val Espresso = Color(0xFF1A120B)
-val Latte = Color(0xFFF5E6C8)
-val Caramel = Color(0xFFC98A3D)
-val Cream = Color(0xFFE8D5B5)
-val Mocha = Color(0xFF2A1E14)
-val LeafGreen = Color(0xFF7FB069)
-val AlertRed = Color(0xFFD64545)
-val MutedBrown = Color(0xFF8A6F4D)
+// Exact palette from iOS FarmanTheme (FarmanNativeApp.swift).
+val FarmanBackground = Color(0xFF21100C)
+val FarmanDeepBrown = Color(0xFF2B1712)
+val FarmanSurface = Color(0xFF382119)
+val FarmanRaised = Color(0xFF472A20)
+val FarmanBorder = Color(0xFF765044)
+val FarmanText = Color(0xFFFFF7EF)
+val FarmanSecondary = Color(0xFFCBB8AA)
+val FarmanOlive = Color(0xFF9ABD55)
+val FarmanOliveDark = Color(0xFF61752E)
+val FarmanWine = Color(0xFFC4516D)
+val FarmanWarning = Color(0xFFD3A55C)
+
+// Legacy aliases (kept so old screens still compile during migration).
+val Espresso = FarmanBackground
+val Latte = FarmanText
+val Caramel = FarmanOlive
+val Cream = FarmanSecondary
+val Mocha = FarmanDeepBrown
+val LeafGreen = FarmanOlive
+val AlertRed = FarmanWine
+val MutedBrown = FarmanBorder
 
 private val FarmanColors = darkColorScheme(
-    primary = Caramel,
-    onPrimary = Espresso,
-    secondary = Cream,
-    onSecondary = Espresso,
-    tertiary = LeafGreen,
-    background = Espresso,
-    onBackground = Latte,
-    surface = Mocha,
-    onSurface = Latte,
-    surfaceVariant = Color(0xFF3A2A1C),
-    onSurfaceVariant = Cream,
-    error = AlertRed,
-    onError = Latte,
-    outline = MutedBrown,
+    primary = FarmanOlive,
+    onPrimary = FarmanBackground,
+    secondary = FarmanSecondary,
+    onSecondary = FarmanBackground,
+    tertiary = FarmanOlive,
+    background = FarmanBackground,
+    onBackground = FarmanText,
+    surface = FarmanSurface,
+    onSurface = FarmanText,
+    surfaceVariant = FarmanRaised,
+    onSurfaceVariant = FarmanSecondary,
+    error = FarmanWine,
+    onError = FarmanText,
+    outline = FarmanBorder,
 )
 
 @Composable

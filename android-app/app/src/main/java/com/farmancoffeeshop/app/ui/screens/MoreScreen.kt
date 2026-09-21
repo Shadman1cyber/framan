@@ -35,32 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-@Composable
-fun MoreScreen(container: AppContainer, nav: NavController) {
-    val profile by container.auth.observeProfile().collectAsStateWithLifecycle(initialValue = null)
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
-            Text("بیشتر", style = MaterialTheme.typography.headlineSmall)
-            if (profile != null) {
-                Text(
-                    "${profile?.name ?: profile?.email ?: ""} • ${roleFa(profile?.role)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-        item { MoreRow("منو و محصولات", onClick = { nav.navigate(Routes.CATALOG) }) }
-        item { MoreRow("بینش‌های هوشمند", onClick = { nav.navigate(Routes.INSIGHTS) }) }
-        item { MoreRow("همگام‌سازی و صف", onClick = { nav.navigate(Routes.SYNC) }) }
-        item { MoreRow("تنظیمات", onClick = { nav.navigate(Routes.SETTINGS) }) }
-    }
-}
-
-@Composable
-fun MoreRow(title: String, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Text(title, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall)
-    }
-}
+/** iOS-parity More lives in AssistantMoreScreens.kt. This file keeps Settings + role helper. */
 
 fun roleFa(role: String?): String = when (role) {
     "OWNER" -> "صاحب کافه"

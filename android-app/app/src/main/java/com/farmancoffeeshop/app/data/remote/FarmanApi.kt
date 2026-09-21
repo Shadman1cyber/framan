@@ -9,6 +9,18 @@ import com.farmancoffeeshop.app.data.remote.dto.PushRequestDto
 import com.farmancoffeeshop.app.data.remote.dto.PushResponseDto
 import com.farmancoffeeshop.app.data.remote.dto.SessionDto
 import com.farmancoffeeshop.app.data.remote.dto.StatusDto
+import com.farmancoffeeshop.app.data.remote.dto.AiChatRequest
+import com.farmancoffeeshop.app.data.remote.dto.AiChatResponse
+import com.farmancoffeeshop.app.data.remote.dto.AnalyticsDto
+import com.farmancoffeeshop.app.data.remote.dto.ManagementRecordDto
+import com.farmancoffeeshop.app.data.remote.dto.MobileOverviewDto
+import com.farmancoffeeshop.app.data.remote.dto.OrdersEnvelopeDto
+import com.farmancoffeeshop.app.data.remote.dto.OrderStatusRequest
+import com.farmancoffeeshop.app.data.remote.dto.OrderStatusResponse
+import com.farmancoffeeshop.app.data.remote.dto.OverviewActionRequest
+import com.farmancoffeeshop.app.data.remote.dto.OverviewActionResponse
+import com.farmancoffeeshop.app.data.remote.dto.ReservationCreateRequest
+import com.farmancoffeeshop.app.data.remote.dto.ReservationCreateResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -16,6 +28,8 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -65,4 +79,30 @@ interface FarmanApi {
 
     @GET("api/admin/ai/insights")
     suspend fun insights(): InsightsDto
+
+    // ---- iOS-parity admin surface (same endpoints as FarmanNativeApp.swift) ----
+
+    @GET("api/admin/orders")
+    suspend fun adminOrders(): OrdersEnvelopeDto
+
+    @PUT("api/admin/orders/{id}/status")
+    suspend fun adminOrderStatus(
+        @Path("id") id: String,
+        @Body body: OrderStatusRequest,
+    ): OrderStatusResponse
+
+    @GET("api/admin/analytics")
+    suspend fun adminAnalytics(): AnalyticsDto
+
+    @GET("api/admin/mobile/overview")
+    suspend fun mobileOverview(): MobileOverviewDto
+
+    @POST("api/admin/mobile/overview")
+    suspend fun mobileOverviewAction(@Body body: OverviewActionRequest): OverviewActionResponse
+
+    @POST("api/admin/reservations")
+    suspend fun createReservation(@Body body: ReservationCreateRequest): ReservationCreateResponse
+
+    @POST("api/admin/ai/chat")
+    suspend fun aiChat(@Body body: AiChatRequest): AiChatResponse
 }

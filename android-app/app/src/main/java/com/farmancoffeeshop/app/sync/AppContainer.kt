@@ -18,6 +18,7 @@ import com.farmancoffeeshop.app.data.repository.AiRepository
 import com.farmancoffeeshop.app.data.repository.AuthRepository
 import com.farmancoffeeshop.app.data.repository.CatalogRepository
 import com.farmancoffeeshop.app.data.repository.LedgerRepository
+import com.farmancoffeeshop.app.data.repository.OpsRepository
 import com.farmancoffeeshop.app.data.repository.StockRepository
 import com.farmancoffeeshop.core.sync.newUuid
 import kotlinx.coroutines.CoroutineScope
@@ -87,6 +88,8 @@ class AppContainer(
     val stock: StockRepository by lazy { StockRepository(db, store, ::deviceIdNow) }
     val catalog: CatalogRepository by lazy { CatalogRepository(db, apis) { connectivity.current() } }
     val ai: AiRepository by lazy { AiRepository(db, apis) { connectivity.current() } }
+    /** iOS-parity ops store (orders/analytics/overview/chat + offline cache). */
+    val ops: OpsRepository by lazy { OpsRepository(context, apis, connectivity) }
 
     val syncRunner: SyncRunner by lazy { SyncRunner(db, store, retrofitApi, catalog, ai, connectivity) }
     val sync: SyncRepository by lazy { SyncRepository(context, db, store, syncRunner, connectivity, appScope) }

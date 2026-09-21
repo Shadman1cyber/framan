@@ -7,14 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -37,19 +39,31 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.farmancoffeeshop.app.sync.FarmanApp
+import com.farmancoffeeshop.app.ui.ios.ScreenBackground
 import com.farmancoffeeshop.app.ui.nav.Routes
+import com.farmancoffeeshop.app.ui.screens.AssistantScreen
 import com.farmancoffeeshop.app.ui.screens.CatalogScreen
 import com.farmancoffeeshop.app.ui.screens.DashboardScreen
 import com.farmancoffeeshop.app.ui.screens.InsightsScreen
 import com.farmancoffeeshop.app.ui.screens.InventoryScreen
 import com.farmancoffeeshop.app.ui.screens.LedgerScreen
 import com.farmancoffeeshop.app.ui.screens.LoginScreen
+import com.farmancoffeeshop.app.ui.screens.ManagementModuleScreen
+import com.farmancoffeeshop.app.ui.screens.ManagementScreen
 import com.farmancoffeeshop.app.ui.screens.MoreScreen
+import com.farmancoffeeshop.app.ui.screens.OperationsScreen
+import com.farmancoffeeshop.app.ui.screens.OrderDetailScreen
+import com.farmancoffeeshop.app.ui.screens.OrdersScreen
 import com.farmancoffeeshop.app.ui.screens.ProductScreen
 import com.farmancoffeeshop.app.ui.screens.RecordScreen
 import com.farmancoffeeshop.app.ui.screens.SettingsScreen
 import com.farmancoffeeshop.app.ui.screens.SyncScreen
+import com.farmancoffeeshop.app.ui.theme.FarmanBackground
+import com.farmancoffeeshop.app.ui.theme.FarmanBorder
+import com.farmancoffeeshop.app.ui.theme.FarmanOlive
+import com.farmancoffeeshop.app.ui.theme.FarmanSecondary
 import com.farmancoffeeshop.app.ui.theme.FarmanTheme
+import com.farmancoffeeshop.app.ui.theme.FarmanText
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,7 +71,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as FarmanApp).container
         setContent {
             FarmanTheme {
-                // Persian RTL across the whole app.
+                // Persian RTL across the whole app (matches iOS layoutDirection .rightToLeft).
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     FarmanNav(container)
                 }
@@ -68,11 +82,12 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
+// Same 5 tabs as iOS MainShellView: خانه / عملیات / مدیریت / دستیار / بیشتر.
 private val TABS = listOf(
     Tab(Routes.DASHBOARD, "خانه", Icons.Filled.Home),
-    Tab(Routes.LEDGER, "دفتر", Icons.Filled.List),
-    Tab(Routes.RECORD, "ثبت", Icons.Filled.Add),
-    Tab(Routes.INVENTORY, "انبار", Icons.Filled.ShoppingCart),
+    Tab(Routes.OPERATIONS, "عملیات", Icons.Filled.List),
+    Tab(Routes.MANAGEMENT, "مدیریت", Icons.Filled.Settings),
+    Tab(Routes.ASSISTANT, "دستیار", Icons.Filled.Star),
     Tab(Routes.MORE, "بیشتر", Icons.Filled.MoreVert),
 )
 
@@ -83,20 +98,20 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
     var authChecked by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         container.auth.profile()
+        container.ops.bootstrap()
         authChecked = true
     }
     if (!authChecked) {
-        // Splash: avoids flashing LOGIN before the cached profile loads, so a
-        // previously authenticated user opens straight into offline content.
-        Box(Modifier.fillMaxSize()) {
-            Text("کافه فرمان", modifier = Modifier.padding(24.dp))
+        ScreenBackground {
+            Box(Modifier.fillMaxSize()) {
+                Text("کافه فرمان", modifier = Modifier.padding(24.dp), color = FarmanText)
+            }
         }
         return
     }
     val start = if (profile == null) Routes.LOGIN else Routes.DASHBOARD
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
-    // After logout the profile vanishes: send the user back to LOGIN.
     LaunchedEffect(profile) {
         if (profile == null && current?.route != null && current?.route != Routes.LOGIN) {
             nav.navigate(Routes.LOGIN) {
@@ -107,9 +122,10 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
     val showBar = current?.hierarchy?.any { it.route in TABS.map { t -> t.route } } == true
 
     Scaffold(
+        containerColor = FarmanBackground,
         bottomBar = {
             if (showBar) {
-                NavigationBar {
+                NavigationBar(containerColor = Color(0xFF21100C).copy(alpha = 0.98f)) {
                     TABS.forEach { tab ->
                         val selected = current?.hierarchy?.any { it.route == tab.route } == true
                         NavigationBarItem(
@@ -123,6 +139,13 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
                             },
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
                             label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = FarmanOlive,
+                                selectedTextColor = FarmanOlive,
+                                unselectedIconColor = FarmanSecondary,
+                                unselectedTextColor = FarmanSecondary,
+                                indicatorColor = FarmanOlive.copy(alpha = 0.15f),
+                            ),
                         )
                     }
                 }
@@ -130,14 +153,27 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
         },
     ) { padding ->
         NavHost(nav, startDestination = start, modifier = Modifier.padding(padding)) {
-            composable(Routes.LOGIN) { LoginScreen(container, onDone = {
-                nav.navigate(Routes.DASHBOARD) { popUpTo(Routes.LOGIN) { inclusive = true } }
-            }) }
-            composable(Routes.DASHBOARD) { DashboardScreen(container) }
+            composable(Routes.LOGIN) {
+                LoginScreen(container, onDone = {
+                    nav.navigate(Routes.DASHBOARD) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                })
+            }
+            composable(Routes.DASHBOARD) { DashboardScreen(container, nav) }
+            composable(Routes.OPERATIONS) { OperationsScreen(container, nav) }
+            composable(Routes.ORDERS) { OrdersScreen(container, nav) }
+            composable(Routes.ORDER_DETAIL) { backStack ->
+                OrderDetailScreen(container, backStack.arguments?.getString("id") ?: "")
+            }
+            composable(Routes.MANAGEMENT) { ManagementScreen(container, nav) }
+            composable(Routes.MODULE) { backStack ->
+                ManagementModuleScreen(container, nav, backStack.arguments?.getString("key") ?: "")
+            }
+            composable(Routes.ASSISTANT) { AssistantScreen(container) }
+            composable(Routes.MORE) { MoreScreen(container, nav) }
+            // Legacy offline-first screens (kept, reachable from مدیریت).
             composable(Routes.LEDGER) { LedgerScreen(container) }
             composable(Routes.RECORD) { RecordScreen(container) }
             composable(Routes.INVENTORY) { InventoryScreen(container) }
-            composable(Routes.MORE) { MoreScreen(container, nav) }
             composable(Routes.CATALOG) { CatalogScreen(container, nav) }
             composable(Routes.PRODUCT) { backStack ->
                 ProductScreen(container, backStack.arguments?.getString("id") ?: "")
