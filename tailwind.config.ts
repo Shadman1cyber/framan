@@ -6,40 +6,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Dark-only theme: legacy light tokens are remapped to dark surfaces
+        // so every existing `bg-cream` / `text-espresso` usage renders dark.
         cream: {
-          DEFAULT: "#FAF4E8",
-          50: "#FDFAF3",
-          100: "#FAF4E8",
-          200: "#F2E8D5",
-          300: "#E8D8BC",
+          DEFAULT: "#241E18",
+          50: "#241E18",
+          100: "#241E18",
+          200: "#2D241C",
+          300: "#3D3228",
         },
         beige: {
-          DEFAULT: "#EFE3CB",
-          soft: "#F5EBD8",
+          DEFAULT: "#2D241C",
+          soft: "#2D241C",
         },
         olive: {
-          DEFAULT: "#556B2F",
-          50: "#F1F4E8",
-          100: "#DDE3C3",
-          200: "#BBC893",
+          DEFAULT: "#8FA268",
+          50: "#2D241C",
+          100: "#3D3228",
+          200: "#556B2F",
           300: "#8FA268",
-          400: "#6B8147",
-          500: "#556B2F",
-          600: "#3F4F22",
-          700: "#2F3B19",
+          400: "#8FA268",
+          500: "#8FA268",
+          600: "#BBC893",
+          700: "#DDE3C3",
         },
         coffee: {
-          DEFAULT: "#6F4E37",
-          light: "#8C6E54",
-          dark: "#4E3622",
+          DEFAULT: "#8C6E54",
+          light: "#C4B8A8",
+          dark: "#F5EFE6",
         },
         espresso: {
-          DEFAULT: "#2B1810",
-          light: "#3D2419",
+          DEFAULT: "#F5EFE6",
+          light: "#C4B8A8",
         },
         muted: {
-          DEFAULT: "#8A7B6B",
-          light: "#B5A796",
+          DEFAULT: "#C4B8A8",
+          light: "#8A7B6B",
         },
         danger: {
           DEFAULT: "#B5462C",
@@ -61,8 +63,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-vazirmatn)", "system-ui", "sans-serif"],
-        display: ["var(--font-vazirmatn)", "serif"],
+        sans: ["var(--font-peyda)", "system-ui", "sans-serif"],
+        display: ["var(--font-peyda)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         sm: "0.5rem",

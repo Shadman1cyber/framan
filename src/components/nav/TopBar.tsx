@@ -1,15 +1,7 @@
 "use client";
-import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CafeBrand } from "./CafeBrand";
-import { useTheme } from "@/lib/ThemeContext";
-
-const THEME_OPTIONS: Array<{ value: "light" | "dark" | "system"; label: string; icon: string }> = [
-  { value: "light", label: "روشن", icon: "☀️" },
-  { value: "dark", label: "تیره", icon: "🌙" },
-  { value: "system", label: "سیستم", icon: "💻" },
-];
 
 export function TopBar({
   showTable,
@@ -19,13 +11,9 @@ export function TopBar({
   tableLabel?: string | null;
 }) {
   const { data: session } = useSession();
-  const { theme, resolvedTheme, setTheme } = useTheme();
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const user = session?.user;
   const role = (user as { role?: string } | undefined)?.role;
   const isManagement = role === "ADMIN" || role === "STAFF" || role === "OWNER" || role === "CASHIER";
-
-  const currentOption = THEME_OPTIONS.find((o) => o.value === theme) ?? THEME_OPTIONS[2];
 
   return (
     <header className="sticky top-0 z-30 border-b border-coffee/10 bg-cream-50/80 backdrop-blur dark:border-dark-border dark:bg-dark-bg/80">
@@ -39,45 +27,13 @@ export function TopBar({
               {tableLabel}
             </span>
           )}
-          <div className="relative">
-            <button
-              onClick={() => setThemeMenuOpen(!themeMenuOpen)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-coffee/15 bg-cream-50 text-espresso transition-colors hover:bg-beige dark:border-dark-border dark:bg-dark-surface dark:text-dark-text dark:hover:bg-dark-surfaceHover"
-              aria-label="تنظیمات تم"
-              aria-expanded={themeMenuOpen}
-              aria-haspopup="true"
+          <div className="relative" aria-label="حالت تیره فعال است" title="حالت تیره">
+            <span
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-coffee/15 bg-cream-50 text-espresso dark:border-dark-border dark:bg-dark-surface dark:text-dark-text"
+              aria-hidden="true"
             >
-              <span aria-hidden="true" className="text-lg">{currentOption.icon}</span>
-            </button>
-            {themeMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setThemeMenuOpen(false)}
-                  aria-hidden="true"
-                />
-                <div className="absolute right-0 top-full z-50 mt-2 w-40 origin-top-right rounded-xl border border-coffee/15 bg-cream-50 shadow-elevated dark:border-dark-border dark:bg-dark-surface animate-fade-in">
-                  <ul role="menu" className="py-1">
-                    {THEME_OPTIONS.map((opt) => (
-                      <li key={opt.value}>
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            setTheme(opt.value);
-                            setThemeMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-right ${theme === opt.value ? "bg-olive/10 text-olive-700 dark:bg-olive/20 dark:text-olive-300" : "text-espresso dark:text-dark-text hover:bg-beige dark:hover:bg-dark-surfaceHover"}`}
-                        >
-                          <span aria-hidden="true">{opt.icon}</span>
-                          <span>{opt.label}</span>
-                          {theme === opt.value && <span aria-hidden="true">✓</span>}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            )}
+              <span className="text-lg">🌙</span>
+            </span>
           </div>
           {user ? (
             <>

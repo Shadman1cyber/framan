@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -13,7 +14,7 @@ import { saveArtifactBytes, readArtifactBytes, looksLikeScannedPdf, deleteArtifa
 import { flushTelemetry } from "./telemetry";
 
 /**
- * R06/R07 acceptance against a real disposable SQLite database:
+ * R06/R07 acceptance against a real disposable database schema:
  * - sales report artifact generation agrees with chat/tool output,
  * - CSV/XLSX round-trips preserve Persian text and integers,
  * - scanned PDFs are detected and rejected honestly (OCR unavailable),
@@ -21,7 +22,8 @@ import { flushTelemetry } from "./telemetry";
  */
 
 const dir = mkdtempSync(join(tmpdir(), "farman-files-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("files");
+const d = postgresReachable() ? describe : describe.skip;
 writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
@@ -43,7 +45,7 @@ beforeEach(async () => {
 });
 afterAll(async () => { await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env; });
 
-describe("R06/R07 files, artifacts and report agreement", () => {
+d("R06/R07 files, artifacts and report agreement", () => {
   it("agent-run artifact generation agrees with the shared route and the DB", async () => {
     await db.order.createMany({ data: [
       { total: 500000, status: "COMPLETED", createdAt: new Date("2026-09-07T15:25:00Z") },

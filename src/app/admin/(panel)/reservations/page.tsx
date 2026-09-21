@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { ReservationsAdmin } from "@/components/admin/ReservationsAdmin";
+import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminReservationsPage() {
+  await requireAdminPage("reservations");
   const [reservations, tables] = await Promise.all([
     prisma.tableReservation.findMany({
       orderBy: { reservedAt: "asc" },

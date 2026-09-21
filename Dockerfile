@@ -35,10 +35,13 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/worker ./worker
 COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 
-# Volume for the SQLite database and uploaded images.
-RUN mkdir -p /app/prisma /app/uploads && chown -R nextjs:nodejs /app \
+# Database is PostgreSQL (see docker-compose.yml); the cache is Redis.
+# /app/prisma holds schema files (not a volume). The entrypoint's
+# `prisma db push` still bootstraps tables on fresh volumes, and the
+# sqlite3 CLI + worker build are kept for `file:` DATABASE_URL fallback.
+RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app \
   && chmod +x /app/scripts/docker-entrypoint.sh
-VOLUME ["/app/prisma", "/app/uploads"]
+VOLUME ["/app/uploads"]
 
 USER nextjs
 EXPOSE 3080

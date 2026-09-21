@@ -67,6 +67,13 @@ export async function transitionOrderAtomic(
   if (next === "COMPLETED" || next === "CANCELLED") data.completedAt = now;
   const updated = await tx.order.update({ where: { id: orderId }, data });
 
+  // E.1 — record every preparation-stage timestamp (best effort; never blocks the transition).
+  try {
+    await (tx as unknown as { orderStageEvent: { create: (a: unknown) => Promise<unknown> } }).orderStageEvent.create({
+      data: { orderId, stage: next },
+    });
+  } catch { /* stage table missing or write failed: transition still commits */ }
+
   // Free the table when its last active order finishes (same transaction).
   let tableReleased = false;
   if (order.tableId && (next === "COMPLETED" || next === "CANCELLED")) {

@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDate } from "@/lib/jalali";
 import { useState } from "react";
 import Link from "next/link";
 import { Rating } from "@/components/ui/Rating";
@@ -165,7 +166,7 @@ export function ProductRating({
               </div>
               {r.review && <p className="text-sm text-espresso/80 dark:text-dark-textSecondary">{r.review}</p>}
               <p className="mt-1 text-[11px] text-muted">
-                {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(r.createdAt))}
+                {formatJalaliDate(r.createdAt)}
               </p>
             </li>
           ))}

@@ -11,6 +11,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * Absolute `file:` URLs (all Docker/prod deployments) are safe to
  * anchor here; relative URLs are left for Prisma's own resolution
  * (schema-dir relative) so local dev keeps working untouched.
+ * No-op for Postgres DATABASE_URLs.
  */
 export function ensureSqliteDir() {
   const raw = process.env.DATABASE_URL;
@@ -39,10 +40,20 @@ export function ensureSqliteDir() {
 
 ensureSqliteDir();
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function buildPrismaClient(): PrismaClient {
+  const url = process.env.DATABASE_URL ?? "";
+  const isPostgres = url.startsWith("postgres");
+  return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    // Connection pooling for Postgres (works when DATABASE_URL includes
+    // ?connection_limit=N). SQLite ignores datasource options.
+    ...(isPostgres
+      ? { datasourceUrl: process.env.DATABASE_URL }
+      : {}),
   });
+}
+
+export const prisma =
+  globalForPrisma.prisma ?? buildPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

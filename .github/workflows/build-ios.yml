@@ -43,6 +43,9 @@ jobs:
           cd ios/App
           mkdir -p build/export
           cp -R build/App.xcarchive/Products/Applications/App.app build/export/
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/export/App.app \
+            build/export/Farman-iOS-unsigned.zip
 
       - name: Create unsigned IPA
         run: |
@@ -57,3 +60,11 @@ jobs:
         with:
           name: ios-app-unsigned
           path: ios/App/build/export/FarmanCoffeeShop.ipa
+          if-no-files-found: error
+
+      - name: Upload iOS app (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release-build
+          path: ios/App/build/export/Farman-iOS-unsigned.zip
+          if-no-files-found: error

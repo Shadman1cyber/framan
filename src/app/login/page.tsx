@@ -85,8 +85,8 @@ function LoginInner() {
           </p>
           <p className="rounded-xl border border-coffee/10 bg-cream p-3 text-center text-xs text-muted dark:border-dark-border dark:bg-dark-surfaceHover">
             برای تست:<br />
-            admin@farmans.cafe / admin1234 (مدیر)<br />
-            cashier@farmans.cafe / cashier1234 (صندوق‌دار)<br />
+            admin@cafe13.ir / admin1234 (مدیر)<br />
+            cashier@cafe13.ir / cashier1234 (صندوق‌دار)<br />
             user@farmans.cafe / user1234 (مشتری)
           </p>
         </form>

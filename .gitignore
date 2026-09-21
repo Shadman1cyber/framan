@@ -20,3 +20,5 @@ android-app/**/*.keystore
 android-app/**/*.jks
 android-app/**/build/
 android-app/.gradle/
+ios/App/build-device/
+ios/App/build-sim/

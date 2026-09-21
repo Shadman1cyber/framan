@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { testDatabaseUrl, postgresReachable } from "../test-db-url";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -12,13 +13,14 @@ import type { PlannerAttachment, PlannerMessage } from "./planner";
 import type { Plan } from "./contracts";
 
 /**
- * R06 extension acceptance on a disposable SQLite database: uploaded
+ * R06 extension acceptance on a disposable database schema: uploaded
  * attachment contents reach the planner as bounded, clearly-labelled DATA
  * (never instructions), ownership/scope is enforced, and PDF stays honest.
  */
 
 const dir = mkdtempSync(join(tmpdir(), "farman-attach-test-"));
-const url = `file:${join(dir, "test.db")}`;
+const url = testDatabaseUrl("attachments");
+const d = postgresReachable() ? describe : describe.skip;
 const db = new PrismaClient({ datasources: { db: { url } } });
 const env = { ...process.env };
 const captured: { question?: string; attachments?: PlannerAttachment[] } = {};
@@ -57,7 +59,7 @@ afterAll(async () => {
   await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env;
 });
 
-describe("attachment contents reach the planner as bounded data", () => {
+d("attachment contents reach the planner as bounded data", () => {
   it("plans analyze_attachment from real CSV bytes and renders a deterministic Persian answer", async () => {
     planner.mockImplementationOnce(async (): Promise<Plan> => ({ steps: [{ tool: "analyze_attachment" as const, input: {} }] }));
     const id = await upload("cafe", "owner", "فروش-سه-ماه.csv", "upload_csv", "text/csv", Buffer.from("ماه,فروش (تومان)\nفروردین,12000000\nاردیبهشت,15500000\nخرداد,9800000"));

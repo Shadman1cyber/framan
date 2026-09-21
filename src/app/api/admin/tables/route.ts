@@ -9,8 +9,9 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const g = await guard("tables.manage");
+  const g = await guard("tables.manage", "tables");
   if ("res" in g) return g.res;
+  if (g.user.role !== "OWNER") return NextResponse.json({ error: "فقط صاحب کافه می‌تواند میز اضافه کند" }, { status: 403 });
   const body = await req.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "bad input" }, { status: 400 });

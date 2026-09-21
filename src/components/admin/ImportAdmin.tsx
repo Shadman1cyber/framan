@@ -1,4 +1,5 @@
 "use client";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 
@@ -204,9 +205,7 @@ export function ImportAdmin({ initialJobs }: { initialJobs: Job[] }) {
                 <span>{KINDS.find((k) => k.value === j.kind)?.label ?? j.kind}</span>
                 <span className="text-xs text-muted">
                   {j.status === "COMPLETED" ? "کامل" : "جزئی"} ·{" "}
-                  {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(
-                    new Date(j.createdAt),
-                  )}
+                  {formatJalaliDateTime(j.createdAt)}
                 </span>
               </li>
             ))}

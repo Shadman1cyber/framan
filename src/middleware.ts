@@ -9,16 +9,25 @@ import { getToken } from "next-auth/jwt";
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isNativeApp = req.headers.get("user-agent")?.includes("FarmanStaffApp") ?? false;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const role = (token?.role as string | undefined) ?? null;
   const isManagement = role === "ADMIN" || role === "STAFF" || role === "OWNER" || role === "CASHIER";
+
+  if (isNativeApp) {
+    const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+    const isOrderDetail = /^\/order\/[^/]+$/.test(pathname);
+    if (pathname !== "/admin/login" && (!isManagement || (!isAdminPath && !isOrderDetail))) {
+      return NextResponse.redirect(new URL(isManagement ? "/admin" : "/admin/login", req.url));
+    }
+  }
 
   // Staff login page: reachable when anonymous; customers are blocked; staff skip it.
   if (pathname === "/admin/login") {
     if (isManagement) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
-    if (token && !isManagement) {
+    if (token && !isManagement && !isNativeApp) {
       return NextResponse.redirect(new URL("/", req.url));
     }
     return NextResponse.next();
@@ -45,5 +54,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/cart", "/checkout"],
+  matcher: ["/", "/admin/:path*", "/menu/:path*", "/product/:path*", "/order/:path*", "/orders", "/cart", "/checkout", "/login", "/register", "/profile/:path*"],
 };

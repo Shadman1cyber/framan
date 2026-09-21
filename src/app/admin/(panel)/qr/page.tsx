@@ -2,10 +2,12 @@ import { prisma } from "@/lib/db";
 import QRCode from "qrcode";
 import { QrAdmin } from "@/components/admin/QrAdmin";
 import { getPublicAppUrl } from "@/lib/config";
+import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminQrPage() {
+  await requireAdminPage("qr");
   // QR codes must point to an accessible base URL (LAN IP or PUBLIC_APP_URL),
   // never to localhost (Rule 15).
   const BASE_URL = getPublicAppUrl();

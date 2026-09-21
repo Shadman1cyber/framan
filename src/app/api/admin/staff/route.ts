@@ -4,10 +4,15 @@ import { prisma } from "@/lib/db";
 import { guard } from "@/lib/api";
 import { STAFF_ROLES } from "@/lib/constants";
 
+const HHMM = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
 const schema = z.object({
   name: z.string().min(1).max(80),
   role: z.enum(STAFF_ROLES),
   isActive: z.boolean().optional(),
+  task: z.string().max(200).optional().nullable(),
+  shiftStart: z.string().regex(HHMM, "ساعت شروع نامعتبر (HH:mm)").optional().nullable(),
+  shiftEnd: z.string().regex(HHMM, "ساعت پایان نامعتبر (HH:mm)").optional().nullable(),
 });
 
 export async function GET() {

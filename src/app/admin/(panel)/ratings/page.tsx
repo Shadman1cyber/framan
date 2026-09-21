@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { RatingsAdmin } from "@/components/admin/RatingsAdmin";
+import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRatingsPage() {
+  await requireAdminPage("ratings");
   const ratings = await prisma.rating.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

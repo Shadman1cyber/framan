@@ -1,3 +1,4 @@
+import { formatJalaliDateTime } from "@/lib/jalali";
 import type { AgentRun } from "@prisma/client";
 
 type Row = Record<string, unknown>;
@@ -13,7 +14,7 @@ const status = (value: unknown) => ({
 const id = (r: Row) => r.id ? ` [شناسه: ${str(r.id)}]` : "";
 const date = (value: unknown) => {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return "زمان ثبت نشده";
-  return new Intl.DateTimeFormat("fa-IR", { timeZone: "Asia/Tehran", dateStyle: "short", timeStyle: "short" }).format(new Date(value)) + " (تهران)";
+  return formatJalaliDateTime(value) + " (تهران)";
 };
 
 /** Render only persisted tool receipts. No model call or invented data. */
