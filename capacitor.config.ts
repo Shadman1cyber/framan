@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 // Override the hosted app URL for local device testing when needed.
 const serverUrl = process.env.CAPACITOR_SERVER_URL?.trim()
-  || 'https://farman-7hm-hesabetam.runflare.cloud';
+  || 'http://10.216.186.246:3080';
 
 const config: CapacitorConfig = {
   appId: 'com.farmancoffeeshop.app',

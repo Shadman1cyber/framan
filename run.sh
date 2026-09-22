@@ -17,6 +17,33 @@ error() { printf "\033[1;31m✖ %s\033[0m\n" "$*"; }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# ── Local Postgres via Docker (used when DATABASE_URL points at localhost) ──
+ensure_local_postgres() {
+  local user="${POSTGRES_USER:-farman}" pass="${POSTGRES_PASSWORD:-farman}" db="${POSTGRES_DB:-farman}"
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx farmans-postgres; then
+    info "Postgres container already running."
+    return 0
+  fi
+  if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx farmans-postgres; then
+    info "Starting existing Postgres container..."
+    docker start farmans-postgres >/dev/null
+    return 0
+  fi
+  info "Starting local Postgres (docker)..."
+  docker run -d --name farmans-postgres \
+    -e POSTGRES_USER="$user" -e POSTGRES_PASSWORD="$pass" -e POSTGRES_DB="$db" \
+    -p 127.0.0.1:5432:5432 -v pg-data:/var/lib/postgresql/data \
+    --restart unless-stopped postgres:16-alpine >/dev/null || {
+    warn "Could not start container (port 5432 may be taken by your own Postgres) — continuing with DATABASE_URL as-is."
+    return 0
+  }
+  info "Waiting for Postgres..."
+  for _ in $(seq 1 30); do
+    docker exec farmans-postgres pg_isready -U "$user" -d "$db" >/dev/null 2>&1 && break
+    sleep 1
+  done
+}
+
 # ── 1. Check Docker mode ────────────────────────────────────────────
 if [[ "${1:-}" == "--docker" ]]; then
   if ! command_exists docker; then
@@ -87,6 +114,26 @@ if [[ ! -f .env ]]; then
   warn "فایل .env ساخته شد. برای دسترسی از گوشی، PUBLIC_APP_URL را با IP سیستم خود تنظیم کنید."
 fi
 set -a; source .env; set +a
+
+# ── 4b. Database URL must be PostgreSQL (schema provider is postgresql) ────
+if [[ "${DATABASE_URL:-}" == file:* ]] || [[ -z "${DATABASE_URL:-}" ]]; then
+  warn "DATABASE_URL is '${DATABASE_URL:-<empty>}' but the schema requires PostgreSQL; switching to local Postgres..."
+  export DATABASE_URL="postgresql://${POSTGRES_USER:-farman}:${POSTGRES_PASSWORD:-farman}@localhost:5432/${POSTGRES_DB:-farman}?schema=public"
+  if grep -q '^DATABASE_URL=' .env; then
+    sed -i.bak "s|^DATABASE_URL=.*|DATABASE_URL=\"${DATABASE_URL}\"|" .env && rm -f .env.bak
+  else
+    printf '\nDATABASE_URL="%s"\n' "$DATABASE_URL" >> .env
+  fi
+  info "Wrote DATABASE_URL to .env"
+fi
+# If the URL points at this machine, make sure Postgres is actually running.
+if [[ "$DATABASE_URL" == postgresql://*@localhost:* ]] || [[ "$DATABASE_URL" == postgresql://*@127.0.0.1:* ]]; then
+  if command_exists docker; then
+    ensure_local_postgres
+  else
+    warn "Docker not found; make sure a local Postgres is running at 5432 yourself."
+  fi
+fi
 
 # ── 5. Database setup (PostgreSQL) ──────────────────────────────────
 info "همگام‌سازی دیتابیس (prisma db push)..."

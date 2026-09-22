@@ -34,7 +34,8 @@ class SettingsStore(private val context: Context) {
         /**
          * Default backend (same server the Capacitor app targets).
          * Editable in Settings; not a secret.
+         * Local dev server while the public deployment is down.
          */
-        const val DEFAULT_SERVER_URL = "https://farman-7hm-hesabetam.runflare.cloud"
+        const val DEFAULT_SERVER_URL = "http://10.216.186.246:3080"
     }
 }
