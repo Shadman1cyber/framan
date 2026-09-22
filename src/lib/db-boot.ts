@@ -18,10 +18,10 @@ function findProjectRoot(): string {
   return process.cwd();
 }
 
-function run(cmd: string, args: string[], root: string, timeoutMs: number): boolean {
+function run(cmd: string, args: string[], root: string, timeoutMs: number, envOverride?: Record<string, string | undefined>): boolean {
   const r = spawnSync(cmd, args, {
     cwd: root,
-    env: process.env,
+    env: { ...process.env, ...envOverride },
     timeout: timeoutMs,
     stdio: "pipe",
     encoding: "utf-8",
@@ -44,22 +44,43 @@ async function boot() {
   ensureSqliteDir();
 
   const checker = new PrismaClient({ log: ["error"] });
+  const isPostgres = (process.env.DATABASE_URL ?? "").startsWith("postgres");
   try {
-    const tables = await checker.$queryRawUnsafe<{ name: string }[]>(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('Category','Product','Allergen','User')",
-    );
+    // Dialect-aware presence check: sqlite_master exists only on SQLite,
+    // pg_tables only on Postgres. The wrong query throws, which the catch
+    // below treats as "needs push" — so pick the right one per URL.
+    const tables = isPostgres
+      ? await checker.$queryRawUnsafe<{ tablename: string }[]>(
+          "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('Category','Product','Allergen','User')",
+        )
+      : await checker.$queryRawUnsafe<{ name: string }[]>(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('Category','Product','Allergen','User')",
+        );
     if (tables.length === 4) return; // schema present — nothing to do
     console.error(`[db-boot] missing tables (${tables.length}/4) — running prisma db push...`);
   } catch (err) {
+    const msg = (err as Error).message;
     // Empty/corrupt/unreadable file (P2021, code 14, …) — push will recreate.
-    console.error(`[db-boot] DB check failed (${(err as Error).message.slice(0, 120)}) — running prisma db push...`);
+    // P1001 = server unreachable (wrong host, paused Supabase project,
+    // bad password): push cannot help, but try once anyway then hint.
+    console.error(`[db-boot] DB check failed (${msg.slice(0, 120)}) — running prisma db push...`);
+    if (msg.includes("Can't reach database server")) {
+      console.error(
+        "[db-boot] hint: verify DATABASE_URL host/password and that the Postgres " +
+          "server (e.g. Supabase project) is running and not paused. " +
+          "For Supabase pooler URLs use DIRECT_URL for schema push (see below).",
+      );
+    }
   } finally {
     await checker.$disconnect().catch(() => {});
   }
 
   const root = findProjectRoot();
   const schema = path.join(root, "prisma", "schema.prisma");
-  if (!run("npx", ["prisma", "db", "push", "--skip-generate", "--schema", schema], root, 120_000)) return;
+  // Supabase-style split: pooled DATABASE_URL for the app, direct connection
+  // for schema changes (pgbouncer transaction mode cannot run db push).
+  const pushEnv = process.env.DIRECT_URL ? { DATABASE_URL: process.env.DIRECT_URL } : undefined;
+  if (!run("npx", ["prisma", "db", "push", "--skip-generate", "--schema", schema], root, 120_000, pushEnv)) return;
 
   // Seed only a truly empty DB — seed.ts wipes first (deleteMany), so this
   // gate must never pass on a database that already holds business data.
