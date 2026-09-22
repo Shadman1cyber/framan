@@ -1,0 +1,60 @@
+# Cafe 13 — electron-builder config: ONE universal installer for Windows 7/8.1/10/11.
+#
+# Why Electron 22 (pinned in package.json devDependencies)?
+#   Electron 22.x (Chromium 108, Node 16) is the LAST major that boots on
+#   Windows 7 SP1 and Windows 8.1. Electron 23+ hard-requires Windows 10+.
+#   Windows 10/11 run Electron 22 apps fine, so this single build covers 7→11.
+#
+# Why NSIS (assisted) + Portable, x64 + ia32?
+#   - `oneClick: false` → per-user install without admin rights (shop PCs).
+#   - `requestedExecutionLevel: asInvoker` → no UAC prompt, Win7 friendly.
+#   - ia32 target covers 32-bit Windows 7/8.1 machines still common in shops.
+#   - Portable exe covers USB-stick / no-install cashier terminals.
+appId: com.farmancoffeeshop.app
+productName: Cafe 13
+copyright: Copyright © Cafe 13
+artifactName: Cafe13-Desktop-${version}-${arch}.${ext}
+
+# The thin-client shell needs no Next.js files: server runs separately.
+# Explicitly exclude node_modules — the shell uses only Electron + Node
+# built-ins, and bundling deps would triple the installer size for nothing.
+files:
+  - electron/**/*
+  - build/icon.ico
+  - build/icon.png
+  - package.json
+  - '!node_modules/**/*'
+  - '!**/*.map'
+
+directories:
+  output: dist-desktop
+  buildResources: build
+
+asar: true
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64, ia32]
+    - target: portable
+      arch: [x64, ia32]
+  requestedExecutionLevel: asInvoker
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Cafe 13
+  deleteAppDataOnUninstall: false
+  differentialPackage: false
+
+portable:
+  artifactName: Cafe13-Desktop-${version}-portable-${arch}.${ext}
+
+# No auto-publish: CI uploads the artifacts explicitly.
+publish: null

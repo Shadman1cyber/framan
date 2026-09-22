@@ -14,6 +14,7 @@ artifacts/
 graphify-out/
 tsconfig.tsbuildinfo
 worker/dist.cjs
+dist-desktop/
 # Native Android app (android-app/): local SDK path, build outputs, keystores.
 android-app/local.properties
 android-app/**/*.keystore
