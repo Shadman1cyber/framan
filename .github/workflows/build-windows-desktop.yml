@@ -1,0 +1,43 @@
+name: Build Windows desktop app
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'electron/**'
+      - 'build/icon.*'
+      - 'electron-builder.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-windows.ps1'
+      - '.github/workflows/build-windows-desktop.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build installers (x64 + ia32, NSIS + Portable)
+        run: npx electron-builder --win nsis portable --x64 --ia32
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cafe13-desktop-windows
+          path: |
+            dist-desktop/*.exe
+            dist-desktop/*.yml
+          if-no-files-found: error

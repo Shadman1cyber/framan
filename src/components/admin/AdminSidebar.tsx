@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LogoutButton } from "@/components/ui/LogoutButton";
-import type { CashierTabId } from "@/lib/cashier-access";
+import type { CashierTabId } from "@/lib/cashier-tabs";
 
 type NavItem = { href: string; label: string; icon: string; ownerOnly?: boolean; cashierTab?: CashierTabId };
 

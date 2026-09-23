@@ -15,12 +15,21 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials?.email?.trim().toLowerCase();
+        if (!email || !credentials?.password) {
+          console.log(`[auth] login rejected (missing credentials)`);
+          return null;
+        }
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
-        if (!user || !user.passwordHash) return null;
+        if (!user || !user.passwordHash) {
+          console.log(`[auth] login failed: unknown email "${email}"`);
+          return null;
+        }
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
+        console.log(`[auth] login ${ok ? "succeeded" : "failed (bad password)"}: "${email}"`);
+        if (!ok) return null;
         if (!ok) return null;
         return {
           id: user.id,

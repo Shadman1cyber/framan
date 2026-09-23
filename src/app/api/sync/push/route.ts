@@ -8,6 +8,11 @@ import {
   LedgerError,
   type SyncOperationInput,
 } from "@/lib/ledger/service";
+import {
+  STOCK_ENTITY_TYPE,
+  applyStockOperation,
+  type StockOperationInput,
+} from "@/lib/stock/service";
 
 export const dynamic = "force-dynamic";
 
@@ -127,18 +132,37 @@ export async function POST(req: NextRequest) {
               "idempotency key already used with a different request",
             );
           }
-          const prev = JSON.parse(existing.result) as { entryId: string; serverSequence: number };
-          return { replayed: true as const, serverSequence: prev.serverSequence, entryId: prev.entryId };
+          // Receipts written by protocol v1 store `entryId`; v1.1 stores
+          // `entityId`. Accept both so old rows still replay correctly.
+          const prev = JSON.parse(existing.result) as {
+            entityId?: string;
+            entryId?: string;
+            serverSequence: number;
+          };
+          return {
+            replayed: true as const,
+            serverSequence: prev.serverSequence,
+            entityId: prev.entityId ?? prev.entryId ?? "",
+          };
         }
 
-        const applied = await applyLedgerOperation(tx, scope, op);
+        const entityType = String(raw.entity_type ?? "");
+        const applied =
+          entityType === STOCK_ENTITY_TYPE
+            ? await applyStockOperation(tx, scope, { ...op, entityType } as StockOperationInput).then(
+                (r) => ({ entityId: r.movementId, serverSequence: r.serverSequence }),
+              )
+            : await applyLedgerOperation(tx, scope, op).then((r) => ({
+                entityId: r.entryId,
+                serverSequence: r.serverSequence,
+              }));
         await tx.syncOperation.create({
           data: {
             id: op.operationId,
             scopeId: scope,
             idempotencyKey: op.idempotencyKey,
             entityType: op.entityType,
-            entityId: applied.entryId,
+            entityId: applied.entityId,
             operationType: op.operationType,
             payload: JSON.stringify(op.payload),
             requestHash,
@@ -150,14 +174,16 @@ export async function POST(req: NextRequest) {
             clientTimestamp,
           },
         });
-        return { replayed: false as const, serverSequence: applied.serverSequence, entryId: applied.entryId };
+        return { replayed: false as const, serverSequence: applied.serverSequence, entityId: applied.entityId };
       });
 
       results.push({
         operation_id: operationId,
         status: "applied",
         server_sequence: result.serverSequence,
-        entry_id: result.entryId,
+        entity_id: result.entityId,
+        // Kept for backward compatibility with v1 ledger clients.
+        entry_id: result.entityId,
         ...(result.replayed ? { duplicate: true } : {}),
       });
     } catch (e) {

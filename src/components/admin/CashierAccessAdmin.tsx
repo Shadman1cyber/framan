@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CASHIER_TABS, type CashierTabId } from "@/lib/cashier-access";
+import { CASHIER_TABS, type CashierTabId } from "@/lib/cashier-tabs";
 import { useToast } from "@/components/ui/Toast";
 
 export function CashierAccessAdmin({ initial }: { initial: CashierTabId[] }) {

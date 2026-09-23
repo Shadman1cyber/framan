@@ -1,14 +1,15 @@
-# Sync Protocol (v1)
+# Sync Protocol (v1.1)
 
 ## Endpoints
 
 - `POST /api/sync/push` — batch push of pending operations.
 - `GET /api/sync/pull?after=<server_sequence>` — pull remote changes after cursor.
 - `GET /api/sync/status` — engine/server status (cursor, counts).
+- `GET /api/sync/catalog` — versioned reference-data snapshot (v1.1).
 
 ## Push
 
-Request:
+Request: (v1 shape unchanged)
 ```json
 {
   "device_id": "uuid",
@@ -36,14 +37,31 @@ Response (operation-level, never batch-level failure):
 ```
 Statuses: `applied` (exact replay adds `duplicate: true` and returns the original `server_sequence`), `rejected` (with `code`). Key reuse with a changed request is rejected as `IDEMPOTENCY_KEY_REUSE` (409, non-retryable).
 
+Since v1.1 a push batch may mix entity types. Applied results always carry
+`entity_id` (the created row id); ledger results additionally keep the v1
+`entry_id` alias. Receipts written by v1 (`{entryId,…}`) still replay.
+
+### v1.1 entity: `stock_movement` / `RECORD_MOVEMENT`
+
+Payload: `{ "movement": { "id": uuid, "ingredientId": "...", "delta": 20,
+"reason": "…", "occurredAt": "ISO-8601", "deviceId": uuid,
+"allowNegative": true } }`. Rules mirror the online adjust path: finite
+non-zero delta, reason 3–300 chars, negative deltas need the explicit flag,
+ingredient must exist and be active, resulting stock ≥ 0. The movement row and
+the additive `Ingredient.stockQuantity` update commit atomically; the operation
+returns `{ movementId, serverSequence, ingredientId, delta, after }`.
+
 ## Pull
 
 `GET /api/sync/pull?after=1004` →
 ```json
-{ "changes": [ ...immutable ledger entries... ], "next_cursor": 1009 }
+{ "changes": [ ... ], "next_cursor": 1009 }
 ```
-(Only ledger entries today; mutable entity snapshots are future work.)
-Cursor is the server-assigned monotonic `server_sequence`. Durable; never local timestamps.
+Each change carries `kind: "ledger_entry" | "stock_movement"` (v1 clients
+ignore the unknown field; ledger shapes are otherwise unchanged). The cursor is
+the server-assigned monotonic `server_sequence`, now **shared across both
+kinds** (single authoritative order). Durable; never local timestamps.
+`?account=` scopes ledger rows only and omits stock changes.
 
 ## Ordering
 
@@ -69,3 +87,18 @@ If the server applied an operation but the client died before receiving the resp
 ## Cursor safety
 
 `last_sync_sequence` advances only inside the same local transaction that persists pulled changes. Any failure rolls the cursor back with the data.
+
+## Catalog snapshot (v1.1)
+
+`GET /api/sync/catalog` (same `finance.view` owner auth + single-cafe scope)
+returns a versioned reference snapshot:
+
+```json
+{ "version": 1729…, "server_time": "…", "categories": […], "products": […],
+  "ingredients": […], "coffee_lines": […], "staff": […], "tables": […] }
+```
+
+`version` is `max(updatedAt)` over the snapshotted tables. Clients replace
+their local snapshot when `version` differs and never edit these rows offline
+(server-authoritative by construction, so no merge exists). `status` additionally
+reports `movement_count`.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { guard } from "@/lib/api";
 import { listLedger } from "@/lib/ledger/service";
+import { listStockMovements } from "@/lib/stock/service";
 
 export const dynamic = "force-dynamic";
 
@@ -32,22 +33,50 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-  const rows = await listLedger(prisma, scope, { take, afterSequence: after });
-  const filtered = account ? rows.filter((r) => r.accountId === account) : rows;
-  const changes = filtered.map((r) => ({
-    id: r.id,
-    entry_type: r.entryType,
-    reference_type: r.referenceType,
-    reference_id: r.referenceId,
-    account_id: r.accountId,
-    amount: r.amount,
-    currency: r.currency,
-    occurred_at: r.occurredAt.toISOString(),
-    device_id: r.deviceId,
-    reversal_of: r.reversalOf,
-    server_sequence: r.serverSequence,
-    server_received_at: r.serverReceivedAt?.toISOString() ?? null,
-  }));
-  const nextCursor = changes.length > 0 ? Math.max(...changes.map((c) => c.server_sequence ?? 0)) : after;
+  // Over-fetch per kind then merge by the shared sequence so one cursor stays
+  // totally ordered across ledger entries and stock movements.
+  const [ledgerRows, stockRows] = await Promise.all([
+    listLedger(prisma, scope, { take, afterSequence: after }),
+    listStockMovements(prisma, scope, { take, afterSequence: after }),
+  ]);
+  // The account filter scopes ledger rows only; stock movements carry no
+  // account and are omitted from account-filtered pulls.
+  const ledgerOut = account ? ledgerRows.filter((r) => r.accountId === account) : ledgerRows;
+  const stockOut = account ? [] : stockRows;
+  const changes = [
+    ...ledgerOut.map((r) => ({
+      kind: "ledger_entry" as const,
+      id: r.id,
+      entry_type: r.entryType,
+      reference_type: r.referenceType,
+      reference_id: r.referenceId,
+      account_id: r.accountId,
+      amount: r.amount,
+      currency: r.currency,
+      occurred_at: r.occurredAt.toISOString(),
+      device_id: r.deviceId,
+      reversal_of: r.reversalOf,
+      server_sequence: r.serverSequence,
+      server_received_at: r.serverReceivedAt?.toISOString() ?? null,
+    })),
+    ...stockOut.map((m) => ({
+      kind: "stock_movement" as const,
+      id: m.id,
+      ingredient_id: m.ingredientId,
+      delta: m.delta,
+      reason: m.reason,
+      occurred_at: m.occurredAt.toISOString(),
+      device_id: m.deviceId,
+      server_sequence: m.serverSequence,
+      server_received_at: m.serverReceivedAt?.toISOString() ?? null,
+    })),
+  ]
+    .sort((a, b) => (a.server_sequence ?? 0) - (b.server_sequence ?? 0))
+    .slice(0, take);
+  // Merge is sorted by sequence and sliced to the lowest `take` rows, so any
+  // row dropped by the slice has a higher sequence than the cursor: the next
+  // page re-fetches from the cursor with no loss and no duplicates.
+  const nextCursor =
+    changes.length > 0 ? Math.max(...changes.map((c) => c.server_sequence ?? 0)) : after;
   return NextResponse.json({ changes, next_cursor: nextCursor });
 }

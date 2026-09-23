@@ -47,7 +47,7 @@ export function LedgerSyncBadge() {
           </button>
         )}
         {state === "auth-required" && (
-          <Link href="/login" className="underline">
+          <Link href="/admin/login" className="underline">
             ورود
           </Link>
         )}

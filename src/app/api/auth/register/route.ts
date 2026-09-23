@@ -12,6 +12,7 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    if (typeof body?.email === "string") body.email = body.email.trim().toLowerCase();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "ورودی نامعتبر است" }, { status: 400 });

@@ -116,13 +116,33 @@ export async function listLedger(
   });
 }
 
+/**
+ * Per-scope monotonic sequence shared by LedgerEntry and StockMovement rows.
+ * One shared space keeps a single pull cursor totally ordered across both
+ * change kinds (see src/lib/stock/service.ts). With an empty StockMovement
+ * table this degenerates to the ledger-only max, preserving prior behavior.
+ */
+export async function nextSharedSequence(
+  tx: Prisma.TransactionClient,
+  scopeId: string,
+): Promise<number> {
+  const [lastLedger, lastStock] = await Promise.all([
+    tx.ledgerEntry.findFirst({
+      where: { scopeId, serverSequence: { not: null } },
+      orderBy: { serverSequence: "desc" },
+      select: { serverSequence: true },
+    }),
+    tx.stockMovement.findFirst({
+      where: { scopeId, serverSequence: { not: null } },
+      orderBy: { serverSequence: "desc" },
+      select: { serverSequence: true },
+    }),
+  ]);
+  return Math.max(lastLedger?.serverSequence ?? 0, lastStock?.serverSequence ?? 0) + 1;
+}
+
 async function nextSequence(tx: Prisma.TransactionClient, scopeId: string): Promise<number> {
-  const last = await tx.ledgerEntry.findFirst({
-    where: { scopeId, serverSequence: { not: null } },
-    orderBy: { serverSequence: "desc" },
-    select: { serverSequence: true },
-  });
-  return (last?.serverSequence ?? 0) + 1;
+  return nextSharedSequence(tx, scopeId);
 }
 
 function validateNewEntry(entry: LedgerEntryInput): void {
@@ -283,10 +303,17 @@ export async function applyLedgerOperation(
 }
 
 export async function nextCursorAfter(db: PrismaClient, scopeId: string): Promise<number> {
-  const last = await db.ledgerEntry.findFirst({
-    where: { scopeId, serverSequence: { not: null } },
-    orderBy: { serverSequence: "desc" },
-    select: { serverSequence: true },
-  });
-  return last?.serverSequence ?? 0;
+  const [lastLedger, lastStock] = await Promise.all([
+    db.ledgerEntry.findFirst({
+      where: { scopeId, serverSequence: { not: null } },
+      orderBy: { serverSequence: "desc" },
+      select: { serverSequence: true },
+    }),
+    db.stockMovement.findFirst({
+      where: { scopeId, serverSequence: { not: null } },
+      orderBy: { serverSequence: "desc" },
+      select: { serverSequence: true },
+    }),
+  ]);
+  return Math.max(lastLedger?.serverSequence ?? 0, lastStock?.serverSequence ?? 0);
 }

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cafe 13 — عدم اتصال به سرور</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #1a120b; color: #f5e9d3;
+      font-family: Tahoma, "Segoe UI", Vazirmatn, sans-serif;
+    }
+    .card {
+      width: min(520px, 92vw); background: #2b1d12; border: 1px solid #6b4a2b;
+      border-radius: 16px; padding: 32px 28px; text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    }
+    .logo {
+      width: 72px; height: 72px; margin: 0 auto 12px; border-radius: 50%;
+      background: #c98a3d; color: #1a120b; font-size: 30px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+    }
+    h1 { font-size: 20px; margin: 8px 0 4px; }
+    p { font-size: 14px; line-height: 2; color: #d9c39a; margin: 8px 0; }
+    .row { display: flex; gap: 8px; margin-top: 16px; }
+    input {
+      flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #6b4a2b;
+      background: #1a120b; color: #f5e9d3; font-size: 14px; direction: ltr; text-align: left;
+    }
+    button {
+      padding: 10px 18px; border: 0; border-radius: 10px; cursor: pointer;
+      background: #c98a3d; color: #1a120b; font-size: 14px; font-weight: bold;
+      font-family: inherit;
+    }
+    button.secondary { background: transparent; border: 1px solid #6b4a2b; color: #f5e9d3; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .status { margin-top: 14px; font-size: 13px; min-height: 22px; color: #e0a35a; }
+    .hint { margin-top: 10px; font-size: 12px; color: #a98d63; line-height: 2; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">۱۳</div>
+    <h1>اتصال به سرور کافه برقرار نیست</h1>
+    <p>
+      برنامه دسکتاپ به سرور فروشگاه وصل نمی‌شود.<br />
+      کابل شبکه / وای‌فای و روشن بودن سرور را بررسی کنید، سپس تلاش مجدد بزنید.
+    </p>
+    <div class="row">
+      <input id="server" type="text" placeholder="http://192.168.1.100:3080" />
+      <button id="save">ذخیره</button>
+    </div>
+    <div class="row">
+      <button id="retry" style="flex:1">تلاش مجدد</button>
+      <button id="browser" class="secondary">باز کردن در مرورگر</button>
+    </div>
+    <div class="status" id="status">در حال بررسی خودکار اتصال…</div>
+    <div class="hint">
+      نکته: نشانی سرور همان آدرسی است که روی گوشی‌ها باز می‌کنید
+      (مثلاً <span dir="ltr">http://192.168.1.100:3080</span>).
+      روی همان سیستمِ سرور، <span dir="ltr">http://localhost:3080</span> کافی است.
+    </div>
+  </div>
+  <script>
+    (function () {
+      var serverInput = document.getElementById('server');
+      var statusEl = document.getElementById('status');
+      var retryBtn = document.getElementById('retry');
+      var saveBtn = document.getElementById('save');
+      var browserBtn = document.getElementById('browser');
+      var current = '';
+
+      function setStatus(t) { statusEl.textContent = t; }
+
+      function api() { return window.cafe13; }
+
+      function init() {
+        var q = {};
+        try {
+          var sp = new URLSearchParams(window.location.search);
+          if (sp.get('server')) q.server = sp.get('server');
+        } catch (e) {}
+        if (api()) {
+          api().getInfo().then(function (info) {
+            current = info.serverUrl;
+            serverInput.value = q.server || info.serverUrl;
+          });
+        } else {
+          serverInput.value = q.server || 'http://localhost:3080';
+        }
+      }
+
+      function doRetry() {
+        if (!api()) { setStatus('پل دسکتاپ در دسترس نیست.'); return; }
+        retryBtn.disabled = true;
+        setStatus('در حال اتصال…');
+        api().retry().then(function (r) {
+          retryBtn.disabled = false;
+          if (!(r && r.ok)) setStatus('هنوز وصل نشد. چند ثانیه دیگر دوباره تلاش می‌شود.');
+        });
+      }
+
+      saveBtn.addEventListener('click', function () {
+        if (!api()) return;
+        var v = serverInput.value;
+        setStatus('در حال ذخیره…');
+        api().setServerUrl(v).then(function (r) {
+          if (r && r.ok) {
+            current = r.serverUrl;
+            serverInput.value = r.serverUrl;
+            setStatus('ذخیره شد. در حال اتصال…');
+            doRetry();
+          } else {
+            setStatus((r && r.error) || 'نشانی معتبر نیست.');
+          }
+        });
+      });
+
+      retryBtn.addEventListener('click', doRetry);
+
+      browserBtn.addEventListener('click', function () {
+        if (api()) api().openExternal(serverInput.value || current);
+      });
+
+      // Auto-retry every 5 seconds while offline.
+      setInterval(function () {
+        if (!api() || retryBtn.disabled) return;
+        api().checkServer(serverInput.value || current).then(function (r) {
+          if (r && r.ok) {
+            setStatus('اتصال برقرار شد! در حال ورود…');
+            api().retry();
+          } else {
+            setStatus('در حال بررسی خودکار اتصال…');
+          }
+        });
+      }, 5000);
+
+      init();
+    })();
+  </script>
+</body>
+</html>

@@ -47,15 +47,46 @@ const withPWA = require("next-pwa")({
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
-  output: "standalone",
+  // NOTE: no `output: "standalone"` — the Docker image ships full
+  // node_modules and starts via `next start`, and standalone mode breaks
+  // that (`next start` refuses to run) plus relative SQLite resolution.
   images: {
+    // Unoptimized: product photos live on Unsplash and the hosting network
+    // cannot reach it server-side (fetchExternalImage ETIMEDOUT). With this,
+    // <Image> renders a plain <img> and the *browser* loads the photo
+    // directly — no server fetch, no timeout spam. Revisit if photos are
+    // ever vendored into public/.
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "plus.unsplash.com" },
     ],
   },
   experimental: {
-    serverActions: { allowedOrigins: [`localhost:${port}`, `127.0.0.1:${port}`] },
+    // Required on Next 14 for src/instrumentation.ts (DB self-heal on boot).
+    instrumentationHook: true,
+    serverActions: {
+      allowedOrigins: [
+        ...new Set([
+          `localhost:${port}`,
+          `127.0.0.1:${port}`,
+          // Temporary Runflare domain (production). Required for Server Actions
+          // + NextAuth behind Runflare's HTTPS proxy.
+          "farman-7hm-hesabetam.runflare.cloud",
+          // Allow any extra origin configured via env (NEXTAUTH_URL / PUBLIC_APP_URL).
+          ...[process.env.NEXTAUTH_URL, process.env.PUBLIC_APP_URL]
+            .filter(Boolean)
+            .map((u) => {
+              try {
+                return new URL(u).host;
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean),
+        ]),
+      ],
+    },
     optimizePackageImports: ["@prisma/client", "zod", "date-fns", "bcryptjs"],
   },
 };

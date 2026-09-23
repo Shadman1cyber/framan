@@ -27,24 +27,33 @@ function AdminLoginInner() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    if (res?.error) {
+    try {
+      const cleanEmail = email.trim();
+      setEmail(cleanEmail);
+      const res = await signIn("credentials", { email: cleanEmail, password, redirect: false });
+      if (res?.error) {
+        setError(`ایمیل یا رمز عبور اشتباه است (${res.error})`);
+        return;
+      }
+      const session = await getSession();
+      const role = (session?.user as { role?: string } | undefined)?.role;
+      // Only staff may pass this door.
+      if (role !== "OWNER" && role !== "CASHIER" && role !== "ADMIN" && role !== "STAFF") {
+        await signOut({ redirect: false });
+        setError(
+          role
+            ? "این حساب مشتری است؛ ورود پرسنل فقط با حساب صندوق‌دار یا مدیر مجاز است."
+            : "نشست ساخته نشد؛ لطفاً دوباره تلاش کنید.",
+        );
+        return;
+      }
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setError(`خطا در ورود: ${err instanceof Error ? err.message : "نامشخص"}`);
+    } finally {
       setLoading(false);
-      setError("ایمیل یا رمز عبور اشتباه است");
-      return;
     }
-    const session = await getSession();
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    // Only staff may pass this door.
-    if (role !== "OWNER" && role !== "CASHIER" && role !== "ADMIN" && role !== "STAFF") {
-      await signOut({ redirect: false });
-      setLoading(false);
-      setError("این حساب مشتری است؛ ورود پرسنل فقط با حساب صندوق‌دار یا مدیر مجاز است.");
-      return;
-    }
-    setLoading(false);
-    router.push(callbackUrl);
-    router.refresh();
   }
 
   return (
@@ -84,6 +93,7 @@ function AdminLoginInner() {
               className="input !border-coffee-light/25 dark:!bg-dark-surfaceHover"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={(e) => setEmail(e.target.value.trim())}
               required
               autoComplete="email"
               dir="ltr"

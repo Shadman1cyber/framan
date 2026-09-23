@@ -1,17 +1,79 @@
 name: Build iOS
 
+# Rebuilds the native SwiftUI iOS app in ios/App (scheme: App,
+# bundle id: com.farmancoffeeshop.app) on GitHub-hosted macOS.
+#
+# - Every run produces an UNSIGNED .ipa + .app bundle for CI validation
+#   (installable on a Simulator, or re-signable with your own cert).
+# - If Apple signing secrets are configured, it additionally produces a
+#   SIGNED .ipa ready for TestFlight / device install.
+#
+# Required secrets for signed builds (repo Settings -> Secrets -> Actions):
+#   IOS_DIST_CERT_P12_BASE64       - base64 of your Distribution .p12
+#   IOS_DIST_CERT_PASSWORD         - password for the .p12
+#   IOS_PROVISION_PROFILE_BASE64   - base64 of the .mobileprovision matching
+#                                   com.farmancoffeeshop.app
+#   APPLE_TEAM_ID                  - optional, defaults to 7MNLG546S9
+# Optional variable (Repo variables):
+#   IOS_EXPORT_METHOD              - app-store (default) | ad-hoc | development | enterprise
+
 on:
   push:
     branches: [main, master]
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.ts'
+      - 'www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/build-ios.yml'
   workflow_dispatch:
+    inputs:
+      export_method:
+        description: 'Signed export method (only used when signing secrets exist)'
+        required: false
+        default: 'app-store'
+        type: choice
+        options: [app-store, ad-hoc, development, enterprise]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_SCHEME: App
+  PROJECT_DIR: ios/App
+  # Keep in sync with ios/App/App.xcodeproj (PRODUCT_BUNDLE_IDENTIFIER / DEVELOPMENT_TEAM)
+  BUNDLE_ID: com.farmancoffeeshop.app
+  TEAM_ID: ${{ secrets.APPLE_TEAM_ID != '' && secrets.APPLE_TEAM_ID || '7MNLG546S9' }}
+  EXPORT_METHOD: ${{ inputs.export_method || vars.IOS_EXPORT_METHOD || 'app-store' }}
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          ls /Applications | grep -i xcode || true
+          xcodebuild -version || true
+          # Prefer Xcode 16.x; fall back to whatever is default.
+          XCODE16=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n1 || true)
+          if [ -n "$XCODE16" ]; then
+            echo "Selecting $XCODE16"
+            sudo xcode-select -s "$XCODE16/Contents/Developer"
+          else
+            echo "No Xcode_16*.app found, keeping default:"
+            sudo xcode-select -p || true
+          fi
+          xcodebuild -version
+          xcrun --show-sdk-path --sdk iphoneos || true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -19,52 +81,256 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install JS dependencies
         run: npm ci
 
-      - name: Set up CocoaPods
-        run: sudo gem install cocoapods
-
-      - name: Sync Capacitor (generates Podfile and plugin folders)
-        run: npx cap sync ios
-
-      - name: Build iOS app (archive, no code signing)
+      - name: Sync Capacitor iOS shell
+        # The app UI itself is native SwiftUI (SceneDelegate -> FarmanRootView),
+        # but AppDelegate still `import Capacitor`, so the native shell must be synced.
+        # NOTE: this repo is SPM-only (CapApp-SPM/Package.swift). Capacitor 8 does
+        # NOT generate ios/App/Podfile when all plugins ship Package.swift, so a
+        # missing Podfile is expected and must NOT fail the job.
+        # `cap sync` never overwrites your Swift files (AppDelegate/SceneDelegate/
+        # FarmanNativeApp.swift) - it only copies web assets + updates plugins.
         run: |
-          cd ios/App
-          xcodebuild -workspace App.xcworkspace \
-            -scheme App \
+          npx cap sync ios
+
+          echo "--- iOS shell diagnostics ---"
+          ls -la ios/App/ || true
+          find ios -maxdepth 3 -type f \( -name 'Podfile*' -o -name 'capacitor.config.*' -o -name 'Package.swift' \) -print || true
+          if [ ! -f ios/App/App.xcodeproj/project.pbxproj ]; then
+            echo "::error::Missing ios/App/App.xcodeproj/project.pbxproj - native iOS shell is incomplete."
+            exit 1
+          fi
+          if [ -f ios/App/Podfile ]; then
+            echo "Podfile found - CocoaPods install will run."
+          else
+            echo "::notice::No ios/App/Podfile (SPM-only project) - CocoaPods step will be skipped."
+          fi
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/App/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/App/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods dependencies
+        # SPM-only repos have no Podfile - skip instead of failing with
+        # "[!] No Podfile found in the project directory."
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/ios/App/Podfile" ]; then
+            echo "::notice::Skipping pod install - no ios/App/Podfile (SPM-only Capacitor project)."
+            exit 0
+          fi
+          pod --version || sudo gem install cocoapods
+          pod install --repo-update --project-directory="$GITHUB_WORKSPACE/ios/App"
+
+      - name: Resolve Swift packages
+        run: |
+          cd "$PROJECT_DIR"
+          xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme "$APP_SCHEME" || \
+          xcodebuild -resolvePackageDependencies -workspace App.xcworkspace -scheme "$APP_SCHEME"
+
+      - name: List available schemes (diagnostics)
+        run: |
+          cd "$PROJECT_DIR"
+          if [ -f App.xcworkspace/contents.xcworkspacedata ]; then
+            xcodebuild -workspace App.xcworkspace -list
+          else
+            xcodebuild -project App.xcodeproj -list
+          fi
+
+      # ------------------------------------------------------------------
+      # 1) UNSIGNED archive — always runs, proves the Swift code compiles.
+      #    Not installable on a locked iPhone; use for CI validation or
+      #    re-sign it yourself with `codesign` + your provisioning profile.
+      # ------------------------------------------------------------------
+      - name: Archive (unsigned, no code signing)
+        run: |
+          cd "$PROJECT_DIR"
+          rm -rf build
+          if [ -f App.xcworkspace/contents.xcworkspacedata ]; then
+            PROJECT_FLAG="-workspace App.xcworkspace"
+          else
+            PROJECT_FLAG="-project App.xcodeproj"
+          fi
+          # shellcheck disable=SC2086
+          xcodebuild $PROJECT_FLAG \
+            -scheme "$APP_SCHEME" \
             -configuration Release \
-            -destination generic/platform=iOS \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -archivePath build/App.xcarchive \
-            archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-      - name: Package .app from archive
+      - name: Package unsigned .ipa + .app
         run: |
-          cd ios/App
+          cd "$PROJECT_DIR"
           mkdir -p build/export
           cp -R build/App.xcarchive/Products/Applications/App.app build/export/
           ditto -c -k --sequesterRsrc --keepParent \
             build/export/App.app \
             build/export/Farman-iOS-unsigned.zip
+          mkdir -p build/export/Payload
+          cp -R build/export/App.app build/export/Payload/
+          (cd build/export && zip -r FarmanCoffeeShop-unsigned.ipa Payload)
+          rm -rf build/export/Payload
+          ls -lh build/export/
 
-      - name: Create unsigned IPA
-        run: |
-          cd ios/App/build/export
-          mkdir -p Payload
-          cp -R App.app Payload/
-          zip -r FarmanCoffeeShop.ipa Payload
-          rm -rf Payload
-
-      - name: Upload IPA (unsigned)
+      - name: Upload unsigned IPA (CI validation)
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-unsigned
-          path: ios/App/build/export/FarmanCoffeeShop.ipa
+          path: ios/App/build/export/FarmanCoffeeShop-unsigned.ipa
           if-no-files-found: error
 
-      - name: Upload iOS app (unsigned)
+      - name: Upload unsigned .app bundle
         uses: actions/upload-artifact@v4
         with:
           name: ios-release-build
           path: ios/App/build/export/Farman-iOS-unsigned.zip
           if-no-files-found: error
+
+      # ------------------------------------------------------------------
+      # 2) SIGNED archive + export — only when signing secrets are present.
+      #    Produces an installable .ipa (TestFlight for app-store, or direct
+      #    install for ad-hoc/development).
+      # ------------------------------------------------------------------
+      - name: Check for signing secrets
+        id: signing
+        env:
+          P12_B64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          PROFILE_B64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          if [ -n "$P12_B64" ] && [ -n "$PROFILE_B64" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets found - signed build will run."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No iOS signing secrets - skipping signed IPA. Unsigned artifacts above still validate the build. To get an installable IPA, add secrets IOS_DIST_CERT_P12_BASE64 / IOS_DIST_CERT_PASSWORD / IOS_PROVISION_PROFILE_BASE64."
+          fi
+
+      - name: Import distribution certificate
+        if: steps.signing.outputs.available == 'true'
+        env:
+          P12_B64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          echo "$P12_B64" | base64 --decode > /tmp/dist.p12
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PWD="$(openssl rand -base64 24)"
+          echo "$KEYCHAIN_PWD" > /tmp/keychain-pwd.txt
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security import /tmp/dist.p12 -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+          rm /tmp/dist.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "Imported signing certificate."
+
+      - name: Install provisioning profile
+        if: steps.signing.outputs.available == 'true'
+        env:
+          PROFILE_B64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_B64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/farman.mobileprovision
+          PROFILE_XML=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/farman.mobileprovision)
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$PROFILE_XML" 2>/dev/null || echo unknown)
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$PROFILE_XML" 2>/dev/null || echo "Farman Distribution")
+          echo "Installed provisioning profile: $PROFILE_NAME (UUID: $PROFILE_UUID)"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+      - name: Archive (signed)
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          cd "$PROJECT_DIR"
+          if [ -f App.xcworkspace/contents.xcworkspacedata ]; then
+            PROJECT_FLAG="-workspace App.xcworkspace"
+          else
+            PROJECT_FLAG="-project App.xcodeproj"
+          fi
+          if [ "$EXPORT_METHOD" = "development" ]; then
+            SIGN_IDENTITY="Apple Development"
+          else
+            SIGN_IDENTITY="Apple Distribution"
+          fi
+          echo "Using identity: $SIGN_IDENTITY"
+          # shellcheck disable=SC2086
+          xcodebuild $PROJECT_FLAG \
+            -scheme "$APP_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App-signed.xcarchive \
+            archive \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+            PROVISIONING_PROFILE_SPECIFIER="${PROFILE_NAME:-Farman Distribution}"
+
+      - name: Export signed IPA
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          cd "$PROJECT_DIR"
+          PROFILE_NAME="${PROFILE_NAME:-Farman Distribution}"
+          echo "Exporting with method=$EXPORT_METHOD team=$TEAM_ID profile=$PROFILE_NAME"
+          cat > /tmp/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${EXPORT_METHOD}</string>
+            <key>teamID</key>
+            <string>${TEAM_ID}</string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>destination</key>
+            <string>export</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${BUNDLE_ID}</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          sed -i '' "s|\${PROFILE_NAME}|$PROFILE_NAME|g" /tmp/ExportOptions.plist || sed -i "s|\${PROFILE_NAME}|$PROFILE_NAME|g" /tmp/ExportOptions.plist || true
+          cat /tmp/ExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath build/App-signed.xcarchive \
+            -exportPath build/signed-export \
+            -exportOptionsPlist /tmp/ExportOptions.plist
+          ls -lh build/signed-export/
+
+      - name: Upload signed IPA (installable)
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-signed
+          path: ios/App/build/signed-export/*.ipa
+          if-no-files-found: error
+
+      - name: Clean up keychain
+        if: always() && steps.signing.outputs.available == 'true'
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+          rm -f /tmp/ExportOptions.plist /tmp/keychain-pwd.txt || true
