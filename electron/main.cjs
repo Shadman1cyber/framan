@@ -127,8 +127,15 @@ function normalizeUrl(u) {
 
 function resolveMode() {
   const args = parseArgs(process.argv.slice(1));
+  // Explicit CLI flags always win (useful for testing / shortcuts).
   if (args.embedded) return 'embedded';
   if (args.remote) return 'remote';
+  // Otherwise honor the mode saved in the settings window (tray → تنظیمات
+  // سرور), so the manager can switch the installed app between its local
+  // server and a shop server without touching shortcuts or files.
+  const cfg = readConfig();
+  if (cfg.mode === 'remote') return 'remote';
+  if (cfg.mode === 'embedded') return 'embedded';
   // The installed app embeds the whole platform (offline-first, like the
   // mobile apps). Dev runs (`npm run desktop:dev`) stay thin clients to the
   // dev server.
@@ -536,6 +543,12 @@ function buildTray() {
         printCurrentPage(false);
       },
     },
+    {
+      label: 'تنظیمات سرور…',
+      click: function () {
+        openSettingsWindow();
+      },
+    },
   ].concat(
     embedded
       ? [
@@ -653,8 +666,12 @@ ipcMain.handle('cafe13:set-server-url', function (event, url) {
 
 ipcMain.handle('cafe13:retry', function () {
   return checkServer(resolveServerUrl(), HEALTH_TIMEOUT_MS).then(function (r) {
-    if (r.ok) showOnline();
-    else if (!localServer) showOffline();
+    // On explicit user retry, always attempt the load even if the
+    // main-process probe failed: the renderer's Chromium networking is the
+    // proven path (system browsers reach servers the Node probe sometimes
+    // cannot, e.g. proxy quirks). A truly dead server bounces straight back
+    // via did-fail-load → offline page, so this cannot strand the user.
+    showOnline();
     return r;
   });
 });
@@ -672,6 +689,84 @@ ipcMain.handle('cafe13:open-external', function (event, url) {
 
 ipcMain.handle('cafe13:backup-db', function () {
   return backupDatabase();
+});
+
+// ── Server settings window (tray → تنظیمات سرور) ────────────────────────────
+// Lets the manager pick the backend themselves: the app's own local server
+// (embedded, offline-first) or an explicit shop-server address (remote).
+// Saved to userData config; the app relaunches to apply the switch.
+let settingsWindow = null;
+
+function openSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 460,
+    height: 430,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'تنظیمات سرور — Cafe 13',
+    autoHideMenuBar: true,
+    show: false,
+    parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+    modal: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  settingsWindow.once('ready-to-show', function () {
+    if (settingsWindow) settingsWindow.show();
+  });
+  settingsWindow.on('closed', function () {
+    settingsWindow = null;
+  });
+  settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
+}
+
+ipcMain.handle('cafe13:get-settings', function () {
+  const cfg = readConfig();
+  return {
+    mode: resolveMode(),
+    savedMode: cfg.mode || '',
+    serverUrl: normalizeUrl(cfg.serverUrl) || '',
+    currentUrl: resolveServerUrl(),
+    lanIp: detectLanIp(),
+    localPort: localServer ? localServer.port : null,
+  };
+});
+
+ipcMain.handle('cafe13:save-settings', function (event, opts) {
+  const mode = opts && opts.mode === 'remote' ? 'remote' : 'embedded';
+  const patch = { mode: mode };
+  if (mode === 'remote') {
+    const clean = normalizeUrl(opts && opts.serverUrl);
+    if (!clean) return { ok: false, error: 'نشانی سرور معتبر نیست' };
+    patch.serverUrl = clean;
+  }
+  writeConfig(patch);
+  return { ok: true, mode: mode, needsRestart: true };
+});
+
+ipcMain.handle('cafe13:restart-app', function () {
+  // Relaunch without mode CLI flags so the saved settings take effect.
+  const filtered = process.argv.slice(1).filter(function (a) {
+    return (
+      a !== '--embedded' &&
+      a !== '--fullscreen' &&
+      a !== '--kiosk' &&
+      a.indexOf('--remote=') !== 0 &&
+      a.indexOf('--server=') !== 0
+    );
+  });
+  app.relaunch({ args: filtered });
+  app.exit(0);
+  return { ok: true };
 });
 
 app.on('second-instance', function (event, argv) {

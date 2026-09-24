@@ -26,4 +26,13 @@ contextBridge.exposeInMainWorld('cafe13', {
   openExternal: function (url) {
     return ipcRenderer.invoke('cafe13:open-external', url);
   },
+  getSettings: function () {
+    return ipcRenderer.invoke('cafe13:get-settings');
+  },
+  saveSettings: function (opts) {
+    return ipcRenderer.invoke('cafe13:save-settings', opts || {});
+  },
+  restartApp: function () {
+    return ipcRenderer.invoke('cafe13:restart-app');
+  },
 });
