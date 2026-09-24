@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/home/ashimashi/Desktop/farman-coffeeShop-CTO-v2/src/app/layout":["static/media/2e47d0615f405746-s.p.woff2","static/media/e0373018c89c9a06-s.p.woff2","static/media/67a1d1d266ed13d1-s.p.woff2","static/media/2ce1edd91487efd1-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';

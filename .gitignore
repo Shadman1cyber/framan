@@ -15,6 +15,9 @@ graphify-out/
 tsconfig.tsbuildinfo
 worker/dist.cjs
 dist-desktop/
+prisma/dev-desktop.db
+prisma/dev-desktop.db-journal
+prisma/desktop-meta.json
 # Native Android app (android-app/): local SDK path, build outputs, keystores.
 android-app/local.properties
 android-app/**/*.keystore

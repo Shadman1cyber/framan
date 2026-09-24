@@ -9,7 +9,9 @@ import crypto from "crypto";
  * without touching callers. Internal filesystem paths are never exposed.
  */
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+// UPLOADS_DIR env override exists for embedded runtimes (Windows desktop
+// app) that cannot rely on cwd pointing at a writable location.
+const UPLOAD_DIR = path.join(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
 const PUBLIC_PREFIX = "/api/uploads";
 
 export const ALLOWED_IMAGE_TYPES: Record<string, string> = {

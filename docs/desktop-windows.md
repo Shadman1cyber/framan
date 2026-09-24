@@ -1,7 +1,9 @@
 # Cafe 13 — Universal Native Desktop for Windows (7 / 8.1 / 10 / 11)
 
 One installer family covers every Windows version from 7 SP1 to 11, from a
-single codebase (`electron/`). No admin rights needed.
+single codebase (`electron/`). No admin rights needed. **Offline-first, like
+the iOS/Android apps**: the app embeds the whole platform and works with zero
+connectivity.
 
 ## What you get
 
@@ -18,82 +20,99 @@ Windows 7 SP1 / 8.1 — Electron 23+ requires Windows 10+. Windows 10/11 run
 Electron 22 apps without issues, so pinning 22 is what makes the build
 *universal*. Do **not** upgrade `electron` past 22 without dropping Win 7/8.1.
 
-## Architecture: thin client (same model as the mobile app)
+## Offline-first architecture (mirrors the mobile apps)
 
-The desktop window loads the shop **server URL** (default
-`http://localhost:3080`). The Next.js 14 backend needs Node ≥ 18 +
-PostgreSQL, which cannot live inside a Win7-compatible runtime — so the
-server runs once (Docker / `./run.sh --prod` / `./run.sh --docker` on the
-back-office PC) and every cashier/kiosk terminal connects to it over the LAN.
-This is exactly how the Capacitor Android/iOS app already works.
+The iOS/Android apps keep a local database and sync when online. The desktop
+app embeds the **entire platform inside itself**:
 
-- Server unreachable → bundled Persian offline page (auto-retry every 5 s).
-- Menu caching offline → PWA service worker (already in the web app).
-- External links (payments, docs) → opened in the system browser, never
-  trapped inside the app window.
+```
+Electron 22 window (Chromium 108)
+  └─ main process (Node 16 + undici/web-streams polyfills)
+      ├─ embedded Next.js 14 production server (.next)
+      └─ local SQLite database (userData/cafe13.db, seeded template)
+```
+
+- **Zero connectivity needed** — orders, menu, inventory, staff, financial
+  dashboard, QR codes: everything runs locally on the manager PC.
+- The server binds `0.0.0.0`, so **phones and other terminals on the LAN
+  connect to the manager PC** (`PUBLIC_APP_URL` = its LAN IP, auto-detected).
+- The local DB is a seeded template copied to `%APPDATA%\Cafe13\cafe13.db`
+  on first run. Tray menu → **نسخه پشتیبان دیتابیس** makes timestamped
+  backups to `%APPDATA%\Cafe13\backups\`.
+- **REMOTE mode** (`--remote=http://...`) — thin client to an existing shop
+  server instead of the embedded one (same model as the Capacitor shells);
+  offline shows the bundled Persian page with auto-retry.
+
+Auth (`NEXTAUTH_SECRET`) is generated per installation and stored in
+`%APPDATA%\Cafe13\cafe13-desktop-config.json`. Login: `/admin/login`,
+owner account `admin@cafe13.ir` / `admin1234` (from the seed; change it!).
 
 ## Build
 
-On Windows (PowerShell), Node 20 LTS:
-
-```powershell
-.\scripts\build-windows.ps1          # x64 installer + portable
-.\scripts\build-windows.ps1 -Arch all  # x64 + ia32
-```
-
-Or via npm (any OS with Node 20+; Windows artifacts cross-compile on Linux
-too for smoke tests, final release should be built on Windows):
+Run the full pipeline (Node 20 LTS; **Windows for release** — the runner
+produces Windows Prisma engines; any OS for smoke tests):
 
 ```bash
-npm run desktop:dist:win    # x64 + ia32, NSIS + Portable
-npm run desktop:dist:win64  # 64-bit only
+npm run desktop:build          # x64 + ia32, NSIS + Portable (full pipeline)
+npm run desktop:build:x64      # 64-bit only
 ```
 
+The pipeline (`scripts/build-desktop.cjs`): generate the SQLite Prisma
+client → `next build` → seeded template DB (`prisma/dev-desktop.db`) →
+cafe-id meta → electron-builder.
+
+> NOTE: a desktop build regenerates `@prisma/client` for **SQLite**. Run
+> `npm run build` (or `./run.sh`) afterwards to restore the Postgres client
+> for the server deployment.
+
 GitHub Actions (`.github/workflows/build-windows-desktop.yml`) builds and
-uploads the `.exe` artifacts automatically.
+uploads the `.exe` artifacts automatically on push.
 
 ## Run / configure
 
 ```bash
-npm run dev                                   # start the server first
-npm run desktop:dev                           # desktop shell → localhost:3080
+npm run dev                 # (optional) dev server
+npm run desktop:dev         # thin client → localhost:3080
+npm run desktop:dev:embedded # embedded local server + local DB (offline)
 ```
 
-Server URL precedence (first match wins):
+The installed app defaults to **embedded mode** (offline-first).
 
-1. CLI flag: `Cafe13.exe --server=http://192.168.1.100:3080`
-2. Env: `DESKTOP_SERVER_URL` (also honors `CAPACITOR_SERVER_URL`, `PUBLIC_APP_URL`)
-3. Saved in-app value (offline page → ذخیره, stored in `%APPDATA%\Cafe 13\`)
-4. Default: `http://localhost:3080` (server on the same PC)
+Remote mode URL precedence: CLI `--remote=`/`--server=` → env
+(`DESKTOP_SERVER_URL` / `CAPACITOR_SERVER_URL` / `PUBLIC_APP_URL`) → saved
+in-app value → `http://localhost:3080`.
 
-Other flags: `--entry=/admin/login` (start page), `--kiosk` (fullscreen
-kiosk), `--fullscreen`.
+Other flags: `--entry=/admin/login` (start page), `--port=NNNN` (embedded
+server port), `--kiosk` (fullscreen kiosk), `--fullscreen`.
 
 Daily operation (tray icon, کنار ساعت ویندوز):
 
 - نمایش / مخفی کردن، بارگذاری مجدد، تمام‌صفحه
 - اجرای خودکار با ویندوز (auto-start, no admin needed)
-- چاپ رسید صفحه جاری (receipt printing, silent option via `window.cafe13.print({silent:true})`)
+- چاپ رسید صفحه جاری (receipt printing)
+- نسخه پشتیبان دیتابیس (DB backup — embedded mode)
 
 ## OS support matrix
 
 | OS | Arch | Notes |
 |---|---|---|
-| Windows 7 SP1 | x64 / ia32 | Needs [KB3063858](https://support.microsoft.com) & Aero-less fallback OK; use ia32 build on 32-bit |
+| Windows 7 SP1 | x64 / ia32 | Needs Platform Update (KB2670838); use ia32 on 32-bit |
 | Windows 8.1 | x64 / ia32 | Runs as-is |
 | Windows 10 (all) | x64 | Runs as-is |
 | Windows 11 | x64 | Runs as-is |
 
 If SmartScreen warns on first launch (unsigned build): *More info → Run
 anyway*. For public distribution, sign with a code-signing cert
-(`CSC_LINK`/`CSC_KEY_PASSWORD`) — optional, never required for install
-(`requestedExecutionLevel: asInvoker`, per-user install).
+(`CSC_LINK`/`CSC_KEY_PASSWORD`) — optional, never required for install.
 
 ## Troubleshooting
 
-- **Offline page on launch** → server PC off / wrong IP / firewall. Allow
-  Node.js through Windows Firewall on the server PC; verify
-  `http://<server-ip>:3080` in a browser first.
+- **Windows Firewall prompt** on first launch → Allow (the embedded server
+  binds 0.0.0.0 for LAN access). Private networks only.
 - **Old Win7 without updates** → install SP1 + Platform Update (KB2670838).
-- **Printers** → use the tray “چاپ رسید” or in-app print button; set the
+- **Printers** → use the tray "چاپ رسید" or in-app print button; set the
   receipt printer as default for silent printing.
+- **Phone can't connect** → same Wi-Fi/LAN, firewall allows the app, use the
+  manager PC's IP (`http://<lan-ip>:<port>`).
+- **Data** → lives in `%APPDATA%\Cafe13\cafe13.db`; use the tray backup
+  regularly. Deleting app data resets to the seeded template.

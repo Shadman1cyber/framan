@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تنظیمات سرور — Cafe 13</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: #1a120b; color: #f5e9d3;
+      font-family: Tahoma, "Segoe UI", Vazirmatn, sans-serif;
+      display: flex; align-items: flex-start; justify-content: center; padding: 20px;
+    }
+    .card { width: 100%; }
+    h1 { font-size: 17px; margin: 0 0 4px; }
+    .sub { font-size: 12px; color: #a98d63; margin: 0 0 14px; line-height: 1.9; }
+    .opt {
+      display: flex; gap: 10px; align-items: flex-start; padding: 12px;
+      border: 1px solid #6b4a2b; border-radius: 12px; margin-bottom: 10px; cursor: pointer;
+    }
+    .opt.active { border-color: #c98a3d; background: #2b1d12; }
+    .opt input { margin-top: 4px; accent-color: #c98a3d; }
+    .opt b { font-size: 14px; display: block; }
+    .opt span { font-size: 12px; color: #d9c39a; line-height: 1.9; }
+    input[type="text"] {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #6b4a2b;
+      background: #140d07; color: #f5e9d3; font-size: 14px; direction: ltr; text-align: left;
+      margin-top: 4px;
+    }
+    input[type="text"]:disabled { opacity: .45; }
+    .row { display: flex; gap: 8px; margin-top: 14px; }
+    button {
+      flex: 1; padding: 11px; border: 0; border-radius: 10px; cursor: pointer;
+      background: #c98a3d; color: #1a120b; font-size: 14px; font-weight: bold;
+      font-family: inherit;
+    }
+    button.secondary { background: transparent; border: 1px solid #6b4a2b; color: #f5e9d3; flex: 0 0 auto; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .status { margin-top: 12px; font-size: 12px; min-height: 20px; color: #e0a35a; line-height: 1.9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>اتصال برنامه به کدام سرور باشد؟</h1>
+    <p class="sub" id="current">در حال خواندن تنظیمات…</p>
+
+    <label class="opt" id="optEmbedded">
+      <input type="radio" name="mode" value="embedded" />
+      <div>
+        <b>سرور داخلی همین سیستم (پیشنهاد می‌شود)</b>
+        <span>برنامه با دیتابیس خودش روی همین کامپیوتر کار می‌کند؛ بدون نیاز به اینترنت یا کامپیوتر دیگر.</span>
+      </div>
+    </label>
+
+    <label class="opt" id="optRemote">
+      <input type="radio" name="mode" value="remote" />
+      <div>
+        <b>اتصال به سرور فروشگاه</b>
+        <span>برنامه به آدرسی که وارد می‌کنید وصل می‌شود (مثلاً کامپیوتر صندوق یا سرور اصلی).</span>
+        <input type="text" id="server" placeholder="http://192.168.1.100:3080" />
+      </div>
+    </label>
+
+    <div class="row">
+      <button id="save">ذخیره و راه‌اندازی مجدد</button>
+      <button id="close" class="secondary">بستن</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+  <script>
+    (function () {
+      var serverInput = document.getElementById('server');
+      var statusEl = document.getElementById('status');
+      var currentEl = document.getElementById('current');
+      var saveBtn = document.getElementById('save');
+      var closeBtn = document.getElementById('close');
+      var optEmbedded = document.getElementById('optEmbedded');
+      var optRemote = document.getElementById('optRemote');
+
+      function api() { return window.cafe13; }
+      function setStatus(t) { statusEl.textContent = t; }
+      function selectedMode() {
+        var r = document.querySelector('input[name="mode"]:checked');
+        return r ? r.value : 'embedded';
+      }
+      function refresh() {
+        var m = selectedMode();
+        optEmbedded.className = 'opt' + (m === 'embedded' ? ' active' : '');
+        optRemote.className = 'opt' + (m === 'remote' ? ' active' : '');
+        serverInput.disabled = (m !== 'remote');
+      }
+
+      var radios = document.querySelectorAll('input[name="mode"]');
+      for (var i = 0; i < radios.length; i++) {
+        radios[i].addEventListener('change', refresh);
+      }
+
+      function init() {
+        if (!api()) { setStatus('پل دسکتاپ در دسترس نیست.'); return; }
+        api().getSettings().then(function (s) {
+          var mode = (s && s.savedMode) || (s && s.mode) || 'embedded';
+          var r = document.querySelector('input[name="mode"][value="' + mode + '"]');
+          if (r) r.checked = true;
+          if (s && s.serverUrl) serverInput.value = s.serverUrl;
+          var cur = 'وضعیت فعلی: ' + ((s && s.mode === 'remote') ? 'متصل به سرور فروشگاه' : 'سرور داخلی');
+          cur += ' — ' + ((s && s.currentUrl) || '');
+          if (s && s.lanIp) cur += ' — آی‌پی این سیستم: ' + s.lanIp;
+          currentEl.textContent = cur;
+          refresh();
+        });
+      }
+
+      saveBtn.addEventListener('click', function () {
+        if (!api()) return;
+        saveBtn.disabled = true;
+        setStatus('در حال ذخیره…');
+        api().saveSettings({ mode: selectedMode(), serverUrl: serverInput.value }).then(function (r) {
+          if (r && r.ok) {
+            setStatus('ذخیره شد. برنامه دوباره راه‌اندازی می‌شود…');
+            setTimeout(function () { api().restartApp(); }, 800);
+          } else {
+            saveBtn.disabled = false;
+            setStatus((r && r.error) || 'نشانی معتبر نیست.');
+          }
+        });
+      });
+
+      closeBtn.addEventListener('click', function () { window.close(); });
+
+      init();
+    })();
+  </script>
+</body>
+</html>

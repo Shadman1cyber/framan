@@ -5,40 +5,56 @@
 #   Windows 7 SP1 and Windows 8.1. Electron 23+ hard-requires Windows 10+.
 #   Windows 10/11 run Electron 22 apps fine, so this single build covers 7→11.
 #
-# Why NSIS (assisted) + Portable, x64 + ia32?
-#   - `oneClick: false` → per-user install without admin rights (shop PCs).
-#   - `requestedExecutionLevel: asInvoker` → no UAC prompt, Win7 friendly.
-#   - ia32 target covers 32-bit Windows 7/8.1 machines still common in shops.
-#   - Portable exe covers USB-stick / no-install cashier terminals.
+# OFFLINE-FIRST (like the iOS/Android apps): the app embeds the full platform
+# — the Next.js production build (.next-desktop; never the dev server's
+# .next) served by an embedded server inside the Electron main process
+# (Node 16 + undici/web-streams polyfills) against a local SQLite database
+# (prisma/dev-desktop.db, copied to userData on first run). Zero connectivity
+# required. The manager PC hosts LAN terminals.
+#
+# asar is OFF: the embedded server (Next + Prisma engines + SQLite) performs
+# real filesystem operations and spawns workers — an unpacked layout is the
+# robust choice for an internal POS tool.
 appId: com.farmancoffeeshop.app
 productName: Cafe 13
 copyright: Copyright © Cafe 13
 artifactName: Cafe13-Desktop-${version}-${arch}.${ext}
 
-# The thin-client shell needs no Next.js files: server runs separately.
-# Explicitly exclude node_modules — the shell uses only Electron + Node
-# built-ins, and bundling deps would triple the installer size for nothing.
 files:
+  # Desktop shell
   - electron/**/*
   - build/icon.ico
   - build/icon.png
   - package.json
-  - '!node_modules/**/*'
+  # Embedded platform (offline-first)
+  - .next-desktop/**/*
+  - public/**/*
+  - prisma/dev-desktop.db
+  - prisma/desktop-meta.json
+  - node_modules/**/*
+  - node_modules/.prisma/**/*
   - '!**/*.map'
 
 directories:
   output: dist-desktop
   buildResources: build
 
-asar: true
+# node_modules/.prisma (generated client + query engines) is invisible to
+# electron-builder's file matchers (dot-directory) and dep-tree pruning (no
+# package.json depends on it) — yet @prisma/client resolves its engines from
+# exactly that path at runtime. scripts/electron-after-pack.cjs copies it
+# with plain fs after packing (before the installers are created).
+afterPack: ./scripts/electron-after-pack.cjs
+
+asar: false
 
 win:
   icon: build/icon.ico
   target:
     - target: nsis
-      arch: [x64, ia32]
+      arch: [x64]
     - target: portable
-      arch: [x64, ia32]
+      arch: [x64]
   requestedExecutionLevel: asInvoker
   signAndEditExecutable: false
 

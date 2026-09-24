@@ -37,6 +37,12 @@
     button:disabled { opacity: .55; cursor: wait; }
     .status { margin-top: 14px; font-size: 13px; min-height: 22px; color: #e0a35a; }
     .hint { margin-top: 10px; font-size: 12px; color: #a98d63; line-height: 2; }
+    .diag {
+      margin-top: 12px; padding: 8px 10px; border-radius: 8px; text-align: left;
+      background: #140d07; border: 1px solid #4a3620;
+      font-size: 11px; line-height: 1.9; color: #c9a66c;
+      direction: ltr; word-break: break-all; display: none; white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -56,6 +62,7 @@
       <button id="browser" class="secondary">باز کردن در مرورگر</button>
     </div>
     <div class="status" id="status">در حال بررسی خودکار اتصال…</div>
+    <div class="diag" id="diag"></div>
     <div class="hint">
       نکته: نشانی سرور همان آدرسی است که روی گوشی‌ها باز می‌کنید
       (مثلاً <span dir="ltr">http://192.168.1.100:3080</span>).
@@ -70,8 +77,18 @@
       var saveBtn = document.getElementById('save');
       var browserBtn = document.getElementById('browser');
       var current = '';
+      var diagEl = document.getElementById('diag');
 
       function setStatus(t) { statusEl.textContent = t; }
+
+      function showDiag(info) {
+        if (!info) return;
+        var lines = ['mode: ' + (info.mode || '?'), 'server: ' + (info.serverUrl || '?')];
+        if (info.bootError) lines.push('boot error: ' + info.bootError);
+        if (info.dbPath) lines.push('db: ' + info.dbPath);
+        diagEl.textContent = lines.join('\n');
+        diagEl.style.display = 'block';
+      }
 
       function api() { return window.cafe13; }
 
@@ -85,6 +102,7 @@
           api().getInfo().then(function (info) {
             current = info.serverUrl;
             serverInput.value = q.server || info.serverUrl;
+            showDiag(info);
           });
         } else {
           serverInput.value = q.server || 'http://localhost:3080';

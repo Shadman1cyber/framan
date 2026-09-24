@@ -47,6 +47,11 @@ const withPWA = require("next-pwa")({
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
+  // Desktop (Electron) production builds use a separate output dir so they
+  // never clobber the dev server's `.next` (dev on-demand compilation would
+  // otherwise rewrite the production chunks). Set NEXT_DIST_DIR=.next-desktop
+  // in scripts/build-desktop.cjs and electron/main.cjs (embedded boot).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // NOTE: no `output: "standalone"` — the Docker image ships full
   // node_modules and starts via `next start`, and standalone mode breaks
   // that (`next start` refuses to run) plus relative SQLite resolution.

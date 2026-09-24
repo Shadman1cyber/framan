@@ -7,9 +7,11 @@ on:
       - 'electron/**'
       - 'build/icon.*'
       - 'electron-builder.yml'
+      - 'prisma/schema.prisma'
+      - 'prisma/seed.ts'
+      - 'scripts/build-desktop.cjs'
       - 'package.json'
       - 'package-lock.json'
-      - 'scripts/build-windows.ps1'
       - '.github/workflows/build-windows-desktop.yml'
   workflow_dispatch:
 
@@ -28,10 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build installers (x64 + ia32, NSIS + Portable)
-        run: npx electron-builder --win nsis portable --x64 --ia32
+      # Full pipeline: SQLite client + next build + seeded template DB +
+      # cafe-id meta + NSIS (x64+ia32) + Portable installers. Windows runner
+      # produces Windows Prisma engines — required for the package to work.
+      - name: Build desktop installers
+        run: node scripts/build-desktop.cjs
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          NEXT_TELEMETRY_DISABLED: '1'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -39,5 +45,4 @@ jobs:
           name: cafe13-desktop-windows
           path: |
             dist-desktop/*.exe
-            dist-desktop/*.yml
           if-no-files-found: error
