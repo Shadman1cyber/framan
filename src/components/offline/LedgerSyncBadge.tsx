@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { retryAllFailedLedger, useLedgerSync } from "@/lib/offline/ledger-sync";
 
 export function LedgerSyncBadge() {
+  const pathname = usePathname();
   const { state, pending, failed, syncNow } = useLedgerSync();
 
+  if (pathname === "/admin") return null;
   if (state === "idle" || state === "synced") return null;
   if (state === "offline" && pending === 0 && failed === 0) return null;
 

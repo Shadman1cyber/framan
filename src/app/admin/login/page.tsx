@@ -74,7 +74,7 @@ function AdminLoginInner() {
 
         <form
           onSubmit={submit}
-          className="space-y-4 rounded-3xl border border-coffee-light/30 bg-[#3a2c20] p-6 shadow-elevated dark:border-coffee/25 dark:bg-[#3a2c20] dark:shadow-elevated"
+          className="space-y-4 rounded-3xl border border-coffee-light/30 bg-cream-200 p-6 shadow-elevated dark:border-coffee/25 dark:bg-cream-200 dark:shadow-elevated"
         >
           <div className="flex items-center justify-center gap-2 text-xs font-medium text-espresso/70">
             <span aria-hidden="true">🔐</span>

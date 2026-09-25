@@ -107,16 +107,16 @@ export default async function HomePage({
         {!session?.user && (
           <section
             aria-labelledby="club-heading"
-            className="mb-10 overflow-hidden rounded-3xl bg-gradient-to-l from-olive to-olive-600 p-6 text-cream shadow-card md:p-8"
+            className="mb-10 overflow-hidden rounded-3xl bg-gradient-to-l from-olive to-olive-600 p-6 text-espresso shadow-card md:p-8"
           >
             <div className="max-w-xl">
-              <p className="text-xs font-semibold uppercase tracking-wide text-cream/70">
+              <p className="text-xs font-semibold uppercase tracking-wide text-espresso/70">
                 باشگاه مشتریان
               </p>
-              <h2 id="club-heading" className="heading-section mt-2 text-cream">
+              <h2 id="club-heading" className="heading-section mt-2 text-espresso">
                 عضو شوید و تخفیف بگیرید
               </h2>
-              <p className="mt-3 text-sm leading-relaxed text-cream/85">
+              <p className="mt-3 text-sm leading-relaxed text-espresso/85">
                 به باشگاه مشتریان کافه ۱۳ بپیوندید؛ نسبت به تخفیف‌های ویژه،
                 مناسبت‌ها و پیشنهادهای اختصاصی زودتر از همه آگاه می‌شوید
                 و از امتیازهای خرید هر بار لذت می‌برید.
@@ -130,12 +130,12 @@ export default async function HomePage({
                 </Link>
                 <Link
                   href="/login"
-                  className="rounded-xl border border-cream/40 px-5 py-3 text-sm font-medium text-cream transition-colors hover:bg-olive-700"
+                  className="rounded-xl border border-espresso/40 px-5 py-3 text-sm font-medium text-espresso transition-colors hover:bg-olive-700"
                 >
                   ورود
                 </Link>
               </div>
-              <p className="mt-4 text-xs text-cream/60">
+              <p className="mt-4 text-xs text-espresso/60">
                 عضویت رایگان است؛ کافی‌ست یک حساب کاربری بسازید.
               </p>
             </div>

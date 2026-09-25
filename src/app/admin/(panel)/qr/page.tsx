@@ -25,7 +25,7 @@ export default async function AdminQrPage() {
         dataUrl = await QRCode.toDataURL(`${BASE_URL}/?table=${q.code}`, {
           margin: 1,
           width: 320,
-          color: { dark: "#3E3A33", light: "#FFFDF7" },
+          color: { dark: "#122B48", light: "#FBF9F5" },
         });
       } catch {}
       return {

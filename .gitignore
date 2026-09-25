@@ -1,5 +1,6 @@
 node_modules
 .next
+.next-[0-9]*
 .env
 .env.*
 *.log

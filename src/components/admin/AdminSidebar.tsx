@@ -51,8 +51,8 @@ function NavLinks({ role, cashierTabs, onNavigate }: { role: string; cashierTabs
                 aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
                   active
-                    ? "bg-olive text-cream shadow-soft"
-                    : "text-espresso/80 hover:bg-beige dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover"
+                    ? "border border-saffron/50 bg-lapis text-espresso shadow-soft"
+                    : "text-muted hover:bg-cream-200 dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover"
                 }`}
               >
                 <span aria-hidden="true" className="w-5 text-center">{n.icon}</span>
@@ -69,7 +69,7 @@ function NavLinks({ role, cashierTabs, onNavigate }: { role: string; cashierTabs
 function Brand() {
   return (
     <div className="mb-6 flex items-center gap-2">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-olive text-cream font-bold">ف</span>
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-lapis text-espresso font-bold">ف</span>
       <div className="flex flex-col leading-tight">
         <span className="font-bold text-espresso dark:text-dark-text">پنل مدیریت</span>
         <span className="text-[11px] text-muted dark:text-dark-textSecondary">کافه ۱۳</span>
@@ -93,9 +93,9 @@ export function AdminSidebar({ role, cashierTabs }: { role: string; cashierTabs:
   return (
     <>
       {/* Mobile top bar with hamburger */}
-      <div className="admin-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-coffee/10 bg-cream-50/90 px-4 py-3 backdrop-blur md:hidden dark:border-dark-border dark:bg-dark-surface/90">
+      <div className="admin-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-coffee/20 bg-cream-50/95 px-4 py-3 backdrop-blur md:hidden dark:border-dark-border dark:bg-dark-surface/90">
         <div className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-olive text-cream font-bold text-sm">ف</span>
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-lapis text-espresso font-bold text-sm">ف</span>
           <span className="font-bold text-espresso dark:text-dark-text">پنل مدیریت</span>
         </div>
         <button
@@ -110,7 +110,7 @@ export function AdminSidebar({ role, cashierTabs }: { role: string; cashierTabs:
       </div>
 
       {/* Desktop sidebar — attached to the RIGHT edge (natural in RTL) */}
-      <aside className="admin-desktop-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-s border-coffee/10 bg-cream-50 p-4 md:flex dark:border-dark-border dark:bg-dark-surface">
+      <aside className="admin-desktop-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-s border-coffee/20 bg-cream-50 p-4 md:flex dark:border-dark-border dark:bg-dark-surface">
         <Brand />
         <NavLinks role={role} cashierTabs={cashierTabs} />
         <LogoutButton callbackUrl="/admin/login" className="btn-secondary mt-4 w-full shrink-0 text-sm" />
@@ -124,7 +124,7 @@ export function AdminSidebar({ role, cashierTabs }: { role: string; cashierTabs:
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-          <div className="admin-drawer absolute inset-y-0 right-0 flex w-72 max-w-full flex-col border-s border-coffee/10 bg-cream-50 p-4 shadow-elevated animate-fade-in dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card">
+          <div className="admin-drawer absolute inset-y-0 right-0 flex w-72 max-w-full flex-col border-s border-coffee/20 bg-cream-50 p-4 shadow-elevated animate-fade-in dark:border-dark-border dark:bg-dark-surface dark:shadow-dark-card">
             <div className="flex items-center justify-between">
               <Brand />
               <button
