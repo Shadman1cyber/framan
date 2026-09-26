@@ -117,15 +117,15 @@ export async function getGoalsWithProgress(): Promise<GoalProgress[]> {
 export type MatrixQuadrant = "KEEP" | "REVIEW_TRAINING" | "CHANGE_RECIPE" | "REMOVE_FIX" | "UNKNOWN";
 export type MatrixRow = {
   productId: string; product: string; category: string;
-  quantity: number; revenue: number; cost: number | null; profit: number | null;
+  quantity: number; revenue: number; cost: number | null; profitPerUnit: number | null;
   quadrant: MatrixQuadrant; actionFa: string; profitUnknown: boolean;
 };
 
 export const MATRIX_META: Record<MatrixQuadrant, { titleFa: string; actionFa: string; hintFa: string }> = {
-  KEEP: { titleFa: "سود بالا + فروش بالا", actionFa: "حفظ", hintFa: "موجودی و کیفیت را حفظ کنید." },
-  REVIEW_TRAINING: { titleFa: "سود بالا + فروش پایین", actionFa: "بررسی + آموزش", hintFa: "پرومو، آموزش فروش و جایگاه منو را بررسی کنید." },
-  CHANGE_RECIPE: { titleFa: "سود پایین + فروش بالا", actionFa: "تغییر دستور", hintFa: "رسپی/قیمت را بازبینی کنید تا حاشیه سود بهتر شود." },
-  REMOVE_FIX: { titleFa: "سود پایین + فروش پایین", actionFa: "حذفی / اصلاح", hintFa: "اصلاح یا حذف از منو را بررسی کنید." },
+  KEEP: { titleFa: "سود هر عدد بالا + فروش بالا", actionFa: "حفظ", hintFa: "موجودی و کیفیت را حفظ کنید." },
+  REVIEW_TRAINING: { titleFa: "سود هر عدد بالا + فروش پایین", actionFa: "بررسی + آموزش", hintFa: "پرومو، آموزش فروش و جایگاه منو را بررسی کنید." },
+  CHANGE_RECIPE: { titleFa: "سود هر عدد پایین + فروش بالا", actionFa: "تغییر دستور", hintFa: "رسپی/قیمت را بازبینی کنید تا حاشیه سود هر عدد بهتر شود." },
+  REMOVE_FIX: { titleFa: "سود هر عدد پایین + فروش پایین", actionFa: "حذفی / اصلاح", hintFa: "اصلاح یا حذف از منو را بررسی کنید." },
   UNKNOWN: { titleFa: "نامشخص", actionFa: "تکمیل داده", hintFa: "رسپی یا هزینهٔ مواد ثبت نشده است." },
 };
 
@@ -136,9 +136,24 @@ function median(nums: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+export function calculateProfitPerUnit(revenue: number, cost: number, quantity: number): number | null {
+  return quantity > 0 ? (revenue - cost) / quantity : null;
+}
+
+export function productMatrixQuadrant(
+  profitPerUnitValue: number,
+  profitPerUnitMedianValue: number,
+  quantity: number,
+  quantityMedianValue: number,
+): MatrixQuadrant {
+  const highProfit = profitPerUnitValue >= profitPerUnitMedianValue;
+  const highSales = quantity >= quantityMedianValue;
+  return highProfit && highSales ? "KEEP" : highProfit ? "REVIEW_TRAINING" : highSales ? "CHANGE_RECIPE" : "REMOVE_FIX";
+}
+
 export async function getProductMatrix(from: Date, to: Date): Promise<{
   from: string; to: string; profitAvailable: boolean;
-  medians: { quantity: number; profit: number };
+  medians: { quantity: number; profitPerUnit: number };
   rows: MatrixRow[];
   counts: Record<MatrixQuadrant, number>;
 }> {
@@ -176,22 +191,23 @@ export async function getProductMatrix(from: Date, to: Date): Promise<{
     map.set(it.productId, row);
   }
   const qtyMed = median([...map.values()].map((r) => r.quantity));
-  const knownProfits = [...map.values()].filter((r) => !r.unknown).map((r) => r.revenue - (r.cost ?? 0));
-  const profitMed = median(knownProfits);
-  const profitAvailable = knownProfits.length > 0;
+  const knownProfitsPerUnit = [...map.values()].flatMap((r) => {
+    const value = r.unknown ? null : calculateProfitPerUnit(r.revenue, r.cost ?? 0, r.quantity);
+    return value == null ? [] : [value];
+  });
+  const profitPerUnitMed = median(knownProfitsPerUnit);
+  const profitAvailable = knownProfitsPerUnit.length > 0;
   const rows: MatrixRow[] = [...map.entries()].map(([productId, r]) => {
-    if (r.unknown || !profitAvailable) {
-      return { productId, product: r.product, category: r.category, quantity: r.quantity, revenue: r.revenue, cost: null, profit: null, quadrant: "UNKNOWN" as const, actionFa: MATRIX_META.UNKNOWN.actionFa, profitUnknown: true };
+    const profitPerUnit = r.unknown ? null : calculateProfitPerUnit(r.revenue, r.cost ?? 0, r.quantity);
+    if (profitPerUnit == null || !profitAvailable) {
+      return { productId, product: r.product, category: r.category, quantity: r.quantity, revenue: r.revenue, cost: null, profitPerUnit: null, quadrant: "UNKNOWN" as const, actionFa: MATRIX_META.UNKNOWN.actionFa, profitUnknown: true };
     }
-    const profit = r.revenue - (r.cost ?? 0);
-    const highProfit = profit >= profitMed;
-    const highSales = r.quantity >= qtyMed;
-    const quadrant: MatrixQuadrant = highProfit && highSales ? "KEEP" : highProfit ? "REVIEW_TRAINING" : highSales ? "CHANGE_RECIPE" : "REMOVE_FIX";
-    return { productId, product: r.product, category: r.category, quantity: r.quantity, revenue: Math.round(r.revenue), cost: Math.round(r.cost ?? 0), profit: Math.round(profit), quadrant, actionFa: MATRIX_META[quadrant].actionFa, profitUnknown: false };
+    const quadrant = productMatrixQuadrant(profitPerUnit, profitPerUnitMed, r.quantity, qtyMed);
+    return { productId, product: r.product, category: r.category, quantity: r.quantity, revenue: Math.round(r.revenue), cost: Math.round(r.cost ?? 0), profitPerUnit: Math.round(profitPerUnit), quadrant, actionFa: MATRIX_META[quadrant].actionFa, profitUnknown: false };
   }).sort((a, b) => b.quantity - a.quantity);
   const counts: Record<MatrixQuadrant, number> = { KEEP: 0, REVIEW_TRAINING: 0, CHANGE_RECIPE: 0, REMOVE_FIX: 0, UNKNOWN: 0 };
   for (const r of rows) counts[r.quadrant] += 1;
-  return { from: from.toISOString(), to: to.toISOString(), profitAvailable, medians: { quantity: qtyMed, profit: Math.round(profitMed) }, rows, counts };
+  return { from: from.toISOString(), to: to.toISOString(), profitAvailable, medians: { quantity: qtyMed, profitPerUnit: Math.round(profitPerUnitMed) }, rows, counts };
 }
 
 /* ── C. SALES vs DEMAND ───────────────────────────────────────────── */

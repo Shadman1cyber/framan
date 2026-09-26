@@ -42,6 +42,7 @@ export const PERMISSIONS = [
   "ai.configure",
   "import.run",
   "staff.manage",
+  "discounts.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

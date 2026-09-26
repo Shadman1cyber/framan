@@ -28,6 +28,55 @@ function CheckoutInner() {
   const submittedRef = useRef(false);
   const { show } = useToast();
 
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: string;
+    amount: number;
+    finalTotal: number;
+  } | null>(null);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+
+  // Prices may have changed while a quote was applied — drop it so we never
+  // submit at a stale price (the server re-validates anyway).
+  useEffect(() => {
+    setAppliedDiscount(null);
+  }, [total]);
+
+  const finalTotal = appliedDiscount
+    ? Math.max(0, total - appliedDiscount.amount)
+    : total;
+
+  async function applyDiscount() {
+    const code = discountCodeInput.trim();
+    if (!code) return;
+    setApplyingDiscount(true);
+    try {
+      const res = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal: total }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "کد تخفیف معتبر نیست");
+      setAppliedDiscount({
+        code: json.quote.code,
+        amount: json.quote.amount,
+        finalTotal: json.quote.finalTotal,
+      });
+      show("کد تخفیف اعمال شد", "success");
+    } catch (err) {
+      setAppliedDiscount(null);
+      show(err instanceof Error ? err.message : "کد تخفیف معتبر نیست", "error");
+    } finally {
+      setApplyingDiscount(false);
+    }
+  }
+
+  function removeDiscount() {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+  }
+
   useEffect(() => {
     if (!hydrated || submittedRef.current) return;
     if (items.length === 0 && typeof window !== "undefined") {
@@ -49,6 +98,7 @@ function CheckoutInner() {
         customerName: name || undefined,
         customerPhone: phone || undefined,
         notes: notes || undefined,
+        ...(appliedDiscount ? { discountCode: appliedDiscount.code } : {}),
       };
 
       if (isOnline) {
@@ -67,7 +117,12 @@ function CheckoutInner() {
           type: "PLACE_ORDER",
           payload: orderPayload,
         });
-        show("سفارش شما ذخیره شد و به محض اتصال اینترنت ثبت می‌شود", "success");
+        show(
+          appliedDiscount
+            ? "سفارش با کد تخفیف ذخیره شد؛ کد هنگام ثبت نهایی دوباره بررسی می‌شود و در صورت نامعتبر بودن سفارش با همان قیمت ثبت نمی‌شود"
+            : "سفارش شما ذخیره شد و به محض اتصال اینترنت ثبت می‌شود",
+          appliedDiscount ? "info" : "success",
+        );
         submittedRef.current = true;
         clear();
         router.push("/orders");
@@ -133,9 +188,55 @@ function CheckoutInner() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 flex justify-between border-t border-coffee/10 pt-3 dark:border-dark-border">
-              <span className="font-semibold">مبلغ کل</span>
-              <Price amount={total} size="md" />
+            <div className="mt-3 space-y-1.5 border-t border-coffee/10 pt-3 dark:border-dark-border">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">جمع اقلام</span>
+                <Price amount={total} size="sm" />
+              </div>
+              {appliedDiscount && (
+                <div className="flex justify-between text-sm text-olive-600 dark:text-olive-300">
+                  <span>
+                    تخفیف ({appliedDiscount.code})
+                    <button
+                      type="button"
+                      onClick={removeDiscount}
+                      className="ms-2 text-xs text-danger underline"
+                    >
+                      حذف
+                    </button>
+                  </span>
+                  <span>− {appliedDiscount.amount.toLocaleString("fa-IR")} تومان</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-coffee/10 pt-2 dark:border-dark-border">
+                <span className="font-semibold">مبلغ قابل پرداخت</span>
+                <Price amount={finalTotal} size="md" />
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <input
+                className="input flex-1"
+                placeholder="کد تخفیف"
+                value={discountCodeInput}
+                onChange={(e) => setDiscountCodeInput(e.target.value)}
+                disabled={appliedDiscount != null}
+                aria-label="کد تخفیف"
+              />
+              {appliedDiscount ? (
+                <button type="button" onClick={removeDiscount} className="btn-secondary text-sm">
+                  حذف کد
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={applyDiscount}
+                  disabled={applyingDiscount || !discountCodeInput.trim()}
+                  className="btn-secondary text-sm"
+                >
+                  {applyingDiscount ? "بررسی..." : "اعمال"}
+                </button>
+              )}
             </div>
           </div>
 

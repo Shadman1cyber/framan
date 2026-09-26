@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const FIVE_MINUTES = 5 * 60 * 1000;
+import { CASHIER_REMINDER_MS } from "@/lib/admin-timing";
 
 export function CashierOrderReminder({ enabled }: { enabled: boolean }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
-    const timer = window.setInterval(() => setOpen(true), FIVE_MINUTES);
+    const timer = window.setInterval(() => setOpen(true), CASHIER_REMINDER_MS);
     return () => window.clearInterval(timer);
   }, [enabled]);
 

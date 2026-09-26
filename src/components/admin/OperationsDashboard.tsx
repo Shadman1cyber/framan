@@ -7,11 +7,14 @@ import { formatNumber, formatToman } from "@/lib/format";
 import { JalaliDateInput, JalaliDateTimeInput, JalaliMonthInput } from "@/components/ui/JalaliInputs";
 import { formatJalaliDate, formatJalaliDateTime, formatJalaliTime, todayGregorianInput } from "@/lib/jalali";
 import { STAFF_ROLES, STAFF_ROLE_LABELS_FA, type StaffRole } from "@/lib/constants";
+import { StaffEditorDialog, type StaffEditorPayload, type StaffOpt } from "@/components/admin/StaffEditorDialog";
+import { resolveStaffShift } from "@/lib/staff-shifts";
+
+export type { StaffOpt } from "@/components/admin/StaffEditorDialog";
 
 /* ── types ─────────────────────────────────────────────────────────── */
 
 export type ProductOpt = { id: string; nameFa: string; price: number };
-export type StaffOpt = { id: string; name: string; role: string; task: string | null; shiftStart: string | null; shiftEnd: string | null; isActive: boolean };
 
 type Goal = {
   id: string; title: string; metric: string; targetValue: number;
@@ -24,14 +27,14 @@ type Goal = {
 
 type MatrixRow = {
   productId: string; product: string; category: string;
-  quantity: number; revenue: number; cost: number | null; profit: number | null;
+  quantity: number; revenue: number; cost: number | null; profitPerUnit: number | null;
   quadrant: "KEEP" | "REVIEW_TRAINING" | "CHANGE_RECIPE" | "REMOVE_FIX" | "UNKNOWN";
   actionFa: string; profitUnknown: boolean;
 };
 
 type MatrixData = {
   from: string; to: string; profitAvailable: boolean;
-  medians: { quantity: number; profit: number };
+  medians: { quantity: number; profitPerUnit: number };
   rows: MatrixRow[]; counts: Record<string, number>;
 };
 
@@ -61,10 +64,10 @@ const GOAL_METRIC_FA: Record<string, string> = {
 };
 
 const QUADRANT_FA: Record<string, { title: string; action: string; hint: string; tint: string }> = {
-  KEEP: { title: "سود بالا + فروش بالا", action: "حفظ", hint: "موجودی و کیفیت را حفظ کنید.", tint: "border-olive/40 bg-olive/5" },
-  REVIEW_TRAINING: { title: "سود بالا + فروش پایین", action: "بررسی + آموزش", hint: "پرومو و آموزش فروش.", tint: "border-warning/40 bg-warning/5" },
-  CHANGE_RECIPE: { title: "سود پایین + فروش بالا", action: "تغییر دستور", hint: "رسپی یا قیمت را بازبینی کنید.", tint: "border-coffee/40 bg-coffee/5" },
-  REMOVE_FIX: { title: "سود پایین + فروش پایین", action: "حذفی / اصلاح", hint: "اصلاح یا حذف از منو.", tint: "border-danger/40 bg-danger/5" },
+  KEEP: { title: "سود هر عدد بالا + فروش بالا", action: "حفظ", hint: "موجودی و کیفیت را حفظ کنید.", tint: "border-olive/40 bg-olive/5" },
+  REVIEW_TRAINING: { title: "سود هر عدد بالا + فروش پایین", action: "بررسی + آموزش", hint: "پرومو و آموزش فروش.", tint: "border-warning/40 bg-warning/5" },
+  CHANGE_RECIPE: { title: "سود هر عدد پایین + فروش بالا", action: "تغییر دستور", hint: "رسپی یا قیمت را بازبینی کنید.", tint: "border-coffee/40 bg-coffee/5" },
+  REMOVE_FIX: { title: "سود هر عدد پایین + فروش پایین", action: "حذفی / اصلاح", hint: "اصلاح یا حذف از منو.", tint: "border-danger/40 bg-danger/5" },
   UNKNOWN: { title: "داده ناقص", action: "تکمیل داده", hint: "رسپی یا هزینهٔ مواد ثبت نشده.", tint: "border-coffee/20 bg-beige-soft" },
 };
 
@@ -273,7 +276,8 @@ export function MatrixPanel({ from, to, show }: { from: string; to: string; show
           ⚠️ دادهٔ سود کامل نیست (رسپی یا هزینهٔ مواد برخی محصولات ثبت نشده). محصولات بدون سود در ستون «داده ناقص» قرار گرفتند و سود فرضی ساخته نشد.
         </p>
       )}
-      <p className="text-[11px] text-muted">میانهٔ فروش: {formatNumber(data.medians.quantity)} عدد · میانهٔ سود: {formatToman(data.medians.profit)}</p>
+      <p className="text-[11px] text-muted">میانهٔ فروش: {formatNumber(data.medians.quantity)} عدد · میانهٔ سود هر عدد: {formatToman(data.medians.profitPerUnit)}</p>
+      <p className="mt-1 text-[11px] text-muted">معیار سود هر محصول، سود تقسیم‌شده بر تعداد فروش همان محصول در بازهٔ انتخابی است.</p>
       <div className="grid gap-3 md:grid-cols-2">
         {(["KEEP", "REVIEW_TRAINING", "CHANGE_RECIPE", "REMOVE_FIX"] as const).map((q) => (
           <section key={q} className={`card border-2 p-4 ${QUADRANT_FA[q].tint}`}>
@@ -286,7 +290,7 @@ export function MatrixPanel({ from, to, show }: { from: string; to: string; show
               {byQuadrant[q].slice(0, 8).map((r) => (
                 <li key={r.productId} className="flex items-center justify-between gap-2 rounded-xl bg-cream px-2.5 py-1.5 dark:bg-dark-bg">
                   <span className="truncate">{r.product} <span className="text-[11px] text-muted">· {r.category}</span></span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-muted">{formatNumber(r.quantity)} فروش · {formatToman(r.profit ?? 0)} سود</span>
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted">{formatNumber(r.quantity)} فروش · {formatToman(r.profitPerUnit ?? 0)} سود هر عدد</span>
                 </li>
               ))}
               {byQuadrant[q].length === 0 && <li className="text-xs text-muted">محصولی در این ربع نیست.</li>}
@@ -304,7 +308,7 @@ export function MatrixPanel({ from, to, show }: { from: string; to: string; show
         </section>
       )}
       <button
-        onClick={() => downloadCSV("product-matrix.csv", ["محصول", "دسته", "تعداد", "درآمد", "سود", "ربع", "اقدام"], (data?.rows ?? []).map((r) => [r.product, r.category, r.quantity, r.revenue, r.profit, r.quadrant, r.actionFa]))}
+        onClick={() => downloadCSV("product-matrix.csv", ["محصول", "دسته", "تعداد", "درآمد", "سود هر عدد", "ربع", "اقدام"], (data?.rows ?? []).map((r) => [r.product, r.category, r.quantity, r.revenue, r.profitPerUnit, r.quadrant, r.actionFa]))}
         className="btn-secondary text-xs"
       >
         ⬇️ خروجی CSV ماتریس
@@ -479,6 +483,7 @@ export function StaffPanel({ from, to, initialStaff, show, refresh }: {
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [reports, setReports] = useState<Record<string, { presentDays: number; totalLateMin: number; totalOvertimeMin: number; leaves: { approved: number; pending: number } }>>({});
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [editingStaff, setEditingStaff] = useState<StaffOpt | null>(null);
 
   const loadAll = useCallback(async () => {
     const [sRes, aRes, lRes, sgRes] = await Promise.all([
@@ -505,14 +510,42 @@ export function StaffPanel({ from, to, initialStaff, show, refresh }: {
   }
 
   async function toggleActive(s: StaffOpt) {
-    await fetch(`/api/admin/staff/${s.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !s.isActive }) });
-    loadAll();
+    const res = await fetch(`/api/admin/staff/${s.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !s.isActive }) });
+    if (res.ok) {
+      show(s.isActive ? "پرسنل غیرفعال شد" : "پرسنل فعال شد", "success");
+      await loadAll();
+    } else {
+      show((await res.json().catch(() => null))?.error ?? "خطا در تغییر وضعیت", "error");
+    }
   }
 
   async function removeStaff(id: string) {
     if (!confirm("حذف پرسنل؟")) return;
-    await fetch(`/api/admin/staff/${id}`, { method: "DELETE" });
-    loadAll(); refresh();
+    const res = await fetch(`/api/admin/staff/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      show("پرسنل حذف شد", "success");
+      await loadAll();
+      refresh();
+    } else {
+      show((await res.json().catch(() => null))?.error ?? "خطا در حذف پرسنل", "error");
+    }
+  }
+
+  async function saveStaff(payload: StaffEditorPayload) {
+    if (!editingStaff) return;
+    const res = await fetch(`/api/admin/staff/${editingStaff.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error ?? "ذخیره تغییرات ناموفق بود");
+    }
+    await loadAll();
+    refresh();
+    setEditingStaff(null);
+    show("اطلاعات پرسنل ذخیره شد", "success");
   }
 
   async function check(action: "checkin" | "checkout", staffId: string) {
@@ -560,20 +593,26 @@ export function StaffPanel({ from, to, initialStaff, show, refresh }: {
       <section className="card p-4">
         <h3 className="mb-2 text-sm font-bold">👥 پرسنل (نام، نقش/وظیفه، ساعات کاری)</h3>
         <ul className="space-y-1.5">
-          {staff.map((s) => (
-            <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 text-sm dark:border-dark-border">
-              <div>
-                <div className="font-semibold">{s.name} <span className="text-[11px] font-normal text-muted">{STAFF_ROLE_LABELS_FA[s.role as StaffRole] ?? s.role}{s.task ? ` · ${s.task}` : ""}</span></div>
-                <div className="text-[11px] tabular-nums text-muted">شیفت: {s.shiftStart ?? "—"} تا {s.shiftEnd ?? "—"} · {s.isActive ? "فعال" : "غیرفعال"}</div>
-              </div>
-              <div className="flex gap-1.5">
-                <button onClick={() => check("checkin", s.id)} className="btn-ghost text-xs">ورود</button>
-                <button onClick={() => check("checkout", s.id)} className="btn-ghost text-xs">خروج</button>
-                <button onClick={() => toggleActive(s)} className="btn-ghost text-xs">{s.isActive ? "غیرفعال" : "فعال"}</button>
-                <button onClick={() => removeStaff(s.id)} className="btn-ghost text-xs text-danger">حذف</button>
-              </div>
-            </li>
-          ))}
+          {staff.map((s) => {
+            const todayShift = resolveStaffShift(s.shiftStart, s.shiftEnd, s.shiftRotation, to);
+            return (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 text-sm dark:border-dark-border">
+                <div>
+                  <div className="font-semibold">{s.name} <span className="text-[11px] font-normal text-muted">{STAFF_ROLE_LABELS_FA[s.role as StaffRole] ?? s.role}{s.task ? ` · ${s.task}` : ""}</span></div>
+                  <div className="text-[11px] tabular-nums text-muted">
+                    شیفت امروز: {todayShift.isDayOff ? "تعطیل" : `${todayShift.label} · ${todayShift.shiftStart ?? "—"} تا ${todayShift.shiftEnd ?? "—"}`} · {s.isActive ? "فعال" : "غیرفعال"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setEditingStaff(s)} className="btn-ghost text-xs">ویرایش</button>
+                  <button onClick={() => check("checkin", s.id)} className="btn-ghost text-xs">ورود</button>
+                  <button onClick={() => check("checkout", s.id)} className="btn-ghost text-xs">خروج</button>
+                  <button onClick={() => toggleActive(s)} className="btn-ghost text-xs">{s.isActive ? "غیرفعال" : "فعال"}</button>
+                  <button onClick={() => removeStaff(s.id)} className="btn-ghost text-xs text-danger">حذف</button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
         <div className="mt-3 grid gap-2 md:grid-cols-5">
           <input className="input" placeholder="نام" value={name} onChange={(e) => setName(e.target.value)} />
@@ -705,6 +744,16 @@ export function StaffPanel({ from, to, initialStaff, show, refresh }: {
           </>
         ) : <p className="text-xs text-muted">در حال محاسبه…</p>}
       </section>
+
+      {editingStaff && (
+        <StaffEditorDialog
+          key={editingStaff.id}
+          staff={editingStaff}
+          today={to}
+          onClose={() => setEditingStaff(null)}
+          onSave={saveStaff}
+        />
+      )}
     </div>
   );
 }

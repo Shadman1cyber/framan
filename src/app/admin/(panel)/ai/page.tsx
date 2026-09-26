@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAiSettings } from "@/lib/ai/settings";
 import { AgentControls } from "@/components/admin/AgentControls";
+import { AgentOperationsSummary } from "@/components/admin/AgentOperationsSummary";
 import { AiAdmin } from "@/components/admin/AiAdmin";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function AdminAiPage() {
         دستیار به داده‌های مالی، انبار و عملیاتی کافه دسترسی کنترل‌شده دارد؛ عملیات اجرایی محدود از پنل اجرا قابل بررسی و تأیید است.
         هر پرسش در یک گفتگو ذخیره می‌شود و می‌توانید گفتگوهای قبلی را ادامه دهید.
       </p>
+      <AgentOperationsSummary />
       {process.env.AGENT_ENABLED === "true" && <AgentControls />}
       <AiAdmin
         initialSettings={settings}

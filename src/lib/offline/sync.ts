@@ -27,14 +27,24 @@ export function setSyncCallbacks(cb: SyncCallbacks) {
 }
 
 async function placeOrderAPI(payload: Record<string, unknown>) {
-  const res = await fetch("/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "خطا در ثبت سفارش");
-  return json;
+  let res: Response;
+  try {
+    res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new SyncActionError("ارتباط با سرور قطع شد", "transient");
+  }
+  if (res.ok) return res.json();
+  const json = await res.json().catch(() => ({})) as { error?: string };
+  const message = json.error ?? "خطا در ثبت سفارش";
+  // Never silently resubmit at a different price: a rejected order (bad,
+  // expired, inactive or exhausted discount code, invalid cart/table) is a
+  // permanent conflict the customer must see — not a transient retry.
+  const transient = [408, 425, 429, 502, 503, 504].includes(res.status);
+  throw new SyncActionError(message, transient || res.status >= 500 ? "transient" : "conflict");
 }
 
 async function updateProfileAPI(payload: Record<string, unknown>) {

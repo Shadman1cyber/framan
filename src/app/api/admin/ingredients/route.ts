@@ -10,7 +10,9 @@ const schema = z.object({
   description: z.string().optional().nullable(),
   isAllergen: z.boolean().optional(),
   unit: z.enum(UNITS).optional(),
-  stockQuantity: z.number().optional(),
+  category: z.string().trim().max(80).nullable().optional(),
+  purchaseUnit: z.string().trim().max(40).nullable().optional(),
+  purchaseFactor: z.number().finite().positive().optional(),
   minQuantity: z.number().nullable().optional(),
   costPerUnit: z.number().nullable().optional(),
   supplier: z.string().nullable().optional(),
@@ -24,7 +26,7 @@ export async function GET() {
     orderBy: { nameFa: "asc" },
     include: { _count: { select: { products: true } } },
   });
-  return NextResponse.json({ ingredients }, { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" } });
+  return NextResponse.json({ ingredients }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(req: Request) {
@@ -35,6 +37,6 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "ورودی نامعتبر" }, { status: 400 });
   const exists = await prisma.ingredient.findFirst({ where: { nameFa: parsed.data.nameFa } });
   if (exists) return NextResponse.json({ error: "ماده اولیه‌ای با این نام وجود دارد" }, { status: 400 });
-  const ing = await prisma.ingredient.create({ data: parsed.data });
+  const ing = await prisma.ingredient.create({ data: { ...parsed.data, stockQuantity: 0 } });
   return NextResponse.json({ id: ing.id });
 }

@@ -24,7 +24,7 @@
  * Node 16 compatibility (main process): CommonJS only, no global fetch /
  * structuredClone before polyfills load.
  */
-const { app, BrowserWindow, Menu, Tray, shell, ipcMain, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, ipcMain, dialog, nativeImage, clipboard, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -32,6 +32,8 @@ const https = require('https');
 const net = require('net');
 const os = require('os');
 const crypto = require('crypto');
+const util = require('util');
+const { execFileSync, spawn } = require('child_process');
 
 const APP_ID = 'com.farmancoffeeshop.app';
 
@@ -53,6 +55,9 @@ const DEFAULT_ENTRY_PATH = '/admin/login';
 const CONFIG_FILE = 'cafe13-desktop-config.json';
 const DB_FILE = 'cafe13.db';
 const HEALTH_TIMEOUT_MS = 4000;
+const N8N_PORT = 5678;
+const N8N_HEALTH_URL = 'http://127.0.0.1:' + N8N_PORT + '/healthz';
+const N8N_START_TIMEOUT_MS = 90000;
 
 app.setAppUserModelId(APP_ID);
 
@@ -65,8 +70,48 @@ if (!gotLock) {
 let mainWindow = null;
 let tray = null;
 let offlineMode = false;
-let localServer = null; // { port, url } — embedded mode only
+let localServer = null;
 let bootError = null;
+let isQuitting = false;
+let detectedLanIp = '';
+let agentWorker = null;
+let n8nProcess = null;
+let agentServiceStatus = {
+  state: 'stopped',
+  n8n: false,
+  worker: false,
+  modelConfigured: false,
+  telemetryConfigured: false,
+  error: '',
+};
+
+function installDesktopErrorLog() {
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  try {
+    fs.mkdirSync(logDir, { recursive: true });
+  } catch (error) {
+    return;
+  }
+  const logFile = path.join(logDir, 'desktop.log');
+  function record(args) {
+    try {
+      fs.appendFileSync(logFile, new Date().toISOString() + ' ' + util.format.apply(util, args) + '\n');
+    } catch (error) {
+      // Logging must never stop the desktop app.
+    }
+  }
+  for (const level of ['error', 'warn']) {
+    const original = console[level].bind(console);
+    console[level] = function () {
+      record(Array.prototype.slice.call(arguments));
+      original.apply(console, arguments);
+    };
+  }
+  process.on('uncaughtExceptionMonitor', function (error) {
+    record([error]);
+  });
+  record(['Cafe 13 desktop started, version ' + app.getVersion()]);
+}
 
 /** Parse `--key=value` / `--flag` CLI args (works on Win7 cmd too). */
 function parseArgs(argv) {
@@ -169,18 +214,64 @@ function resolveEntryPath() {
   return entry;
 }
 
+function lanAddressScore(name, address) {
+  let score;
+  if (address.startsWith('192.168.')) score = 50;
+  else if (address.startsWith('10.')) score = 40;
+  else if (/^172\.(1[6-9]|2\d|3[01])\./.test(address)) score = 30;
+  else return -Infinity;
+  if (/(virtual|vmware|vbox|hyper-v|vethernet|tailscale|zerotier|docker|wsl|bluetooth|loopback)/i.test(name)) score -= 100;
+  return score;
+}
+
 /** First non-internal IPv4 address (for QR codes / phone access). */
 function detectLanIp() {
-  const ifaces = os.networkInterfaces();
-  const names = Object.keys(ifaces);
-  for (let i = 0; i < names.length; i++) {
-    const addrs = ifaces[names[i]] || [];
-    for (let j = 0; j < addrs.length; j++) {
-      const a = addrs[j];
-      if (a.family === 'IPv4' && !a.internal) return a.address;
+  if (detectedLanIp) return detectedLanIp;
+
+  if (process.platform === 'win32') {
+    try {
+      const command = "$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric, InterfaceMetric | Select-Object -First 1; if ($route) { $ip = Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1; if ($ip) { [pscustomobject]@{ name = [string]$route.InterfaceAlias; address = [string]$ip.IPAddress } | ConvertTo-Json -Compress } }";
+      const value = String(
+        execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
+          encoding: 'utf8',
+          timeout: 5000,
+          windowsHide: true,
+        }) || '',
+      ).trim();
+      const parsed = value ? JSON.parse(value) : null;
+      if (parsed && lanAddressScore(parsed.name || '', parsed.address || '') >= 0) {
+        detectedLanIp = parsed.address;
+        return detectedLanIp;
+      }
+    } catch (e) {
+      detectedLanIp = '';
     }
   }
-  return '127.0.0.1';
+
+  const ifaces = os.networkInterfaces();
+  const names = Object.keys(ifaces);
+  let best = '';
+  let bestScore = -Infinity;
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const addrs = ifaces[name] || [];
+    for (let j = 0; j < addrs.length; j++) {
+      const address = addrs[j];
+      if (address.family !== 'IPv4' || address.internal) continue;
+      const score = lanAddressScore(name, address.address);
+      if (score > bestScore) {
+        best = address.address;
+        bestScore = score;
+      }
+    }
+  }
+  detectedLanIp = best || '127.0.0.1';
+  return detectedLanIp;
+}
+
+function lanServerUrl() {
+  if (!localServer || !localServer.port) return '';
+  return 'http://' + detectLanIp() + ':' + localServer.port;
 }
 
 /** Preferred port, else a free ephemeral one (embedded server). */
@@ -220,6 +311,325 @@ function ensureSecret() {
   return secret;
 }
 
+function ensureBridgeToken() {
+  const cfg = readConfig();
+  if (cfg.n8nBridgeToken) return cfg.n8nBridgeToken;
+  const token = crypto.randomBytes(32).toString('hex');
+  writeConfig({ n8nBridgeToken: token });
+  return token;
+}
+
+function ensureN8nKey() {
+  const cfg = readConfig();
+  if (cfg.n8nEncryptionKey) return cfg.n8nEncryptionKey;
+  const key = crypto.randomBytes(32).toString('hex');
+  writeConfig({ n8nEncryptionKey: key });
+  return key;
+}
+
+function encryptionAvailable() {
+  return Boolean(safeStorage && safeStorage.isEncryptionAvailable());
+}
+
+function readStoredSecret(cfg, encryptedKey, plainKey) {
+  const encrypted = cfg && cfg[encryptedKey];
+  if (encrypted && encryptionAvailable()) {
+    try {
+      return safeStorage.decryptString(Buffer.from(String(encrypted), 'base64'));
+    } catch (e) {
+    }
+  }
+  return String((cfg && cfg[plainKey]) || '');
+}
+
+function storedSecretPatch(encryptedKey, plainKey, value) {
+  const text = String(value || '').trim();
+  if (!text) return {};
+  const patch = {};
+  patch[plainKey] = '';
+  if (encryptionAvailable()) {
+    patch[encryptedKey] = safeStorage.encryptString(text).toString('base64');
+  } else {
+    patch[plainKey] = text;
+  }
+  return patch;
+}
+
+function migrateStoredSecrets(cfg, plainKey, encryptedKey) {
+  if (!cfg[plainKey] || !encryptionAvailable()) return cfg;
+  const patch = storedSecretPatch(encryptedKey, plainKey, cfg[plainKey]);
+  if (!patch[encryptedKey]) return cfg;
+  writeConfig(patch);
+  return readConfig();
+}
+
+function modelSettings(cfg) {
+  return {
+    apiKey: readStoredSecret(cfg, 'modelApiKeyEncrypted', 'modelApiKey') || String(process.env.ZHIPU_API_KEY || '').trim(),
+    baseUrl: normalizeUrl(cfg && cfg.modelBaseUrl) || normalizeUrl(process.env.ZHIPU_BASE_URL) || 'https://open.bigmodel.cn/api/paas/v4',
+  };
+}
+
+function desktopNode() {
+  const bundled = path.join(appRoot(), 'vendor', 'windows-n8n', 'node.exe');
+  return fs.existsSync(bundled) ? bundled : '';
+}
+
+function startBackgroundService(script, extraEnv, logName) {
+  const node = desktopNode();
+  if (!node || !fs.existsSync(script)) throw new Error(logName + ' runtime is missing');
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdirSync(logDir, { recursive: true });
+  const log = fs.openSync(path.join(logDir, logName + '.log'), 'a');
+  try {
+    const child = spawn(node, [script], {
+      cwd: appRoot(),
+      env: Object.assign({}, process.env, extraEnv),
+      stdio: ['ignore', log, log],
+      windowsHide: true,
+    });
+    let logClosed = false;
+    const closeLog = function () {
+      if (logClosed) return;
+      logClosed = true;
+      fs.closeSync(log);
+    };
+    child.once('error', closeLog);
+    child.once('spawn', closeLog);
+    return child;
+  } catch (e) {
+    fs.closeSync(log);
+    throw e;
+  }
+}
+
+function workflowFingerprint(workflowDir) {
+  const hash = crypto.createHash('sha256');
+  for (const file of ['farman-agent-db-snapshot.json', 'farman-agent.json']) {
+    hash.update(file);
+    hash.update(fs.readFileSync(path.join(workflowDir, file)));
+  }
+  return hash.digest('hex');
+}
+
+function importN8nCredential(appDir, n8nEntry, n8nDir, cliEnv, model) {
+  const target = path.join(n8nDir, '.farman-model-credential-' + process.pid + '.json');
+  const payload = [{
+    id: 'farman-zhipu-glm',
+    name: 'FARMAN Zhipu GLM',
+    type: 'openAiApi',
+    data: { apiKey: model.apiKey, organizationId: '', url: model.baseUrl },
+  }];
+  fs.writeFileSync(target, JSON.stringify(payload), { encoding: 'utf8', mode: 0o600 });
+  try {
+    execFileSync(desktopNode(), [n8nEntry, 'import:credentials', '--input=' + target], {
+      cwd: appDir,
+      env: cliEnv,
+      timeout: 120000,
+      windowsHide: true,
+    });
+  } finally {
+    fs.rmSync(target, { force: true });
+  }
+}
+
+function provisionN8n(appDir, n8nEntry, n8nDir, n8nEnv, cfg) {
+  const workflowDir = path.join(appDir, 'vendor', 'windows-n8n', 'workflows');
+  const markerPath = path.join(n8nDir, 'farman-provisioning.json');
+  let marker = {};
+  try {
+    marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  } catch (e) {
+    marker = {};
+  }
+  const model = modelSettings(cfg);
+  const workflowHash = workflowFingerprint(workflowDir);
+  const credentialHash = model.apiKey
+    ? crypto.createHash('sha256').update(model.apiKey + '\0' + model.baseUrl).digest('hex')
+    : '';
+  const cliEnv = Object.assign({}, process.env, n8nEnv);
+  let changed = false;
+  if (credentialHash && marker.credential !== credentialHash) {
+    importN8nCredential(appDir, n8nEntry, n8nDir, cliEnv, model);
+    changed = true;
+  }
+  if (marker.workflows !== workflowHash) {
+    for (const file of ['farman-agent-db-snapshot.json', 'farman-agent.json']) {
+      execFileSync(desktopNode(), [n8nEntry, 'import:workflow', '--input=' + path.join(workflowDir, file)], {
+        cwd: appDir,
+        env: cliEnv,
+        timeout: 120000,
+        windowsHide: true,
+      });
+    }
+    execFileSync(desktopNode(), [n8nEntry, 'publish:workflow', '--id=farman-agent-v1'], {
+      cwd: appDir,
+      env: cliEnv,
+      timeout: 120000,
+      windowsHide: true,
+    });
+    changed = true;
+  }
+  if (changed) {
+    fs.writeFileSync(markerPath, JSON.stringify({
+      workflows: workflowHash,
+      credential: credentialHash || marker.credential || '',
+      updatedAt: new Date().toISOString(),
+    }, null, 2));
+  }
+  return { modelConfigured: Boolean(model.apiKey), model };
+}
+
+async function waitForN8n(child) {
+  const deadline = Date.now() + N8N_START_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error('n8n exited with code ' + child.exitCode);
+    const probe = await checkServer(N8N_HEALTH_URL, 1500);
+    if (probe.ok) return;
+    await new Promise(function (resolve) { setTimeout(resolve, 500); });
+  }
+  throw new Error('n8n did not become healthy in time');
+}
+
+async function ensureN8nRuntime() {
+  const bundled = path.join(appRoot(), 'vendor', 'windows-n8n');
+  const archive = path.join(bundled, 'runtime.7z');
+  const extractor = path.join(bundled, '7za.exe');
+  const digest = fs.readFileSync(path.join(bundled, 'runtime.sha256'), 'utf8').trim();
+  if (!/^[a-f0-9]{64}$/.test(digest) || !fs.existsSync(archive) || !fs.existsSync(extractor)) {
+    throw new Error('The bundled n8n runtime is incomplete');
+  }
+  const base = path.join(app.getPath('userData'), 'agent-runtime');
+  const target = path.join(base, 'n8n-' + digest);
+  const entry = path.join(target, 'node_modules', 'n8n', 'bin', 'n8n');
+  if (fs.existsSync(entry)) return entry;
+
+  fs.mkdirSync(base, { recursive: true });
+  const staging = path.join(base, 'staging-' + process.pid);
+  fs.rmSync(staging, { recursive: true, force: true });
+  fs.mkdirSync(staging, { recursive: true });
+  agentServiceStatus.state = 'preparing';
+  try {
+    await new Promise(function (resolve, reject) {
+      const child = spawn(extractor, ['x', '-y', archive, '-o' + staging], {
+        cwd: base,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.once('error', reject);
+      child.once('exit', function (code) {
+        if (code === 0) resolve();
+        else reject(new Error('n8n runtime extraction failed (' + code + ')'));
+      });
+    });
+    const stagedEntry = path.join(staging, 'node_modules', 'n8n', 'bin', 'n8n');
+    if (!fs.existsSync(stagedEntry)) throw new Error('n8n runtime archive is incomplete');
+    fs.renameSync(staging, target);
+    // Old managed runtime versions can be removed after the new one is ready.
+    for (const name of fs.readdirSync(base)) {
+      if (/^n8n-[a-f0-9]{64}$/.test(name) && name !== 'n8n-' + digest) {
+        fs.rmSync(path.join(base, name), { recursive: true, force: true });
+      }
+    }
+    return entry;
+  } catch (error) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function startAgentServices() {
+  const appDir = appRoot();
+  const dataDir = app.getPath('userData');
+  const workerEntry = path.join(appDir, 'worker', 'dist.cjs');
+  if (!fs.existsSync(workerEntry)) {
+    throw new Error('agent services are absent from this package');
+  }
+  const n8nEntry = await ensureN8nRuntime();
+  const prisma = new (require('@prisma/client').PrismaClient)();
+  let cafe;
+  try { cafe = await prisma.cafe.findFirst({ select: { id: true } }); }
+  finally { await prisma.$disconnect(); }
+  if (!cafe) throw new Error('No cafe scope in local database');
+  process.env.AGENT_CAFE_ID = cafe.id;
+  process.env.AGENT_ENABLED = 'true';
+  process.env.AI_ENABLED = 'true';
+  process.env.AGENT_ENGINE = 'n8n';
+  process.env.N8N_WEBHOOK_URL = 'http://127.0.0.1:' + N8N_PORT + '/webhook/farman-agent';
+  process.env.N8N_BRIDGE_TOKEN = ensureBridgeToken();
+  let cfg = migrateStoredSecrets(readConfig(), 'modelApiKey', 'modelApiKeyEncrypted');
+  cfg = migrateStoredSecrets(cfg, 'openobserveAuthorization', 'openobserveAuthorizationEncrypted');
+  const openobserveAuthorization = readStoredSecret(cfg, 'openobserveAuthorizationEncrypted', 'openobserveAuthorization');
+  if (cfg.openobserveTracesUrl && openobserveAuthorization) {
+    process.env.OPENOBSERVE_TRACES_URL = cfg.openobserveTracesUrl;
+    process.env.OPENOBSERVE_AUTHORIZATION = openobserveAuthorization;
+    process.env.OPENOBSERVE_DASHBOARD_URL = cfg.openobserveDashboardUrl || '';
+    try {
+      process.env.OPENOBSERVE_INTERNAL_HOST = new URL(cfg.openobserveTracesUrl).hostname;
+    } catch (e) {
+      delete process.env.OPENOBSERVE_INTERNAL_HOST;
+    }
+  } else {
+    delete process.env.OPENOBSERVE_TRACES_URL;
+    delete process.env.OPENOBSERVE_AUTHORIZATION;
+    delete process.env.OPENOBSERVE_DASHBOARD_URL;
+    delete process.env.OPENOBSERVE_INTERNAL_HOST;
+  }
+  const n8nDir = path.join(dataDir, 'n8n');
+  fs.mkdirSync(n8nDir, { recursive: true });
+  const n8nEnv = {
+    N8N_USER_FOLDER: n8nDir,
+    N8N_ENCRYPTION_KEY: ensureN8nKey(),
+    N8N_HOST: '127.0.0.1',
+    N8N_LISTEN_ADDRESS: '127.0.0.1',
+    N8N_PORT: String(N8N_PORT),
+    N8N_PROTOCOL: 'http',
+    N8N_DIAGNOSTICS_ENABLED: 'false',
+    N8N_PERSONALIZATION_ENABLED: 'false',
+    N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false',
+    N8N_BRIDGE_TOKEN: process.env.N8N_BRIDGE_TOKEN,
+    FARMAN_LOCAL_URL: localServer.url,
+  };
+  agentServiceStatus = {
+    state: 'starting',
+    n8n: false,
+    worker: false,
+    modelConfigured: false,
+    telemetryConfigured: Boolean(process.env.OPENOBSERVE_TRACES_URL && process.env.OPENOBSERVE_AUTHORIZATION),
+    error: '',
+  };
+  try {
+    const provisioned = provisionN8n(appDir, n8nEntry, n8nDir, n8nEnv, cfg);
+    agentServiceStatus.modelConfigured = provisioned.modelConfigured;
+    n8nProcess = startBackgroundService(n8nEntry, n8nEnv, 'n8n');
+    n8nProcess.once('exit', function (code) {
+      agentServiceStatus.n8n = false;
+      if (!isQuitting) {
+        agentServiceStatus.state = 'error';
+        agentServiceStatus.error = 'n8n exited with code ' + code;
+      }
+    });
+    await waitForN8n(n8nProcess);
+    agentServiceStatus.n8n = true;
+    agentWorker = startBackgroundService(workerEntry, {}, 'agent-worker');
+    agentWorker.once('exit', function (code) {
+      agentServiceStatus.worker = false;
+      if (!isQuitting) {
+        agentServiceStatus.state = 'error';
+        agentServiceStatus.error = 'agent worker exited with code ' + code;
+      }
+    });
+    agentServiceStatus.worker = true;
+    agentServiceStatus.state = provisioned.modelConfigured ? 'ready' : 'degraded';
+    agentServiceStatus.error = provisioned.modelConfigured ? '' : 'model API key is not configured';
+  } catch (e) {
+    agentServiceStatus.state = 'error';
+    agentServiceStatus.error = String((e && e.message) || e);
+    if (n8nProcess && n8nProcess.exitCode === null) n8nProcess.kill();
+    throw e;
+  }
+}
+
 /** Build-time metadata (cafe id of the seeded template DB). */
 function appRoot() {
   // electron/ lives directly under the app root in BOTH layouts: the
@@ -228,6 +638,25 @@ function appRoot() {
   // app.getAppPath() is unreliable in script mode (returns the main script's
   // dir), so derive from __dirname.
   return path.join(__dirname, '..');
+}
+
+function configurePrismaEngine(appDir, dataDir) {
+  if (process.platform !== 'win32') return;
+  const engineName = 'query_engine-windows.dll.node';
+  const candidates = [
+    path.join(appDir, 'prisma', 'engines', engineName),
+    path.join(appDir, 'node_modules', '.prisma', 'client', engineName),
+    path.join(appDir, '.prisma', 'client', engineName),
+    path.join(appDir, '.next-desktop', 'server', engineName),
+  ];
+  const source = candidates.find(function (candidate) {
+    return fs.existsSync(candidate);
+  });
+  if (!source) throw new Error('Prisma Windows query engine is missing from the installation');
+  const target = path.join(dataDir, 'prisma', engineName);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(source, target);
+  process.env.PRISMA_QUERY_ENGINE_LIBRARY = target;
 }
 
 function readDesktopMeta() {
@@ -244,6 +673,20 @@ function readDesktopMeta() {
 function bootstrapDatabase() {
   const dataDir = app.getPath('userData');
   const dbPath = path.join(dataDir, DB_FILE);
+  if (fs.existsSync(dbPath)) {
+    const fd = fs.openSync(dbPath, 'r');
+    const header = Buffer.alloc(16);
+    let size = 0;
+    try {
+      size = fs.readSync(fd, header, 0, header.length, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
+    if (size !== header.length || header.toString('binary') !== 'SQLite format 3\0') {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      fs.renameSync(dbPath, path.join(dataDir, 'cafe13-corrupt-' + stamp + '.db'));
+    }
+  }
   if (!fs.existsSync(dbPath)) {
     const template = path.join(appRoot(), 'prisma', 'dev-desktop.db');
     fs.copyFileSync(template, dbPath);
@@ -263,12 +706,14 @@ async function startEmbeddedServer() {
   const appDir = appRoot();
   const args = parseArgs(process.argv.slice(1));
   const dataDir = app.getPath('userData');
+  configurePrismaEngine(appDir, dataDir);
 
   // Keep cwd at the app root: Next's module resolution (lazy route chunks)
   // and db-boot's project-root lookup are cwd-relative. The uploads dir is
   // redirected via env instead (see src/lib/storage.ts).
   const dbUrl = bootstrapDatabase();
   const port = await findFreePort(args.port || 3080);
+  const lanUrl = 'http://' + detectLanIp() + ':' + port;
 
   process.env.NODE_ENV = 'production';
   process.env.NEXT_TELEMETRY_DISABLED = '1';
@@ -282,7 +727,9 @@ async function startEmbeddedServer() {
   process.env.UPLOADS_DIR = path.join(dataDir, 'uploads');
   process.env.NEXTAUTH_URL = 'http://localhost:' + port;
   process.env.NEXTAUTH_SECRET = ensureSecret();
-  process.env.PUBLIC_APP_URL = 'http://' + detectLanIp() + ':' + port;
+  process.env.PUBLIC_APP_URL = lanUrl;
+  process.env.DESKTOP_EMBEDDED = '1';
+  process.env.PRISMA_SCHEMA_PATH = path.join(appRoot(), 'prisma', 'schema.desktop.prisma');
   process.env.AGENT_CAFE_ID = readDesktopMeta().cafeId || '';
 
   // Boot the Next production build. Requires .next-desktop in the package
@@ -296,7 +743,17 @@ async function startEmbeddedServer() {
     srv.listen(port, '0.0.0.0', resolve);
   });
 
-  localServer = { port: port, url: 'http://localhost:' + port };
+  localServer = {
+    port: port,
+    url: 'http://localhost:' + port,
+    lanUrl: lanUrl,
+    server: srv,
+  };
+  startAgentServices().catch(function (error) {
+    agentServiceStatus.state = 'error';
+    agentServiceStatus.error = String((error && error.message) || error);
+    console.error('[desktop] agent services failed:', agentServiceStatus.error);
+  });
   return localServer;
 }
 
@@ -362,8 +819,12 @@ function showOffline() {
 
 function showOnline() {
   if (!mainWindow) return;
+  // Never disrupt a live page: only (re)load when we were showing the
+  // offline page or still need an initial load.
+  const current = mainWindow.webContents.getURL();
+  const needsLoad = offlineMode || !current || current.indexOf('file://') === 0;
   offlineMode = false;
-  mainWindow.loadURL(targetUrl());
+  if (needsLoad) mainWindow.loadURL(targetUrl());
 }
 
 function createWindow() {
@@ -433,9 +894,24 @@ function createWindow() {
     }
   });
 
+  mainWindow.on('close', function (event) {
+    if (resolveMode() === 'embedded' && !isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on('closed', function () {
     mainWindow = null;
   });
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 /** Boot the right backend, then load the window. */
@@ -505,9 +981,11 @@ function buildTray() {
     {
       label: 'نمایش / مخفی کردن',
       click: function () {
-        if (!mainWindow) return;
-        if (mainWindow.isVisible()) mainWindow.hide();
-        else {
+        if (!mainWindow) {
+          showMainWindow();
+        } else if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
           mainWindow.show();
           mainWindow.focus();
         }
@@ -517,6 +995,14 @@ function buildTray() {
       label: 'بارگذاری مجدد',
       click: function () {
         if (mainWindow) mainWindow.reload();
+      },
+    },
+    {
+      label: 'کپی نشانی موبایل و مرورگر',
+      enabled: embedded && !!localServer,
+      click: function () {
+        const value = lanServerUrl();
+        if (value) clipboard.writeText(value);
       },
     },
     {
@@ -583,6 +1069,7 @@ function buildTray() {
               (embedded ? 'حالت: سرور محلی (آفلاین کامل)\n' : 'حالت: اتصال به سرور\n') +
               'سرور: ' +
               resolveServerUrl() +
+              (lanServerUrl() ? '\nموبایل و مرورگر: ' + lanServerUrl() : '') +
               '\nElectron ' +
               process.versions.electron,
           });
@@ -591,6 +1078,7 @@ function buildTray() {
       {
         label: 'خروج',
         click: function () {
+          isQuitting = true;
           app.quit();
         },
       },
@@ -599,9 +1087,11 @@ function buildTray() {
   tray.setToolTip('Cafe 13');
   tray.setContextMenu(contextMenu);
   tray.on('click', function () {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) mainWindow.hide();
-    else {
+    if (!mainWindow) {
+      showMainWindow();
+    } else if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
       mainWindow.show();
       mainWindow.focus();
     }
@@ -642,7 +1132,9 @@ ipcMain.handle('cafe13:get-info', function () {
     serverUrl: resolveServerUrl(),
     entryPath: resolveEntryPath(),
     dbPath: resolveMode() === 'embedded' ? path.join(app.getPath('userData'), DB_FILE) : null,
+    localPort: localServer ? localServer.port : null,
     lanIp: detectLanIp(),
+    lanUrl: lanServerUrl(),
     bootError: bootError,
     versions: {
       electron: process.versions.electron,
@@ -650,11 +1142,19 @@ ipcMain.handle('cafe13:get-info', function () {
       node: process.versions.node,
     },
     platform: process.platform,
+    agentServices: Object.assign({}, agentServiceStatus),
   };
 });
 
 ipcMain.handle('cafe13:check-server', function (event, url) {
   return checkServer(normalizeUrl(url) || resolveServerUrl(), HEALTH_TIMEOUT_MS);
+});
+
+ipcMain.handle('cafe13:copy-share-url', function () {
+  const value = lanServerUrl();
+  if (!value) return { ok: false };
+  clipboard.writeText(value);
+  return { ok: true, url: value };
 });
 
 ipcMain.handle('cafe13:set-server-url', function (event, url) {
@@ -703,9 +1203,9 @@ function openSettingsWindow() {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 460,
-    height: 430,
-    resizable: false,
+    width: 560,
+    height: 760,
+    resizable: true,
     minimizable: false,
     maximizable: false,
     title: 'تنظیمات سرور — Cafe 13',
@@ -731,13 +1231,21 @@ function openSettingsWindow() {
 
 ipcMain.handle('cafe13:get-settings', function () {
   const cfg = readConfig();
+  const model = modelSettings(cfg);
   return {
     mode: resolveMode(),
     savedMode: cfg.mode || '',
     serverUrl: normalizeUrl(cfg.serverUrl) || '',
     currentUrl: resolveServerUrl(),
     lanIp: detectLanIp(),
+    lanUrl: lanServerUrl(),
     localPort: localServer ? localServer.port : null,
+    modelApiKeyConfigured: Boolean(model.apiKey),
+    modelBaseUrl: model.baseUrl,
+    openobserveAuthorizationConfigured: Boolean(readStoredSecret(cfg, 'openobserveAuthorizationEncrypted', 'openobserveAuthorization')),
+    openobserveTracesUrl: normalizeUrl(cfg.openobserveTracesUrl) || '',
+    openobserveDashboardUrl: normalizeUrl(cfg.openobserveDashboardUrl) || '',
+    agentServices: Object.assign({}, agentServiceStatus),
   };
 });
 
@@ -748,6 +1256,19 @@ ipcMain.handle('cafe13:save-settings', function (event, opts) {
     const clean = normalizeUrl(opts && opts.serverUrl);
     if (!clean) return { ok: false, error: 'نشانی سرور معتبر نیست' };
     patch.serverUrl = clean;
+  }
+  if (opts && opts.modelBaseUrl !== undefined) {
+    const clean = normalizeUrl(opts.modelBaseUrl);
+    if (opts.modelBaseUrl && !clean) return { ok: false, error: 'نشانی سرویس مدل معتبر نیست' };
+    patch.modelBaseUrl = clean;
+  }
+  Object.assign(patch, storedSecretPatch('modelApiKeyEncrypted', 'modelApiKey', opts && opts.modelApiKey));
+  Object.assign(patch, storedSecretPatch('openobserveAuthorizationEncrypted', 'openobserveAuthorization', opts && opts.openobserveAuthorization));
+  for (const key of ['openobserveTracesUrl', 'openobserveDashboardUrl']) {
+    if (!opts || opts[key] === undefined) continue;
+    const clean = normalizeUrl(opts[key]);
+    if (opts[key] && !clean) return { ok: false, error: 'نشانی OpenObserve معتبر نیست' };
+    patch[key] = clean;
   }
   writeConfig(patch);
   return { ok: true, mode: mode, needsRestart: true };
@@ -771,26 +1292,39 @@ ipcMain.handle('cafe13:restart-app', function () {
 
 app.on('second-instance', function (event, argv) {
   const args = parseArgs(argv.slice(1));
-  if ((args.server || args.remote) && normalizeUrl(args.server || args.remote)) {
-    writeConfig({ serverUrl: normalizeUrl(args.server || args.remote) });
-  }
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
+  const requested = args.server || args.remote ? normalizeUrl(args.server || args.remote) : '';
+  const urlChanged = !!(requested && requested !== resolveServerUrl());
+  if (urlChanged) writeConfig({ serverUrl: requested });
+  const hadWindow = !!mainWindow;
+  showMainWindow();
+  if (hadWindow) {
+    // Only reload when we were offline or the server URL actually changed;
+    // otherwise just focus without interrupting the live page.
+    if (offlineMode || urlChanged) showOnline();
+  } else if (bootError) {
+    showOffline();
+  } else {
     showOnline();
   }
 });
 
 app.whenReady().then(function () {
-  boot();
-  buildTray();
+  installDesktopErrorLog();
+  boot().then(function () {
+    buildTray();
+  });
   applyAutoStart();
   app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    showMainWindow();
   });
 });
 
+app.on('before-quit', function () {
+  isQuitting = true;
+  if (agentWorker) agentWorker.kill();
+  if (n8nProcess) n8nProcess.kill();
+});
+
 app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin' && (resolveMode() !== 'embedded' || isQuitting)) app.quit();
 });

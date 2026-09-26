@@ -1,15 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
+import { postgresReachable, testDatabaseUrl } from "../test-db-url";
 
-const dir = mkdtempSync(join(tmpdir(), "farman-push-test-"));
-const url = `file:${join(dir, "test.db")}`;
-writeFileSync(join(dir, "test.db"), "");
+const url = testDatabaseUrl("push-route");
+const d = postgresReachable() ? describe : describe.skip;
 const db = new PrismaClient({ datasources: { db: { url } } });
 const env = { ...process.env };
 const session = vi.hoisted(() => ({ user: { id: "owner", role: "OWNER" } as { id: string; role: string } | null }));
@@ -65,11 +62,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.$disconnect();
-  rmSync(dir, { recursive: true, force: true });
   process.env = env;
 });
 
-describe("POST /api/sync/push", () => {
+d("POST /api/sync/push", () => {
   it("applies a batch, replays it idempotently, and rejects key reuse", async () => {
     const { POST } = await import("../../app/api/sync/push/route");
     const device_id = randomUUID();

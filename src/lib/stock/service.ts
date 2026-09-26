@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { LedgerError } from "@/lib/ledger/service";
 import { nextSharedSequence } from "@/lib/ledger/service";
+import { withdrawBatches } from "@/lib/business/inventory-flow";
 
 export const STOCK_OPERATION_TYPES = ["RECORD_MOVEMENT"] as const;
 export type StockOperationType = (typeof STOCK_OPERATION_TYPES)[number];
@@ -146,6 +147,13 @@ export async function applyStockOperation(
     where: { id: ingredient.id },
     data: { stockQuantity: after },
   });
+  const allocations = movement.delta < 0 ? await withdrawBatches(tx, ingredient.id, -movement.delta) : [];
+  await tx.inventoryEvent.create({ data: {
+    operationKey: `offline:${op.idempotencyKey}`, ingredientId: ingredient.id,
+    kind: "CORRECTION", delta: movement.delta, before: ingredient.stockQuantity, after,
+    reason: movement.reason.trim(),
+    allocations: allocations.length ? JSON.stringify(allocations) : null,
+  } });
   return { movementId: movement.id, serverSequence, ingredientId: ingredient.id, delta: movement.delta, after };
 }
 

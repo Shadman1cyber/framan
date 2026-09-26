@@ -15,6 +15,8 @@ type OfflineContextValue = {
   isSyncing: boolean;
   pendingCount: number;
   conflictCount: number;
+  /** Most recent conflict error, surfaced in the offline banner. */
+  lastConflictError: string | null;
   lastSyncStatus: "idle" | "synced" | "error";
   forceSync: () => void;
   mutateAdmin: <T extends Record<string, unknown> = Record<string, unknown>>(
@@ -87,6 +89,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [conflictCount, setConflictCount] = useState(0);
+  const [lastConflictError, setLastConflictError] = useState<string | null>(null);
   const [lastSyncStatus, setLastSyncStatus] = useState<"idle" | "synced" | "error">("idle");
 
   const refreshStats = useCallback(() => {
@@ -94,10 +97,12 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
       .then((stats) => {
         setPendingCount(stats.total);
         setConflictCount(stats.conflicts);
+        setLastConflictError(stats.lastConflictError);
       })
       .catch(() => {
         setPendingCount(0);
         setConflictCount(0);
+        setLastConflictError(null);
       });
   }, []);
 
@@ -177,6 +182,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
         isSyncing: syncing,
         pendingCount,
         conflictCount,
+        lastConflictError,
         lastSyncStatus,
         forceSync,
         mutateAdmin,

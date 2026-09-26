@@ -29,6 +29,9 @@ vi.mock("@/lib/db", () => ({
     productIngredient: {
       groupBy: vi.fn(),
     },
+    aIInsight: {
+      findFirst: vi.fn(),
+    },
     coffeeLine: {
       findMany: vi.fn(),
     },
@@ -219,6 +222,58 @@ describe("order creation", () => {
     expect(order.data.items.create[0].coffeeLineName).toBe("اتیوپی");
     expect(order.data.items.create[0].price).toBe(105000);
     expect(order.data.estPrepMin).toBeGreaterThan(0);
+  });
+
+  it("confirms manual orders in the creation transaction", async () => {
+    vi.mocked(prisma.product.findMany).mockResolvedValue([
+      {
+        id: "p1",
+        price: 85000,
+        nameFa: "اسپرسو",
+        isAvailable: true,
+        prepBaseMin: 2,
+        coffeeLines: [],
+      },
+    ] as never);
+    vi.mocked(prisma.productIngredient.groupBy).mockResolvedValue([] as never);
+    vi.mocked(prisma.order.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.staff.count).mockResolvedValue(1 as never);
+    vi.mocked(prisma.order.create).mockResolvedValue({
+      id: "o1",
+      status: "PENDING",
+      orderType: "TAKEAWAY",
+      total: 85000,
+      tableId: null,
+    } as never);
+    vi.mocked(prisma.order.findUnique)
+      .mockResolvedValueOnce({
+        id: "o1",
+        status: "PENDING",
+        orderType: "TAKEAWAY",
+        total: 85000,
+        tableId: null,
+      } as never)
+      .mockResolvedValueOnce({ items: [] } as never);
+    vi.mocked(prisma.order.update).mockResolvedValue({
+      id: "o1",
+      status: "CONFIRMED",
+      orderType: "TAKEAWAY",
+      total: 85000,
+      tableId: null,
+    } as never);
+    vi.mocked(prisma.aIInsight.findFirst).mockResolvedValue({ id: "insight" } as never);
+
+    const order = await createOrder({
+      items: [{ productId: "p1", quantity: 1 }],
+      customerName: "سفارش حضوری",
+      autoConfirm: true,
+    }, prisma as never);
+
+    expect(order.status).toBe("CONFIRMED");
+    expect(prisma.order.update).toHaveBeenCalledWith({
+      where: { id: "o1" },
+      data: { status: "CONFIRMED" },
+    });
   });
 });
 

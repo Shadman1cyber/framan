@@ -1,0 +1,11 @@
+{
+  "name": "cafe13-n8n-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "dependencies": {
+    "n8n": "2.20.0"
+  }
+}

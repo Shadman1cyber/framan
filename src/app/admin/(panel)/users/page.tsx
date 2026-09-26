@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { UsersAdmin } from "@/components/admin/UsersAdmin";
+import { requireOwnerPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
+  await requireOwnerPage();
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

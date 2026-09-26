@@ -129,6 +129,31 @@ function buildIntervalKey(interval: Interval): string {
   return interval.start.toISOString();
 }
 
+function getMaterialProfit(order: {
+  total: number;
+  items?: Array<{
+    quantity: number;
+    product: {
+      ingredients: Array<{
+        quantity: number;
+        unit: string;
+        ingredient: { unit: string; costPerUnit: number | null };
+      }>;
+    };
+  }>;
+}): number | null {
+  if (!order.items) return null;
+  let cost = 0;
+  for (const item of order.items) {
+    if (item.product.ingredients.length === 0) return null;
+    for (const recipe of item.product.ingredients) {
+      if (recipe.unit !== recipe.ingredient.unit || recipe.ingredient.costPerUnit == null) return null;
+      cost += recipe.quantity * recipe.ingredient.costPerUnit * item.quantity;
+    }
+  }
+  return Math.round(order.total - cost);
+}
+
 export async function GET(request: Request) {
   const g = await guard("finance.view");
   if ("res" in g) return g.res;
@@ -216,6 +241,22 @@ export async function GET(request: Request) {
       createdAt: true,
       status: true,
       _count: { select: { items: true } },
+      items: {
+        select: {
+          quantity: true,
+          product: {
+            select: {
+              ingredients: {
+                select: {
+                  quantity: true,
+                  unit: true,
+                  ingredient: { select: { unit: true, costPerUnit: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -243,6 +284,8 @@ export async function GET(request: Request) {
   const intervalMap = new Map<string, {
     orders: number;
     revenue: number;
+    profit: number;
+    profitAvailable: boolean;
     items: number;
     cancelled: number;
     avgOrderValue: number;
@@ -250,7 +293,7 @@ export async function GET(request: Request) {
 
   for (const interval of intervals) {
     const key = buildIntervalKey(interval);
-    intervalMap.set(key, { orders: 0, revenue: 0, items: 0, cancelled: 0, avgOrderValue: 0 });
+    intervalMap.set(key, { orders: 0, revenue: 0, profit: 0, profitAvailable: true, items: 0, cancelled: 0, avgOrderValue: 0 });
   }
 
   // Efficiently assign orders to intervals using binary search
@@ -283,6 +326,9 @@ export async function GET(request: Request) {
         data.orders += 1;
         data.revenue += order.total;
         data.items += order._count.items;
+        const profit = getMaterialProfit(order);
+        if (profit == null) data.profitAvailable = false;
+        else data.profit += profit;
       }
     }
   }
@@ -303,7 +349,7 @@ export async function GET(request: Request) {
 
   const result = intervals.map((interval) => {
     const key = buildIntervalKey(interval);
-    const data = intervalMap.get(key) ?? { orders: 0, revenue: 0, items: 0, cancelled: 0, avgOrderValue: 0 };
+    const data = intervalMap.get(key) ?? { orders: 0, revenue: 0, profit: 0, profitAvailable: true, items: 0, cancelled: 0, avgOrderValue: 0 };
     return {
       start: interval.start.toISOString(),
       end: interval.end.toISOString(),
@@ -312,6 +358,7 @@ export async function GET(request: Request) {
       dayDate: interval.dayDate,
       orders: data.orders,
       revenue: data.revenue,
+      profit: data.profitAvailable ? data.profit : null,
       items: data.items,
       avgOrderValue: data.avgOrderValue,
       cancelled: data.cancelled,

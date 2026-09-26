@@ -66,6 +66,7 @@ export default function CartPage() {
                 <Price amount={i.price} size="sm" className="text-muted" />
                 <QuantitySelector
                   value={i.quantity}
+                  min={0}
                   onChange={(n) => {
                     if (n > i.quantity) increase(i.productId, i.coffeeLineId);
                     else decrease(i.productId, i.coffeeLineId);

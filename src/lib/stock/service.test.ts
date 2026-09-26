@@ -1,10 +1,8 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
+import { postgresReachable, testDatabaseUrl } from "../test-db-url";
 import { applyLedgerOperation, nextCursorAfter, ledgerBalance } from "@/lib/ledger/service";
 import {
   STOCK_ENTITY_TYPE,
@@ -13,17 +11,16 @@ import {
   type StockOperationInput,
 } from "./service";
 
-const dir = mkdtempSync(join(tmpdir(), "farman-stock-test-"));
-const url = `file:${join(dir, "test.db")}`;
-writeFileSync(join(dir, "test.db"), "");
+const url = testDatabaseUrl("stock-service");
+const d = postgresReachable() ? describe : describe.skip;
 const db = new PrismaClient({ datasources: { db: { url } } });
 
 const TRIGGERS = [
-  `CREATE TRIGGER IF NOT EXISTS "LedgerEntry_no_update" BEFORE UPDATE ON "LedgerEntry" BEGIN SELECT RAISE(ABORT, 'LEDGER_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "LedgerEntry_no_delete" BEFORE DELETE ON "LedgerEntry" BEGIN SELECT RAISE(ABORT, 'LEDGER_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "StockMovement_no_update" BEFORE UPDATE ON "StockMovement" BEGIN SELECT RAISE(ABORT, 'STOCK_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "StockMovement_no_delete" BEFORE DELETE ON "StockMovement" BEGIN SELECT RAISE(ABORT, 'STOCK_IMMUTABLE'); END`,
-];
+  { name: "LedgerEntry_no_update", table: "LedgerEntry", operation: "UPDATE", functionName: "stock_test_ledger_no_update", message: "LEDGER_IMMUTABLE" },
+  { name: "LedgerEntry_no_delete", table: "LedgerEntry", operation: "DELETE", functionName: "stock_test_ledger_no_delete", message: "LEDGER_IMMUTABLE" },
+  { name: "StockMovement_no_update", table: "StockMovement", operation: "UPDATE", functionName: "stock_test_movement_no_update", message: "STOCK_IMMUTABLE" },
+  { name: "StockMovement_no_delete", table: "StockMovement", operation: "DELETE", functionName: "stock_test_movement_no_delete", message: "STOCK_IMMUTABLE" },
+] as const;
 
 function movement(ingredientId: string, delta: number, extra: Record<string, unknown> = {}): StockOperationInput {
   const id = randomUUID();
@@ -87,15 +84,31 @@ beforeAll(async () => {
     ["node_modules/prisma/build/index.js", "db", "push", "--skip-generate"],
     { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe" },
   );
-  for (const sql of TRIGGERS) await db.$executeRawUnsafe(sql);
+  for (const trigger of TRIGGERS) {
+    await db.$executeRawUnsafe(`
+      CREATE OR REPLACE FUNCTION "${trigger.functionName}"() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RAISE EXCEPTION '${trigger.message}';
+        RETURN NULL;
+      END;
+      $$
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE TRIGGER "${trigger.name}"
+      BEFORE ${trigger.operation} ON "${trigger.table}"
+      FOR EACH ROW
+      EXECUTE FUNCTION "${trigger.functionName}"()
+    `);
+  }
 }, 60000);
 
 afterAll(async () => {
   await db.$disconnect();
-  rmSync(dir, { recursive: true, force: true });
 });
 
-describe("append-only stock movements", () => {
+d("append-only stock movements", () => {
   it("records a purchase additively and advances the snapshot", async () => {
     const scope = `s-${randomUUID()}`;
     const ing = await seedIngredient(100);

@@ -1,4 +1,4 @@
-// File: /home/ashimashi/Desktop/farman-coffeeShop-CTO-v2/src/app/admin/(panel)/orders/page.tsx
+// File: /Users/armanmadadian/Desktop/Farman-cafe-menu/src/app/admin/(panel)/orders/page.tsx
 import * as entry from '../../../../../../src/app/admin/(panel)/orders/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -559,7 +559,9 @@ export function createFetchApiClient(base = ""): ApiClient {
       } catch (e) {
         throw new SyncTransportError(e instanceof Error ? e.message : "network error");
       }
-      if (res.status === 401) throw new SyncAuthError();
+      // 401 = signed out; 403 = signed in without finance.view (cashier) —
+      // both need a different account, not a retry.
+      if (res.status === 401 || res.status === 403) throw new SyncAuthError();
       if (res.status === 429) throw new SyncTransportError("rate limited");
       if (res.status >= 500) throw new SyncTransportError(`server error ${res.status}`);
       let json: PushResponse;
@@ -577,7 +579,8 @@ export function createFetchApiClient(base = ""): ApiClient {
       } catch (e) {
         throw new SyncTransportError(e instanceof Error ? e.message : "network error");
       }
-      if (res.status === 401) throw new SyncAuthError();
+      // See push: 403 without finance.view is an auth/role problem, not transient.
+      if (res.status === 401 || res.status === 403) throw new SyncAuthError();
       if (!res.ok) throw new SyncTransportError(`pull failed: ${res.status}`);
       try {
         return (await res.json()) as PullResponse;

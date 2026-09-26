@@ -6,18 +6,15 @@
 .DESCRIPTION
   Run on the Windows machine (or CI). Installs Node deps and produces:
     dist-desktop\Cafe13-Desktop-<version>-x64.exe      (NSIS installer)
-    dist-desktop\Cafe13-Desktop-<version>-ia32.exe     (NSIS installer, 32-bit Win7)
-    dist-desktop\Cafe13-Desktop-<version>-portable-*.exe (no-install)
 
 .PARAMETER Arch
-  x64 (default), ia32, or all (both).
+  x64 (Windows x64 desktop runtime).
 
 .EXAMPLE
   .\scripts\build-windows.ps1
-  .\scripts\build-windows.ps1 -Arch all
 #>
 param(
-  [ValidateSet('x64', 'ia32', 'all')]
+  [ValidateSet('x64')]
   [string]$Arch = 'x64'
 )
 
@@ -39,13 +36,8 @@ if (-not (Test-Path 'node_modules')) {
 
 $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 
-if ($Arch -eq 'all') {
-  Info 'Building universal installers (x64 + ia32)...'
-  npx electron-builder --win nsis portable --x64 --ia32
-} else {
-  Info "Building installer ($Arch)..."
-  npx electron-builder --win nsis portable --$Arch
-}
+Info "Building installer ($Arch)..."
+node scripts/build-desktop.cjs --arch=$Arch
 
 Info 'Done. Artifacts:'
 Get-ChildItem dist-desktop\*.exe | ForEach-Object { Write-Host "  $($_.Name)" }

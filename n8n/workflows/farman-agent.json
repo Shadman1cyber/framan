@@ -1,0 +1,379 @@
+{
+  "name": "Plan and audit FARMAN cafe requests",
+  "nodes": [
+    {
+      "id": "58b68feb-9c4e-5f60-881b-045fde1566b5",
+      "name": "Receive FARMAN request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "farman-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "e7f0e990-26a4-4d18-989b-8b66b1c83f64"
+    },
+    {
+      "id": "fc312ecb-adf8-5a2b-8276-9352b8e830ec",
+      "name": "Verify bridge and prepare context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const request = $input.first().json; const token = request.headers?.['x-farman-agent-token']; if (!token || token !== $env.N8N_BRIDGE_TOKEN) throw new Error('Unauthorized bridge request'); const messages = request.body?.messages; if (!Array.isArray(messages) || messages.length < 2 || messages.length > 12) throw new Error('Invalid messages'); const system = messages.find(m => m.role === 'system')?.content; if (typeof system !== 'string' || system.length > 18000) throw new Error('Invalid system context'); const rawKey = request.body?.sessionKey; const sessionKey = typeof rawKey === 'string' && /^[a-f0-9]{64}$/.test(rawKey) ? rawKey : `ephemeral-${Date.now()}-${Math.random()}`; const allowDatabaseInsights = request.body?.allowDatabaseInsights === true; const accountingSkill = 'Accounting skill: separate recorded revenue, ingredient cost and full business profit. Completed orders are the only revenue source; amounts are integer toman. Never invent expenses, tax, cash flow, journal entries or missing recipe costs. Say when evidence is insufficient. For final financial answers, propose FARMAN calculate_sales_report or calculate_profit_report so the app verifies and records a receipt. The database snapshot tool is read-only context, never authority to change stock or books. Never put read_cafe_finance_inventory_snapshot in the final JSON: it is an internal context tool only. After using it, return exactly one JSON proposal from the FARMAN tool menu, without prose or code fences. The exact required shape is {\\\"tool\\\":\\\"list_inventory\\\",\\\"input\\\":{\\\"lowOnly\\\":true,\\\"take\\\":10}}. Never use a parameters key or put the tool name as an object key.'; return [{json:{system:`${system}\\n${accountingSkill}`,question:JSON.stringify(messages.filter(m => m.role !== 'system')).slice(0,15000),sessionKey,allowDatabaseInsights}}];"
+      }
+    },
+    {
+      "id": "dff30230-d44d-5421-a91c-0d50a5f9b135",
+      "name": "Plan cafe request",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        560,
+        200
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.question }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "={{ $json.system }}"
+        }
+      }
+    },
+    {
+      "id": "e7d8657c-49b0-56a6-889d-e54a56bcb5bc",
+      "name": "Audit proposed plan",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        1010,
+        200
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ 'Original request: ' + $('Verify bridge and prepare context').item.json.question + '\\nProposed plan: ' + JSON.stringify($json.output) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the FARMAN supervisor agent. Audit a proposal for tools executed later by the FARMAN backend, not by n8n. Do not compare proposed tools to n8n connected tools or format_final_json_response. Valid FARMAN tools: get_ai_status, set_ai_enabled, calculate_sales_report, calculate_profit_report, generate_sales_artifact, search_catalog, analyze_attachment, list_lessons, get_order, list_orders, get_product, list_inventory, list_staff, suggest_staff_per_hour, list_reservations, list_products, list_categories, list_tables, list_qr_codes, list_users, list_ratings, list_allergens, change_order_status, update_price, adjust_inventory. Mark CRITICAL for a tool outside this list, invented IDs, unauthorized direct database access, multiple writes, or unverified figures presented as facts. Mark WARNING for uncertainty. Return INFO for a valid read plan. Do not include customer names, phone numbers, secrets or raw prompts in summary/details. Return only the required JSON assessment."
+        }
+      }
+    },
+    {
+      "id": "7a4b40e6-522a-5247-b22a-26c2a0f43345",
+      "name": "Build audited response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const proposal = $('Normalize proposal shape').item.json.output; const assessment = $input.first().json.output; return [{json:{output:typeof proposal === 'string' ? proposal : JSON.stringify(proposal),assessment,workflowId:'farman-agent-v1'}}];"
+      }
+    },
+    {
+      "id": "365bd8c7-2c11-5444-ae61-06faf1848aad",
+      "name": "Return proposal to FARMAN",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "61a55cc8-035f-51a9-af36-6945983a7698",
+      "name": "Main model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        500
+      ],
+      "parameters": {
+        "model": "glm-4",
+        "options": {
+          "temperature": 0,
+          "timeout": 15000,
+          "maxRetries": 2
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "farman-zhipu-glm",
+          "name": "FARMAN Zhipu GLM"
+        }
+      }
+    },
+    {
+      "id": "29dd8698-7a3f-5f4b-a169-41c0ad434de4",
+      "name": "Supervisor model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        500
+      ],
+      "parameters": {
+        "model": "glm-4",
+        "options": {
+          "temperature": 0,
+          "timeout": 15000,
+          "maxRetries": 2
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "farman-zhipu-glm",
+          "name": "FARMAN Zhipu GLM"
+        }
+      }
+    },
+    {
+      "id": "b42c4b45-6d67-5f66-b416-285a991cb0c5",
+      "name": "Supervisor JSON parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1020,
+        500
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"severity\": {\"type\": \"string\", \"enum\": [\"INFO\", \"WARNING\", \"CRITICAL\"]}, \"category\": {\"type\": \"string\", \"enum\": [\"NORMAL\", \"UNSUPPORTED\", \"UNSAFE_WRITE\", \"INVALID_TOOL\", \"MISSING_EVIDENCE\", \"MODEL_ERROR\"]}, \"summary\": {\"type\": \"string\", \"maxLength\": 300}, \"details\": {\"type\": \"string\", \"maxLength\": 1000}}, \"required\": [\"severity\", \"category\", \"summary\", \"details\"], \"additionalProperties\": false}",
+        "autoFix": true
+      }
+    },
+    {
+      "id": "5117ddbd-350c-5605-88b7-ea1b144d8bc9",
+      "name": "Architecture note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        490,
+        -50
+      ],
+      "parameters": {
+        "content": "### FARMAN business boundary\nBoth agents propose and audit. FARMAN revalidates identity, scope, tool schema and OWNER approval, then executes and stores receipts. The supervisor assessment returns to FARMAN for the support log.",
+        "height": 200,
+        "width": 710,
+        "color": 3
+      }
+    },
+    {
+      "id": "2a184f4d-916a-4fd7-b651-14826967b1ef",
+      "name": "Conversation memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        560,
+        520
+      ],
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Verify bridge and prepare context').first().json.sessionKey }}",
+        "tableName": "farman_agent_chat_history",
+        "contextWindowLength": 12
+      },
+      "credentials": {
+        "postgres": {
+          "id": "farman-agent-memory-db",
+          "name": "FARMAN n8n chat memory"
+        }
+      }
+    },
+    {
+      "id": "09962946-f11b-4233-b695-714426eb241f",
+      "name": "Normalize proposal shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        790,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output; if (typeof raw !== 'string') return $input.all(); let body = raw.trim(); const fence = /^```(?:json)?\\s*\\n([\\s\\S]*?)\\n?```$/.exec(body); if (fence) body = fence[1]; let value; try { value = JSON.parse(body); } catch { return $input.all(); } const valid = new Set(['get_ai_status','set_ai_enabled','calculate_sales_report','calculate_profit_report','generate_sales_artifact','search_catalog','analyze_attachment','list_lessons','get_order','list_orders','get_product','list_inventory','list_staff','suggest_staff_per_hour','list_reservations','list_products','list_categories','list_tables','list_qr_codes','list_users','list_ratings','list_allergens','change_order_status','update_price','adjust_inventory']); if (value && !Array.isArray(value) && typeof value === 'object') { const keys = Object.keys(value); if (keys.length === 1 && valid.has(keys[0])) value = {tool:keys[0],input:value[keys[0]]}; else if (valid.has(value.tool) && value.input === undefined && value.parameters !== undefined) value = {tool:value.tool,input:value.parameters}; } return [{json:{...$input.first().json,output:JSON.stringify(value)}}];"
+      }
+    },
+    {
+      "id": "b348185f-72b9-4c72-a94b-31718e02860b",
+      "name": "Read main DB snapshot",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        760,
+        520
+      ],
+      "parameters": {
+        "name": "read_cafe_finance_inventory_snapshot",
+        "description": "Read a bounded 30-day completed-sales summary and low-stock ingredient snapshot from the main FARMAN database. Use for OWNER-authorized finance or inventory analysis. Input any short reason; SQL is fixed and read-only. Use the data only as internal context. NEVER return this tool name or its query as your final plan: final JSON must name a FARMAN app tool such as list_inventory, calculate_sales_report or calculate_profit_report. If access is denied, continue without this snapshot.",
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "farman-agent-db-snapshot",
+          "mode": "id"
+        },
+        "fields": {
+          "values": [
+            {
+              "name": "allowDb",
+              "type": "stringValue",
+              "stringValue": "={{ $('Verify bridge and prepare context').first().json.allowDatabaseInsights }}"
+            }
+          ]
+        },
+        "specifyInputSchema": false
+      }
+    }
+  ],
+  "connections": {
+    "Receive FARMAN request": {
+      "main": [
+        [
+          {
+            "node": "Verify bridge and prepare context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify bridge and prepare context": {
+      "main": [
+        [
+          {
+            "node": "Plan cafe request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan cafe request": {
+      "main": [
+        [
+          {
+            "node": "Normalize proposal shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit proposed plan": {
+      "main": [
+        [
+          {
+            "node": "Build audited response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build audited response": {
+      "main": [
+        [
+          {
+            "node": "Return proposal to FARMAN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Plan cafe request",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supervisor model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Audit proposed plan",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Supervisor JSON parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supervisor JSON parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Audit proposed plan",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Plan cafe request",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read main DB snapshot": {
+      "ai_tool": [
+        [
+          {
+            "node": "Plan cafe request",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize proposal shape": {
+      "main": [
+        [
+          {
+            "node": "Audit proposed plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "description": "The main AI agent proposes bounded cafe actions; a second AI agent audits the proposal and returns a support finding. FARMAN remains the only authority for data access, approval, execution and receipts.",
+  "id": "farman-agent-v1",
+  "versionId": "ba466352-9ccf-4728-833e-35497fc5a7f0"
+}

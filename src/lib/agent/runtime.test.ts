@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { testDatabaseUrl, postgresReachable } from "../test-db-url";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
+import { mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { execFileSync, spawn } from "child_process";
 import { createServer } from "http";
@@ -12,10 +11,8 @@ import { randomUUID } from "crypto";
 import { AgentRuntime } from "./runtime";
 import { proposalSchema } from "./contracts";
 
-const dir = mkdtempSync(join(tmpdir(), "farman-agent-test-"));
 const url = testDatabaseUrl("runtime");
 const d = postgresReachable() ? describe : describe.skip;
-writeFileSync(join(dir, "test.db"), "");
 const db = new PrismaClient({ datasources: { db: { url } } });
 const runtime = new AgentRuntime(db);
 const create = (enabled = true) => runtime.create("owner", { key: randomUUID(), proposal: { tool: "set_ai_enabled", input: { enabled } } });
@@ -41,9 +38,9 @@ beforeEach(async () => {
   await db.agentEvent.deleteMany(); await db.agentRun.deleteMany(); await db.setting.deleteMany(); await db.order.deleteMany();
   await db.user.update({ where: { id: "owner" }, data: { role: "OWNER" } });
 });
-afterAll(async () => { await db.$disconnect(); rmSync(dir, { recursive: true, force: true }); process.env = env; });
+afterAll(async () => { await db.$disconnect(); process.env = env; });
 
-d("real SQLite agent execution", () => {
+d("real PostgreSQL agent execution", () => {
   it("reads source and persists verification trace", async () => {
     const run = await read(); const result = await runtime.execute("owner", run.id);
     expect(result.state).toBe("succeeded"); expect(JSON.parse(result.result!).enabled).toBe(false);
@@ -137,9 +134,30 @@ d("phase 2 recovery and races", () => {
   });
   it("marks deterministic verification failure terminal and durable", async () => {
     const run = await create(); await runtime.control("owner", run.id, "approve", run.inputHash);
-    await db.$executeRawUnsafe("CREATE TRIGGER flip AFTER INSERT ON Setting WHEN NEW.key = 'ai.enabled' AND NEW.value = 'true' BEGIN UPDATE Setting SET value = 'false' WHERE key = 'ai.enabled'; END");
+    await db.$executeRawUnsafe(`
+      CREATE OR REPLACE FUNCTION runtime_test_flip() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        UPDATE "Setting"
+        SET "value" = 'false'
+        WHERE "key" = 'ai.enabled';
+        RETURN NEW;
+      END;
+      $$
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE TRIGGER flip
+      AFTER INSERT ON "Setting"
+      FOR EACH ROW
+      WHEN (NEW."key" = 'ai.enabled' AND NEW."value" = 'true')
+      EXECUTE FUNCTION runtime_test_flip()
+    `);
     try { await expect(runtime.execute("owner", run.id)).rejects.toThrow("VERIFICATION_FAILED"); }
-    finally { await db.$executeRawUnsafe("DROP TRIGGER flip"); }
+    finally {
+      await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS flip ON "Setting"');
+      await db.$executeRawUnsafe("DROP FUNCTION IF EXISTS runtime_test_flip()");
+    }
     expect(await db.agentRun.findUnique({ where: { id: run.id } })).toMatchObject({ state: "failed", lastError: "VERIFICATION_FAILED", attemptCount: 1 });
     expect(await db.setting.count()).toBe(0);
     expect((await runtime.get("owner", run.id)).events.map(e => e.name)).not.toContain("tool.verified");
@@ -224,9 +242,28 @@ d("phase 2 recovery and races", () => {
 d("transport and atomic rollback", () => {
   it("rolls back a real mutation when persisting its verification event fails", async () => {
     const run = await create(); await runtime.control("owner", run.id, "approve", run.inputHash);
-    await db.$executeRawUnsafe("CREATE TRIGGER fail_receipt BEFORE INSERT ON AgentEvent WHEN NEW.name = 'tool.verified' BEGIN SELECT RAISE(ABORT, 'test receipt failure'); END");
+    await db.$executeRawUnsafe(`
+      CREATE OR REPLACE FUNCTION runtime_test_fail_receipt() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RAISE EXCEPTION 'test receipt failure';
+        RETURN NEW;
+      END;
+      $$
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE TRIGGER fail_receipt
+      BEFORE INSERT ON "AgentEvent"
+      FOR EACH ROW
+      WHEN (NEW."name" = 'tool.verified')
+      EXECUTE FUNCTION runtime_test_fail_receipt()
+    `);
     try { await expect(runtime.execute("owner", run.id)).rejects.toThrow(); expect(await db.setting.count()).toBe(0); }
-    finally { await db.$executeRawUnsafe("DROP TRIGGER fail_receipt"); }
+    finally {
+      await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS fail_receipt ON "AgentEvent"');
+      await db.$executeRawUnsafe("DROP FUNCTION IF EXISTS runtime_test_fail_receipt()");
+    }
     expect((await runtime.execute("owner", run.id)).state).toBe("succeeded");
   });
   it("runs authenticated HTTP handlers against the real database", async () => {

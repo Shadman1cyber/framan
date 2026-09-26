@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('cafe13', {
   checkServer: function (url) {
     return ipcRenderer.invoke('cafe13:check-server', url);
   },
+  copyShareUrl: function () {
+    return ipcRenderer.invoke('cafe13:copy-share-url');
+  },
   setServerUrl: function (url) {
     return ipcRenderer.invoke('cafe13:set-server-url', url);
   },

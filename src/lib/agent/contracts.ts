@@ -40,6 +40,9 @@ export const proposalSchema = z.discriminatedUnion("tool", [
     take: z.number().int().min(1).max(30).optional(),
   }).strict() }).strict(),
   z.object({ tool: z.literal("list_staff"), input: z.object({}).strict() }).strict(),
+  z.object({ tool: z.literal("suggest_staff_per_hour"), input: z.object({
+    days: z.number().int().min(7).max(31).optional(),
+  }).strict() }).strict(),
   z.object({ tool: z.literal("list_reservations"), input: z.object({
     take: z.number().int().min(1).max(20).optional(),
   }).strict() }).strict(),
@@ -170,6 +173,7 @@ export const TOOL_CONTRACTS = {
   get_product: { permission: "products.manage", risk: "read", timeoutMs: 5000, verification: "live Product read with current price and coffee-line prices" },
   list_inventory: { permission: "ingredients.manage", risk: "read", timeoutMs: 5000, verification: "live Ingredient quantities with unit and thresholds" },
   list_staff: { permission: "staff.manage", risk: "read", timeoutMs: 5000, verification: "live Staff read; no personal secrets exposed" },
+  suggest_staff_per_hour: { permission: "staff.manage", risk: "read", timeoutMs: 5000, verification: "Tehran-hour order counts over a bounded recent window; deterministic staffing heuristic" },
   list_reservations: { permission: "tables.manage", risk: "read", timeoutMs: 5000, verification: "live TableReservation read, upcoming first" },
   list_products: { permission: "products.manage", risk: "read", timeoutMs: 5000, verification: "bounded live Product list; no secrets" },
   list_categories: { permission: "categories.manage", risk: "read", timeoutMs: 5000, verification: "live Category list with product counts" },

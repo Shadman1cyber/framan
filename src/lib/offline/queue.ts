@@ -179,10 +179,18 @@ export async function getActionCount(): Promise<number> {
   });
 }
 
-export async function getQueueStats(): Promise<{ total: number; conflicts: number }> {
+export async function getQueueStats(): Promise<{
+  total: number;
+  conflicts: number;
+  /** Most recent conflict message (e.g. server rejected a discounted order). */
+  lastConflictError: string | null;
+}> {
   const actions = await getQueuedActions();
+  const conflicted = actions.filter((action) => action.state === "conflict");
+  const last = conflicted.length ? conflicted[conflicted.length - 1] : null;
   return {
     total: actions.length,
-    conflicts: actions.filter((action) => action.state === "conflict").length,
+    conflicts: conflicted.length,
+    lastConflictError: last?.lastError ?? null,
   };
 }

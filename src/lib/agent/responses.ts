@@ -107,6 +107,10 @@ function summarizeStepResult(result: unknown): string {
   if ("products" in o) return list(o, "products", "لیست محصولات", product);
   if ("categories" in o) return list(o, "categories", "دسته‌های منو", r => `${str(r.nameFa)}: ${str(r.productCount)} محصول${r.isActive === false ? "؛ غیرفعال" : ""}${id(r)}`);
   if ("ingredients" in o) return list(o, "ingredients", "موجودی انبار", r => `${str(r.nameFa)}: ${str(r.stockQuantity)} ${str(r.unit)}${r.minQuantity != null ? `؛ حداقل: ${str(r.minQuantity)} ${str(r.unit)}` : ""}${id(r)}`);
+  if ("hours" in o && "days" in o && "note" in o) {
+    const hours = rows(o.hours).slice(0, 8).map(h => `• ساعت ${str(h.hour)}:۰۰: میانگین ${str(h.avgOrders)} سفارش؛ ${str(h.suggested)} نفر پیشنهادی`).join("\n");
+    return `ساعات پیک و نیروی پیشنهادی بر اساس ${str(o.days)} روز دارای سفارش:\n${hours || "دادهٔ سفارش کافی نیست."}\n${str(o.note)}`;
+  }
   if ("staff" in o) return list(o, "staff", "پرسنل", r => `${str(r.name)}؛ نقش: ${str(r.role)}؛ ${r.isActive ? "فعال" : "غیرفعال"}${id(r)}`);
   if ("reservations" in o) return list(o, "reservations", "رزروهای پیش‌رو", r => `${str(r.customerName)}؛ ${str(r.guests)} نفر؛ میز ${str(row(r.table).number)}؛ ${date(r.reservedAt)}؛ ${status(r.status)}${id(r)}`);
   if ("tables" in o) return list(o, "tables", "میزها", r => `میز ${str(r.number)}${r.label ? ` (${str(r.label)})` : ""}؛ ${r.isOccupied ? "اشغال" : "آزاد"}؛ ${r.isActive ? "فعال" : "غیرفعال"}${id(r)}`);

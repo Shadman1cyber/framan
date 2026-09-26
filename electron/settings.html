@@ -22,12 +22,22 @@
     .opt input { margin-top: 4px; accent-color: #c98a3d; }
     .opt b { font-size: 14px; display: block; }
     .opt span { font-size: 12px; color: #d9c39a; line-height: 1.9; }
-    input[type="text"] {
+    input[type="text"], input[type="password"] {
       width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #6b4a2b;
       background: #140d07; color: #f5e9d3; font-size: 14px; direction: ltr; text-align: left;
       margin-top: 4px;
     }
-    input[type="text"]:disabled { opacity: .45; }
+    input[type="text"]:disabled, input[type="password"]:disabled { opacity: .45; }
+    input:focus { outline: 2px solid rgba(201, 138, 61, .55); outline-offset: 1px; }
+    .field { display: block; margin-top: 12px; }
+    .field > span { display: block; color: #e7d6ba; font-size: 12px; line-height: 1.8; }
+    .hint { color: #a98d63; font-size: 11px; line-height: 1.8; margin-top: 4px; }
+    .agent-settings {
+      margin: 12px 0; padding: 12px; border: 1px solid #6b4a2b; border-radius: 12px;
+      background: #21160e;
+    }
+    .agent-settings summary { cursor: pointer; color: #f5e9d3; font-size: 13px; }
+    .service-state { color: #e0a35a; font-size: 11px; line-height: 1.8; margin-top: 10px; }
     .row { display: flex; gap: 8px; margin-top: 14px; }
     button {
       flex: 1; padding: 11px; border: 0; border-radius: 10px; cursor: pointer;
@@ -37,6 +47,11 @@
     button.secondary { background: transparent; border: 1px solid #6b4a2b; color: #f5e9d3; flex: 0 0 auto; }
     button:disabled { opacity: .55; cursor: wait; }
     .status { margin-top: 12px; font-size: 12px; min-height: 20px; color: #e0a35a; line-height: 1.9; }
+    .share {
+      margin: 12px 0; padding: 12px; border: 1px solid #6b4a2b; border-radius: 12px;
+      background: #21160e; font-size: 12px; line-height: 1.9;
+    }
+    .share code { display: block; margin: 4px 0 9px; color: #f5e9d3; direction: ltr; text-align: left; }
   </style>
 </head>
 <body>
@@ -61,6 +76,39 @@
       </div>
     </label>
 
+    <div class="share" id="share" hidden>
+      <b>نشانی موبایل و مرورگر</b>
+      <code id="shareUrl"></code>
+      <button id="copyShare" class="secondary">کپی نشانی</button>
+    </div>
+
+    <details class="agent-settings">
+      <summary>ایجنت n8n و پایش OpenObserve</summary>
+      <label class="field">
+        <span>کلید API مدل</span>
+        <input type="password" id="modelKey" autocomplete="new-password" placeholder="برای تغییر کلید وارد کنید" />
+        <small class="hint" id="modelKeyState"></small>
+      </label>
+      <label class="field">
+        <span>آدرس سرویس OpenAI-compatible مدل</span>
+        <input type="text" id="modelBaseUrl" placeholder="https://open.bigmodel.cn/api/paas/v4" />
+      </label>
+      <label class="field">
+        <span>آدرس دریافت Trace در OpenObserve</span>
+        <input type="text" id="openobserveTracesUrl" placeholder="http://127.0.0.1:5080/api/default/default/v1/traces" />
+      </label>
+      <label class="field">
+        <span>توکن Authorization داشبورد OpenObserve</span>
+        <input type="password" id="openobserveAuthorization" autocomplete="new-password" placeholder="برای تغییر توکن وارد کنید" />
+        <small class="hint" id="openobserveState"></small>
+      </label>
+      <label class="field">
+        <span>نشانی داشبورد OpenObserve</span>
+        <input type="text" id="openobserveDashboardUrl" placeholder="http://127.0.0.1:5080" />
+      </label>
+      <div class="service-state" id="serviceState"></div>
+    </details>
+
     <div class="row">
       <button id="save">ذخیره و راه‌اندازی مجدد</button>
       <button id="close" class="secondary">بستن</button>
@@ -74,8 +122,19 @@
       var currentEl = document.getElementById('current');
       var saveBtn = document.getElementById('save');
       var closeBtn = document.getElementById('close');
+      var copyShareBtn = document.getElementById('copyShare');
+      var shareBox = document.getElementById('share');
+      var shareUrl = document.getElementById('shareUrl');
       var optEmbedded = document.getElementById('optEmbedded');
       var optRemote = document.getElementById('optRemote');
+      var modelKey = document.getElementById('modelKey');
+      var modelBaseUrl = document.getElementById('modelBaseUrl');
+      var modelKeyState = document.getElementById('modelKeyState');
+      var openobserveTracesUrl = document.getElementById('openobserveTracesUrl');
+      var openobserveAuthorization = document.getElementById('openobserveAuthorization');
+      var openobserveDashboardUrl = document.getElementById('openobserveDashboardUrl');
+      var openobserveState = document.getElementById('openobserveState');
+      var serviceState = document.getElementById('serviceState');
 
       function api() { return window.cafe13; }
       function setStatus(t) { statusEl.textContent = t; }
@@ -102,6 +161,17 @@
           var r = document.querySelector('input[name="mode"][value="' + mode + '"]');
           if (r) r.checked = true;
           if (s && s.serverUrl) serverInput.value = s.serverUrl;
+          if (s && s.lanUrl) {
+            shareBox.hidden = false;
+            shareUrl.textContent = s.lanUrl;
+          }
+          if (s && s.modelBaseUrl) modelBaseUrl.value = s.modelBaseUrl;
+          modelKeyState.textContent = s && s.modelApiKeyConfigured ? 'کلید مدل ذخیره شده است.' : 'برای اجرای ایجنت، کلید مدل را وارد کنید.';
+          if (s && s.openobserveTracesUrl) openobserveTracesUrl.value = s.openobserveTracesUrl;
+          if (s && s.openobserveDashboardUrl) openobserveDashboardUrl.value = s.openobserveDashboardUrl;
+          openobserveState.textContent = s && s.openobserveAuthorizationConfigured ? 'توکن OpenObserve ذخیره شده است.' : 'برای ارسال Telemetry توکن را وارد کنید.';
+          var services = (s && s.agentServices) || {};
+          serviceState.textContent = 'سرویس‌ها: ' + (services.state || 'stopped') + ' — n8n: ' + (services.n8n ? 'آماده' : 'خاموش') + ' — worker: ' + (services.worker ? 'آماده' : 'خاموش') + (services.error ? ' — ' + services.error : '');
           var cur = 'وضعیت فعلی: ' + ((s && s.mode === 'remote') ? 'متصل به سرور فروشگاه' : 'سرور داخلی');
           cur += ' — ' + ((s && s.currentUrl) || '');
           if (s && s.lanIp) cur += ' — آی‌پی این سیستم: ' + s.lanIp;
@@ -114,7 +184,15 @@
         if (!api()) return;
         saveBtn.disabled = true;
         setStatus('در حال ذخیره…');
-        api().saveSettings({ mode: selectedMode(), serverUrl: serverInput.value }).then(function (r) {
+        api().saveSettings({
+          mode: selectedMode(),
+          serverUrl: serverInput.value,
+          modelApiKey: modelKey.value,
+          modelBaseUrl: modelBaseUrl.value,
+          openobserveTracesUrl: openobserveTracesUrl.value,
+          openobserveAuthorization: openobserveAuthorization.value,
+          openobserveDashboardUrl: openobserveDashboardUrl.value
+        }).then(function (r) {
           if (r && r.ok) {
             setStatus('ذخیره شد. برنامه دوباره راه‌اندازی می‌شود…');
             setTimeout(function () { api().restartApp(); }, 800);
@@ -122,6 +200,13 @@
             saveBtn.disabled = false;
             setStatus((r && r.error) || 'نشانی معتبر نیست.');
           }
+        });
+      });
+
+      copyShareBtn.addEventListener('click', function () {
+        if (!api()) return;
+        api().copyShareUrl().then(function (r) {
+          setStatus((r && r.ok) ? 'نشانی کپی شد.' : 'سرور داخلی هنوز آماده نیست.');
         });
       });
 

@@ -1,17 +1,20 @@
 import { prisma } from "@/lib/db";
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { StaffPanelClient } from "@/components/admin/StaffPanelClient";
+import { requireOwnerPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminStaffPage() {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  if (role !== "OWNER" && role !== "ADMIN") redirect("/admin");
+  await requireOwnerPage();
 
-  const staff = await prisma.staff.findMany({ orderBy: { name: "asc" } });
+  const staff = await prisma.staff.findMany({
+    include: {
+      shiftRotation: {
+        include: { slots: { orderBy: { position: "asc" } } },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="space-y-4">
@@ -26,6 +29,20 @@ export default async function AdminStaffPage() {
         initialStaff={staff.map((s) => ({
           id: s.id, name: s.name, role: s.role, task: s.task,
           shiftStart: s.shiftStart, shiftEnd: s.shiftEnd, isActive: s.isActive,
+          shiftRotation: s.shiftRotation
+            ? {
+                id: s.shiftRotation.id,
+                isEnabled: s.shiftRotation.isEnabled,
+                startDate: s.shiftRotation.startDate,
+                slots: s.shiftRotation.slots.map((slot) => ({
+                  id: slot.id,
+                  position: slot.position,
+                  label: slot.label,
+                  shiftStart: slot.shiftStart,
+                  shiftEnd: slot.shiftEnd,
+                })),
+              }
+            : null,
         }))}
       />
     </div>

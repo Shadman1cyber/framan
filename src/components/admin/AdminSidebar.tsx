@@ -11,6 +11,7 @@ const NAV: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: "📊", cashierTab: "dashboard" },
   { href: "/admin/orders", label: "سفارش‌ها", icon: "📦", cashierTab: "orders" },
   { href: "/admin/customers", label: "باشگاه مشتریان", icon: "🎁", cashierTab: "customers" },
+  { href: "/admin/discounts", label: "کدهای تخفیف", icon: "🏷️", ownerOnly: true },
   { href: "/admin/products", label: "محصولات", icon: "🍽️", ownerOnly: true },
   { href: "/admin/categories", label: "دسته‌ها", icon: "🗂️", ownerOnly: true },
   { href: "/admin/inventory", label: "انبار مواد", icon: "🌿", ownerOnly: true },

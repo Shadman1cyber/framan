@@ -1,0 +1,83 @@
+{
+  "id": "farman-agent-db-snapshot",
+  "name": "FARMAN authorized DB snapshot tool",
+  "description": "Reads bounded reporting views from the main app database. The caller supplies a server-derived finance.view flag; no model-generated SQL or writes are accepted.",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "nodes": [
+    {
+      "id": "1b67a8de-5d22-4a2b-8637-5423189db704",
+      "name": "Tool input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        240
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "eeb42695-a5fc-4ddd-9d2e-eac059249e49",
+      "name": "Enforce finance access",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json; if (input.allowDb !== true && input.allowDb !== 'true') throw new Error('Finance access denied'); return [{json:{authorized:true}}];"
+      }
+    },
+    {
+      "id": "3fa48890-aadc-4209-906e-64554604877b",
+      "name": "Query approved reporting views",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        720,
+        240
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'window', 'last 30 Tehran calendar days',\n  'completed_sales', COALESCE((SELECT json_agg(row_to_json(s)) FROM (\n     SELECT business_day, completed_orders, revenue_toman\n     FROM agent_read.daily_sales\n     WHERE business_day >= (now() AT TIME ZONE 'Asia/Tehran')::date - 29\n     ORDER BY business_day DESC LIMIT 30) s), '[]'::json),\n  'low_stock', COALESCE((SELECT json_agg(row_to_json(i)) FROM (\n     SELECT id, name_fa, unit, stock_quantity, min_quantity\n     FROM agent_read.inventory_status WHERE is_low ORDER BY name_fa LIMIT 30) i), '[]'::json)\n) AS snapshot",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "farman-agent-main-db-reader",
+          "name": "FARMAN main DB read only"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Tool input": {
+      "main": [
+        [
+          {
+            "node": "Enforce finance access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enforce finance access": {
+      "main": [
+        [
+          {
+            "node": "Query approved reporting views",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

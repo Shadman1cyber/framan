@@ -13,9 +13,31 @@ export async function actor() {
   if (!user) throw new AgentError("UNAUTHENTICATED", 401);
   return user.id;
 }
+function isAllowedOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  const allowed = new Set<string>();
+  for (const value of [process.env.NEXTAUTH_URL, process.env.PUBLIC_APP_URL]) {
+    try {
+      if (value) allowed.add(new URL(value).origin);
+    } catch {
+      continue;
+    }
+  }
+  try {
+    const requestUrl = new URL(req.url);
+    allowed.add(requestUrl.origin);
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const protocol = req.headers.get("x-forwarded-proto") || requestUrl.protocol.replace(":", "");
+    if (host) allowed.add(`${protocol}://${host}`);
+  } catch {
+    return false;
+  }
+  return allowed.has(origin);
+}
+
 export async function body(req: Request) {
-  const expected = process.env.NEXTAUTH_URL;
-  if (!expected || req.headers.get("origin") !== new URL(expected).origin) throw new AgentError("INVALID_ORIGIN", 403);
+  if (!isAllowedOrigin(req)) throw new AgentError("INVALID_ORIGIN", 403);
   if (req.headers.get("content-type")?.split(";")[0].trim() !== "application/json") throw new AgentError("JSON_REQUIRED", 415);
   const reader = req.body?.getReader();
   if (!reader) throw new AgentError("INVALID_INPUT", 400);

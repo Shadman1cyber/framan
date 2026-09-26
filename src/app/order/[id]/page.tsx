@@ -140,9 +140,25 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
               </li>
             ))}
           </ul>
-          <div className="mt-3 flex items-center justify-between border-t border-coffee/10 pt-3">
-            <span className="font-semibold">مبلغ کل</span>
-            <Price amount={order.total} size="md" />
+          <div className="mt-3 space-y-1.5 border-t border-coffee/10 pt-3 dark:border-dark-border">
+            {order.discountAmount > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">جمع اقلام</span>
+                  <Price amount={order.subtotal || order.total + order.discountAmount} size="sm" />
+                </div>
+                <div className="flex justify-between text-sm text-olive-600 dark:text-olive-300">
+                  <span>
+                    تخفیف{order.discountCode ? ` (${order.discountCode})` : ""}
+                  </span>
+                  <span>− {formatNumber(order.discountAmount)} تومان</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between">
+              <span className="font-semibold">مبلغ کل</span>
+              <Price amount={order.total} size="md" />
+            </div>
           </div>
         </section>
 

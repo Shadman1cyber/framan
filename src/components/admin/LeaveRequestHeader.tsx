@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { LEAVE_HEADER_REFRESH_MS } from "@/lib/admin-timing";
 
 export function LeaveRequestHeader({
   role,
@@ -21,7 +22,7 @@ export function LeaveRequestHeader({
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(refresh, 30_000);
+    const timer = window.setInterval(refresh, LEAVE_HEADER_REFRESH_MS);
     window.addEventListener("focus", refresh);
     return () => {
       window.clearInterval(timer);

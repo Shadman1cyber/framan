@@ -1,5 +1,6 @@
 import { ORDER_STATUSES, type OrderStatus, type OrderType } from "@/lib/constants";
 import { OrderError } from "@/lib/orders";
+import { finishOrderIngredients, reserveOrderIngredients } from "@/lib/business/order-ingredients";
 import type { Prisma } from "@prisma/client";
 
 type DB = Prisma.TransactionClient;
@@ -36,6 +37,7 @@ export type OrderTransitionReceipt = {
   total: number;
   tableReleased: boolean;
   changedAt: string;
+  ingredientUsage?: { ingredientId: string; quantity: number; unit: string }[];
 };
 
 /**
@@ -67,6 +69,9 @@ export async function transitionOrderAtomic(
   if (next === "COMPLETED" || next === "CANCELLED") data.completedAt = now;
   const updated = await tx.order.update({ where: { id: orderId }, data });
 
+  const ingredientUsage = next === "CONFIRMED" ? await reserveOrderIngredients(tx, orderId) : undefined;
+  if (next === "COMPLETED" || next === "CANCELLED") await finishOrderIngredients(tx, orderId, next);
+
   // E.1 — record every preparation-stage timestamp (best effort; never blocks the transition).
   try {
     await (tx as unknown as { orderStageEvent: { create: (a: unknown) => Promise<unknown> } }).orderStageEvent.create({
@@ -87,7 +92,7 @@ export async function transitionOrderAtomic(
   }
   const receipt: OrderTransitionReceipt = {
     orderId, from: order.status, to: next, orderType, total: updated.total,
-    tableReleased, changedAt: now.toISOString(),
+    tableReleased, changedAt: now.toISOString(), ingredientUsage,
   };
   if (writeReceipt) await writeReceipt(receipt, tx);
   return {

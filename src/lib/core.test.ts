@@ -14,6 +14,7 @@ import {
 } from "@/lib/constants";
 import { getPublicAppUrl, detectLanIp, aiEnvEnabled } from "@/lib/config-helpers";
 import { validateImage } from "@/lib/storage-helpers";
+import { calculateProfitPerUnit, productMatrixQuadrant } from "@/lib/operations";
 
 describe("slug auto-generation (Rule 17)", () => {
   it("slugifies Latin names", () => {
@@ -155,5 +156,19 @@ describe("image validation (Rules 12 & 13)", () => {
   });
   it("rejects oversized files", () => {
     expect(() => validateImage({ type: "image/png", size: 6 * 1024 * 1024 })).toThrow();
+  });
+});
+
+describe("product matrix profit per unit", () => {
+  it("normalizes product profit by its sold quantity", () => {
+    expect(calculateProfitPerUnit(900_000, 100_000, 100)).toBe(8_000);
+    expect(calculateProfitPerUnit(800_000, 600_000, 0)).toBeNull();
+  });
+
+  it("uses per-unit profit rather than total profit for quadrants", () => {
+    expect(productMatrixQuadrant(8_000, 20_000, 100, 10)).toBe("CHANGE_RECIPE");
+    expect(productMatrixQuadrant(30_000, 20_000, 5, 10)).toBe("REVIEW_TRAINING");
+    expect(productMatrixQuadrant(30_000, 20_000, 20, 10)).toBe("KEEP");
+    expect(productMatrixQuadrant(8_000, 20_000, 5, 10)).toBe("REMOVE_FIX");
   });
 });

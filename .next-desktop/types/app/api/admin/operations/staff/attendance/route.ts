@@ -1,4 +1,4 @@
-// File: /home/ashimashi/Desktop/farman-coffeeShop-CTO-v2/src/app/api/admin/operations/staff/attendance/route.ts
+// File: /Users/armanmadadian/Desktop/Farman-cafe-menu/src/app/api/admin/operations/staff/attendance/route.ts
 import * as entry from '../../../../../../../../src/app/api/admin/operations/staff/attendance/route.js'
 import type { NextRequest } from 'next/server.js'
 

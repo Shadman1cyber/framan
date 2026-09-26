@@ -34,8 +34,8 @@ class SettingsStore(private val context: Context) {
         /**
          * Default backend (same server the Capacitor app targets).
          * Editable in Settings; not a secret.
-         * Local dev server while the public deployment is down.
+         * Local dev: emulator uses 10.0.2.2, physical device uses the LAN IP.
          */
-        const val DEFAULT_SERVER_URL = "http://10.216.186.246:3080"
+        const val DEFAULT_SERVER_URL = "http://10.0.2.2:3080"
     }
 }

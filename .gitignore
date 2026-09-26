@@ -1,5 +1,10 @@
 node_modules
 .next
+.next-live/
+/vendor/windows-n8n/node_modules/
+/vendor/windows-n8n/node.exe
+/vendor/windows-n8n/.temporary-credential.json
+/vendor/windows-n8n/runtime.tar.gz
 .env
 .env.*
 *.log

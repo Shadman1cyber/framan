@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrder, OrderError } from "@/lib/orders";
+import { DiscountError } from "@/lib/discounts";
 import { invalidateOrdersCache } from "@/lib/cache";
 import { z } from "zod";
 import { normalizeRole } from "@/lib/constants";
@@ -22,6 +23,7 @@ const schema = z.object({
   customerName: z.string().max(100).optional(),
   customerPhone: z.string().max(20).optional(),
   notes: z.string().max(500).optional(),
+  discountCode: z.string().trim().max(64).optional(),
 });
 
 export async function POST(req: Request) {
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
     await invalidateOrdersCache();
     return NextResponse.json({ order });
   } catch (e) {
-    if (e instanceof OrderError) {
+    if (e instanceof OrderError || e instanceof DiscountError) {
       return NextResponse.json({ error: e.message, code: e.code }, { status: 400 });
     }
     return NextResponse.json({ error: "خطای سرور" }, { status: 500 });

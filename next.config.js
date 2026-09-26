@@ -4,7 +4,9 @@ const withPWA = require("next-pwa")({
   dest: "public",
   customWorkerDir: "src/service-worker",
   register: true,
-  skipWaiting: true,
+  // Wait for a user-confirmed reload (AppUpdateNotice posts SKIP_WAITING)
+  // instead of yanking the page mid-session.
+  skipWaiting: false,
   disable: process.env.NODE_ENV === "development",
   buildExcludes: [/worker/],
   runtimeCaching: [

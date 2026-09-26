@@ -14,6 +14,7 @@ import {
 } from "@/lib/constants";
 import { useToast } from "@/components/ui/Toast";
 import { useOffline } from "@/lib/offline/OfflineContext";
+import { ORDERS_REFRESH_MS } from "@/lib/admin-timing";
 
 type Row = {
   id: string;
@@ -21,6 +22,9 @@ type Row = {
   statusLabel: string;
   orderType: OrderType;
   total: number;
+  subtotal: number;
+  discountAmount: number;
+  discountCode: string | null;
   estPrepMin: number | null;
   estPrepMax: number | null;
   createdAt: string;
@@ -31,7 +35,12 @@ type Row = {
   allowedNext: OrderStatus[];
 };
 
-type ProductOption = { id: string; nameFa: string; price: number };
+type ProductOption = {
+  id: string;
+  nameFa: string;
+  price: number;
+  category: { id: string; nameFa: string };
+};
 type TableOption = { id: string; number: string; label: string | null };
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
@@ -62,6 +71,13 @@ export function OrdersAdmin({
   });
   const { show } = useToast();
   const { mutateAdmin } = useOffline();
+  const categories = Array.from(
+    new Map(products.map((product) => [product.category.id, product.category.nameFa] as const)).values(),
+  ).map(([id, nameFa]) => ({ id, nameFa }));
+
+  function firstProductId(categoryId: string) {
+    return products.find((product) => product.category.id === categoryId)?.id ?? "";
+  }
 
   async function refresh() {
     const res = await fetch(`/api/admin/orders${currentStatus ? `?status=${currentStatus}` : ""}`, {
@@ -73,7 +89,7 @@ export function OrdersAdmin({
   }
 
   useEffect(() => {
-    const timer = setInterval(refresh, 8000);
+    const timer = setInterval(refresh, ORDERS_REFRESH_MS);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStatus]);
@@ -138,7 +154,7 @@ export function OrdersAdmin({
           notes: manual.notes,
         },
       });
-      show(result.queued ? "سفارش آفلاین ذخیره شد و بعد از اتصال ثبت می‌شود" : "سفارش دستی ثبت شد", "success");
+      show(result.queued ? "سفارش آفلاین ذخیره شد و بعد از اتصال ثبت می‌شود" : "سفارش دستی ثبت و تایید شد", "success");
       setManual({ tableId: "", customerName: "", notes: "", lines: [{ productId: products[0]?.id ?? "", quantity: 1 }] });
       setShowManual(false);
       if (!result.queued) await refresh();
@@ -158,13 +174,14 @@ export function OrdersAdmin({
           </button>
           <button type="button" onClick={refresh} className="btn-secondary whitespace-nowrap">♻ تازه‌سازی</button>
         </div>
-        <span className="text-xs text-muted">به‌روزرسانی خودکار هر ۸ ثانیه</span>
+        <span className="text-xs text-muted">به‌روزرسانی خودکار هر ۱۰ ثانیه</span>
       </div>
       {showManual && (
         <form onSubmit={createManual} className="card mb-4 space-y-3 p-4">
           <div>
             <h2 className="font-semibold">ثبت سفارش دریافت‌شده توسط ویتر</h2>
             <p className="mt-1 text-xs text-muted">بدون انتخاب میز، سفارش به‌صورت بیرون‌بر ثبت می‌شود.</p>
+            <p className="mt-1 text-xs text-olive-600 dark:text-olive-300">سفارش با ثبت اولیه تایید می‌شود و نیازی به تایید جداگانه ندارد.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <label>
@@ -180,22 +197,43 @@ export function OrdersAdmin({
             </label>
           </div>
           <div className="space-y-2">
-            {manual.lines.map((line, index) => (
-              <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_90px_auto]">
-                <select className="input col-span-2 sm:col-span-1" value={line.productId} onChange={(e) => setManual({ ...manual, lines: manual.lines.map((item, i) => i === index ? { ...item, productId: e.target.value } : item) })}>
-                  {products.map((product) => <option key={product.id} value={product.id}>{product.nameFa} — {product.price.toLocaleString("fa-IR")} تومان</option>)}
-                </select>
-                <input type="number" min={1} max={99} className="input" value={line.quantity} onChange={(e) => setManual({ ...manual, lines: manual.lines.map((item, i) => i === index ? { ...item, quantity: Number(e.target.value) } : item) })} aria-label="تعداد" />
-                <button type="button" className="btn-ghost text-danger" onClick={() => setManual({ ...manual, lines: manual.lines.filter((_, i) => i !== index) })}>حذف</button>
-              </div>
-            ))}
+            <p className="text-xs text-muted">برای هر ردیف، دسته‌بندی و سپس محصول را انتخاب کنید.</p>
+            {manual.lines.map((line, index) => {
+              const selectedCategoryId = products.find((product) => product.id === line.productId)?.category.id ?? categories[0]?.id ?? "";
+              const categoryProducts = products.filter((product) => product.category.id === selectedCategoryId);
+              return (
+                <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[170px_minmax(0,1fr)_90px_auto]">
+                  <select
+                    className="input col-span-2 sm:col-span-1"
+                    value={selectedCategoryId}
+                    aria-label="دسته‌بندی محصول"
+                    onChange={(e) => {
+                      const productId = firstProductId(e.target.value);
+                      setManual({ ...manual, lines: manual.lines.map((item, i) => i === index ? { ...item, productId } : item) });
+                    }}
+                  >
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.nameFa}</option>)}
+                  </select>
+                  <select
+                    className="input col-span-2 sm:col-span-1"
+                    value={line.productId}
+                    aria-label="محصول"
+                    onChange={(e) => setManual({ ...manual, lines: manual.lines.map((item, i) => i === index ? { ...item, productId: e.target.value } : item) })}
+                  >
+                    {categoryProducts.map((product) => <option key={product.id} value={product.id}>{product.nameFa} — {product.price.toLocaleString("fa-IR")} تومان</option>)}
+                  </select>
+                  <input type="number" min={1} max={99} className="input" value={line.quantity} onChange={(e) => setManual({ ...manual, lines: manual.lines.map((item, i) => i === index ? { ...item, quantity: Number(e.target.value) } : item) })} aria-label="تعداد" />
+                  <button type="button" className="btn-ghost text-danger" onClick={() => setManual({ ...manual, lines: manual.lines.filter((_, i) => i !== index) })}>حذف</button>
+                </div>
+              );
+            })}
             <button type="button" className="btn-secondary text-xs" onClick={() => setManual({ ...manual, lines: [...manual.lines, { productId: products[0]?.id ?? "", quantity: 1 }] })}>+ محصول دیگر</button>
           </div>
           <label className="block">
             <span className="label">توضیحات</span>
             <textarea className="input min-h-20" value={manual.notes} onChange={(e) => setManual({ ...manual, notes: e.target.value })} />
           </label>
-          <button type="submit" disabled={creating || products.length === 0} className="btn-primary">{creating ? "در حال ثبت..." : "ثبت سفارش"}</button>
+          <button type="submit" disabled={creating || products.length === 0} className="btn-primary">{creating ? "در حال ثبت..." : "ثبت و تایید سفارش"}</button>
         </form>
       )}
       <div className="mb-4 flex flex-wrap gap-2">
@@ -235,6 +273,11 @@ export function OrdersAdmin({
                   <span className="text-sm text-muted">{o.customerName}</span>
                 </div>
                 <div className="flex items-center gap-3">
+                  {o.discountAmount > 0 && (
+                    <span className="rounded-full bg-olive-50 px-2 py-0.5 text-[11px] font-medium text-olive-600 dark:bg-olive/15 dark:text-olive-300">
+                      تخفیف {o.discountCode ? `(${o.discountCode})` : ""}
+                    </span>
+                  )}
                   <Price amount={o.total} size="sm" />
                   <span className="text-xs text-muted">
                     {formatJalaliDateTime(o.createdAt)}
@@ -244,6 +287,11 @@ export function OrdersAdmin({
 
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span>{o.itemCount} آیتم</span>
+                {o.discountAmount > 0 && o.subtotal > 0 && (
+                  <span>
+                    · جمع: {o.subtotal.toLocaleString("fa-IR")} − تخفیف {o.discountAmount.toLocaleString("fa-IR")}
+                  </span>
+                )}
                 {o.estPrepMin != null && o.estPrepMax != null && (
                   <span>
                     · برآورد آماده‌سازی: {o.estPrepMin}–{o.estPrepMax} دقیقه

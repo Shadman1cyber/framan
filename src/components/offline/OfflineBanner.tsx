@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useOffline } from "@/lib/offline/OfflineContext";
 
 export function OfflineBanner() {
-  const { isOnline, isSyncing, pendingCount, conflictCount, lastSyncStatus, forceSync } = useOffline();
+  const { isOnline, isSyncing, pendingCount, conflictCount, lastConflictError, lastSyncStatus, forceSync } = useOffline();
   const [visible, setVisible] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const prevSyncing = useRef(isSyncing);
@@ -108,6 +108,9 @@ export function OfflineBanner() {
         aria-live="assertive"
       >
         {conflictCount.toLocaleString("fa-IR")} تغییر آفلاین به‌دلیل تعارض یا تغییر حساب اعمال نشد؛ اطلاعات سرور را بررسی کنید.
+        {lastConflictError && (
+          <span className="mt-1 block text-xs opacity-80">{lastConflictError}</span>
+        )}
       </div>
     );
   }

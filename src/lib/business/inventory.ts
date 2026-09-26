@@ -1,6 +1,8 @@
 import { OrderError } from "@/lib/orders";
 import { UNITS } from "@/lib/constants";
 import type { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { withdrawBatches } from "@/lib/business/inventory-flow";
 
 type DB = Prisma.TransactionClient;
 
@@ -45,7 +47,17 @@ export async function adjustInventory(
   const after = ing.stockQuantity + delta;
   if (!Number.isFinite(after)) throw new OrderError("INVALID_DELTA", "نتیجه تعدیل باید عدد محدود باشد");
   if (after < 0) throw new OrderError("NEGATIVE_STOCK", "موجودی نهایی نمی‌تواند منفی باشد");
-  await tx.ingredient.update({ where: { id: ing.id }, data: { stockQuantity: after } });
+  const changed = await tx.ingredient.updateMany({
+    where: { id: ing.id, stockQuantity: ing.stockQuantity },
+    data: { stockQuantity: { increment: delta } },
+  });
+  if (changed.count !== 1) throw new OrderError("STOCK_CONFLICT", "موجودی تغییر کرده است؛ دوباره تلاش کنید");
+  const allocations = delta < 0 ? await withdrawBatches(tx, ing.id, -delta) : [];
+  await tx.inventoryEvent.create({ data: {
+    operationKey: randomUUID(), ingredientId: ing.id, kind: "CORRECTION", delta,
+    before: ing.stockQuantity, after, reason: reason.trim(),
+    allocations: allocations.length ? JSON.stringify(allocations) : null,
+  } });
   const receipt: InventoryAdjustmentReceipt = {
     ingredientId: ing.id, ingredientName: ing.nameFa, unit: ing.unit,
     before: ing.stockQuantity, delta, after, reason: reason.trim(), changedAt: new Date().toISOString(),

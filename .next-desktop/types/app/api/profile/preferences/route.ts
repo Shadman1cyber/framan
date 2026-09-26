@@ -1,4 +1,4 @@
-// File: /home/ashimashi/Desktop/farman-coffeeShop-CTO-v2/src/app/api/profile/preferences/route.ts
+// File: /Users/armanmadadian/Desktop/Farman-cafe-menu/src/app/api/profile/preferences/route.ts
 import * as entry from '../../../../../../src/app/api/profile/preferences/route.js'
 import type { NextRequest } from 'next/server.js'
 

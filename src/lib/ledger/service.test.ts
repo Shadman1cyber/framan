@@ -1,10 +1,8 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { PrismaClient, Prisma } from "@prisma/client";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 import { execFileSync } from "child_process";
 import { randomUUID } from "crypto";
+import { postgresReachable, testDatabaseUrl } from "../test-db-url";
 import {
   applyLedgerOperation,
   canonicalRequestHash,
@@ -14,17 +12,16 @@ import {
   LedgerError,
 } from "./service";
 
-const dir = mkdtempSync(join(tmpdir(), "farman-ledger-test-"));
-const url = `file:${join(dir, "test.db")}`;
-writeFileSync(join(dir, "test.db"), "");
+const url = testDatabaseUrl("ledger-service");
+const d = postgresReachable() ? describe : describe.skip;
 const db = new PrismaClient({ datasources: { db: { url } } });
 
 const TRIGGERS = [
-  `CREATE TRIGGER IF NOT EXISTS "LedgerEntry_no_update" BEFORE UPDATE ON "LedgerEntry" BEGIN SELECT RAISE(ABORT, 'LEDGER_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "LedgerEntry_no_delete" BEFORE DELETE ON "LedgerEntry" BEGIN SELECT RAISE(ABORT, 'LEDGER_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "SyncOperation_no_update" BEFORE UPDATE ON "SyncOperation" BEGIN SELECT RAISE(ABORT, 'RECEIPT_IMMUTABLE'); END`,
-  `CREATE TRIGGER IF NOT EXISTS "SyncOperation_no_delete" BEFORE DELETE ON "SyncOperation" BEGIN SELECT RAISE(ABORT, 'RECEIPT_IMMUTABLE'); END`,
-];
+  { name: "LedgerEntry_no_update", table: "LedgerEntry", operation: "UPDATE", functionName: "ledger_test_no_update", message: "LEDGER_IMMUTABLE" },
+  { name: "LedgerEntry_no_delete", table: "LedgerEntry", operation: "DELETE", functionName: "ledger_test_no_delete", message: "LEDGER_IMMUTABLE" },
+  { name: "SyncOperation_no_update", table: "SyncOperation", operation: "UPDATE", functionName: "receipt_test_no_update", message: "RECEIPT_IMMUTABLE" },
+  { name: "SyncOperation_no_delete", table: "SyncOperation", operation: "DELETE", functionName: "receipt_test_no_delete", message: "RECEIPT_IMMUTABLE" },
+] as const;
 
 type TestOp = {
   operationId: string;
@@ -68,15 +65,31 @@ beforeAll(async () => {
     ["node_modules/prisma/build/index.js", "db", "push", "--skip-generate"],
     { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe" },
   );
-  for (const sql of TRIGGERS) await db.$executeRawUnsafe(sql);
+  for (const trigger of TRIGGERS) {
+    await db.$executeRawUnsafe(`
+      CREATE OR REPLACE FUNCTION "${trigger.functionName}"() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RAISE EXCEPTION '${trigger.message}';
+        RETURN NULL;
+      END;
+      $$
+    `);
+    await db.$executeRawUnsafe(`
+      CREATE TRIGGER "${trigger.name}"
+      BEFORE ${trigger.operation} ON "${trigger.table}"
+      FOR EACH ROW
+      EXECUTE FUNCTION "${trigger.functionName}"()
+    `);
+  }
 }, 60000);
 
 afterAll(async () => {
   await db.$disconnect();
-  rmSync(dir, { recursive: true, force: true });
 });
 
-describe("append-only ledger integrity", () => {
+d("append-only ledger integrity", () => {
   it("posts a creation with sequence 1 and derives the balance", async () => {
     const scope = `s-${randomUUID()}`;
     const op = entry();

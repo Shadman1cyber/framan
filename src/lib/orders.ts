@@ -7,6 +7,7 @@ import { prisma } from "./db";
 import { validateAndPriceCart, type CartItemInput } from "./cart";
 import { orderPreparationEstimator } from "./estimator";
 import { transitionOrderAtomic } from "./business/orders-write";
+import { redeemDiscountInTx, recordRedemption, DiscountError } from "./discounts";
 import type { Prisma } from "@prisma/client";
 
 export type CreateOrderInput = {
@@ -14,10 +15,13 @@ export type CreateOrderInput = {
   qrCodeId?: string | null;
   /** Trusted management flow only; customer routes must never pass this field. */
   manualTableId?: string | null;
+  autoConfirm?: boolean;
   items: CartItemInput[];
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  /** Optional customer-supplied discount code; validated and redeemed atomically. */
+  discountCode?: string;
 };
 
 export class OrderError extends Error {
@@ -116,6 +120,16 @@ export async function createOrder(input: CreateOrderInput, transaction?: Prisma.
   }
 
   const persist = async (tx: Prisma.TransactionClient) => {
+    // Discount validation + usage increment happen inside the same
+    // transaction as the order, so a failed order never burns a redemption.
+    const discount = input.discountCode?.trim()
+      ? await redeemDiscountInTx(tx, {
+          code: input.discountCode,
+          subtotal: priced.total,
+          userId: input.userId ?? null,
+        })
+      : null;
+
     const created = await tx.order.create({
       data: {
         userId: input.userId ?? null,
@@ -123,7 +137,11 @@ export async function createOrder(input: CreateOrderInput, transaction?: Prisma.
         tableId,
         orderType,
         status: "PENDING",
-        total: priced.total,
+        total: discount ? discount.finalTotal : priced.total,
+        subtotal: priced.total,
+        discountAmount: discount?.amount ?? 0,
+        discountCodeId: discount?.discountCodeId ?? null,
+        discountCode: discount?.code ?? null,
         customerName: input.customerName ?? null,
         customerPhone: input.customerPhone ?? null,
         notes: input.notes ?? null,
@@ -143,6 +161,14 @@ export async function createOrder(input: CreateOrderInput, transaction?: Prisma.
       },
       include: { items: true, table: true, qrCode: true },
     });
+    if (discount) {
+      await recordRedemption(
+        tx,
+        { discountCodeId: discount.discountCodeId, amount: discount.amount },
+        created.id,
+        input.userId ?? null,
+      );
+    }
     if (input.manualTableId && tableId) {
       await tx.cafeTable.update({
         where: { id: tableId },
@@ -157,7 +183,16 @@ export async function createOrder(input: CreateOrderInput, transaction?: Prisma.
     return created;
   };
 
-  const order = transaction ? await persist(transaction) : await prisma.$transaction(persist);
+  const persistAndMaybeConfirm = async (tx: Prisma.TransactionClient) => {
+    const created = await persist(tx);
+    if (!input.autoConfirm) return created;
+    const { order: confirmed } = await transitionOrderAtomic(tx, created.id, "CONFIRMED");
+    return { ...created, status: confirmed.status };
+  };
+
+  const order = transaction
+    ? await persistAndMaybeConfirm(transaction)
+    : await prisma.$transaction(persistAndMaybeConfirm);
 
   return order;
 }

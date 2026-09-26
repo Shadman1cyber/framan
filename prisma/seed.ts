@@ -5,8 +5,12 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.rating.deleteMany();
+  await prisma.agentMonitorEvent.deleteMany();
+  await prisma.discountRedemption.deleteMany();
+  await prisma.orderIngredientUsage.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.discountCode.deleteMany();
   await prisma.qRCode.deleteMany();
   await prisma.cafeTable.deleteMany();
   await prisma.branch.deleteMany();
@@ -26,6 +30,7 @@ async function main() {
   await prisma.ingredient.deleteMany();
   await prisma.allergen.deleteMany();
   await prisma.dietaryTag.deleteMany();
+  await prisma.staffPayRate.deleteMany();
   await prisma.staff.deleteMany();
   await prisma.aIInsight.deleteMany();
   await prisma.importJob.deleteMany();

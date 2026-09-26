@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { AllergensAdmin } from "@/components/admin/AllergensAdmin";
+import { requireOwnerPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAllergensPage() {
+  await requireOwnerPage();
   const allergens = await prisma.allergen.findMany({
     orderBy: { nameFa: "asc" },
     include: { _count: { select: { products: true, users: true } } },

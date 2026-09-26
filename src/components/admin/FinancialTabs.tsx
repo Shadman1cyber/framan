@@ -6,7 +6,7 @@ import { Price } from "@/components/ui/Price";
 import { formatNumber, formatToman } from "@/lib/format";
 import { JalaliDateInput } from "@/components/ui/JalaliInputs";
 import { formatJalaliDate } from "@/lib/jalali";
-type S = { revenue: { today: number | null; week: number | null; month: number | null }; orders: { today: number }; averageOrderValue: { month: number | null }; ordersByType: { takeaway: number; table: number } };
+type S = { revenue: { today: number | null; week: number | null; month: number | null }; orders: { today: number }; averageOrderValue: { month: number | null }; ordersByType: { takeaway: number; table: number }; discounts?: { today: number | null; month: number | null; total: number | null; ordersWithDiscount: { today: number; month: number } } };
 type P = { summary: S; top: { productId: string; name: string; quantity: number; revenue: number }[]; byCategory: { category: string; revenue: number }[]; daily: { date: string; revenue: number }[]; lowStock: { ingredientId: string; name: string; stock: number; unit: string }[]; lowStockCost: number; ops: { activeOrders: number; avgActualPrepMinutes: number | null }; products: ProductOpt[]; defaultFrom: string; defaultTo: string };
 export function FinancialTabs(a: P) {
   const { summary, top, byCategory, daily, lowStock, lowStockCost, ops, products, defaultFrom, defaultTo } = a;
@@ -45,6 +45,8 @@ export function FinancialTabs(a: P) {
               <li className="flex justify-between"><span className="text-muted">میز (۳۰ روز)</span><span>{formatNumber(summary.ordersByType.table)}</span></li>
               <li className="flex justify-between"><span className="text-muted">میانگین آماده‌سازی</span><span>{ops.avgActualPrepMinutes != null ? `${formatNumber(ops.avgActualPrepMinutes)} دقیقه` : "—"}</span></li>
               <li className="flex justify-between"><span className="text-muted">بهای جایگزینی کم‌موجود</span><span>{formatToman(lowStockCost)}</span></li>
+              <li className="flex justify-between"><span className="text-muted">تخفیف امروز</span><span className="text-olive-600 dark:text-olive-300">{formatToman(summary.discounts?.today ?? 0)} ({formatNumber(summary.discounts?.ordersWithDiscount.today ?? 0)} سفارش)</span></li>
+              <li className="flex justify-between"><span className="text-muted">تخفیف ماه</span><span className="text-olive-600 dark:text-olive-300">{formatToman(summary.discounts?.month ?? 0)} ({formatNumber(summary.discounts?.ordersWithDiscount.month ?? 0)} سفارش)</span></li>
             </ul></div>
             <div className="card p-4"><h2 className="mb-3 text-sm font-semibold">روند فروش ۱۴ روز اخیر</h2>
               <div className="flex h-40 items-end gap-1" dir="ltr">

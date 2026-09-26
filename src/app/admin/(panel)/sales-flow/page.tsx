@@ -5,6 +5,7 @@ import { formatNumber, formatToman } from "@/lib/format";
 import { JalaliDateInput } from "@/components/ui/JalaliInputs";
 import { formatJalaliDate, formatJalaliDateTime, todayGregorianInput } from "@/lib/jalali";
 import { WaitTimePanel } from "@/components/admin/WaitTimePanel";
+import { SALES_FLOW_REFRESH_MS } from "@/lib/admin-timing";
 
 type SalesFlowInterval = {
   start: string;
@@ -14,6 +15,7 @@ type SalesFlowInterval = {
   dayDate: string;
   orders: number;
   revenue: number;
+  profit: number | null;
   items: number;
   avgOrderValue: number;
   cancelled: number;
@@ -54,7 +56,7 @@ const RANGE_OPTIONS = [
   { value: "month", label: "این ماه" },
 ];
 
-const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+const REFRESH_INTERVAL_MS = SALES_FLOW_REFRESH_MS;
 
 export default function SalesFlowPage() {
   const [data, setData] = useState<SalesFlowData | null>(null);
@@ -124,7 +126,6 @@ export default function SalesFlowPage() {
   }, [data]);
 
   const dayIndices = useMemo(() => {
-    if (!data) return [];
     return Object.keys(intervalsByDay)
       .map(Number)
       .sort((a, b) => a - b);
@@ -324,6 +325,7 @@ export default function SalesFlowPage() {
                 <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap">سفارش‌ها</th>
                 <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap">آیتم‌ها</th>
                 <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap">درآمد</th>
+                <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap" title="سود بر اساس درآمد سفارش منهای هزینهٔ مواد اولیه">سود (مواد)</th>
                 <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap">میانگین سفارش</th>
                 <th className="py-2 px-3 text-right font-medium text-muted whitespace-nowrap">لغو</th>
               </tr>
@@ -337,6 +339,9 @@ export default function SalesFlowPage() {
                   <td className="py-2 px-3 text-right font-medium text-espresso dark:text-dark-text tabular-nums">{formatNumber(interval.orders)}</td>
                   <td className="py-2 px-3 text-right text-muted tabular-nums">{formatNumber(interval.items)}</td>
                   <td className="py-2 px-3 text-right font-medium text-olive tabular-nums">{formatToman(interval.revenue)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-olive tabular-nums">
+                    {interval.profit == null ? <span className="font-normal text-muted">نامشخص</span> : formatToman(interval.profit)}
+                  </td>
                   <td className="py-2 px-3 text-right text-muted tabular-nums">
                     {interval.avgOrderValue > 0 ? formatToman(interval.avgOrderValue) : "—"}
                   </td>
@@ -345,7 +350,7 @@ export default function SalesFlowPage() {
               ))}
               {data.intervals.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-muted">
+                  <td colSpan={9} className="py-8 text-center text-muted">
                     داده‌ای برای این بازه وجود ندارد
                   </td>
                 </tr>

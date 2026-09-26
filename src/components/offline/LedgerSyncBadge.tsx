@@ -1,8 +1,22 @@
 "use client";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { retryAllFailedLedger, useLedgerSync } from "@/lib/offline/ledger-sync";
 
+// Ledger sync requires finance.view (OWNER). Cashiers/customers get 403
+// forever — don't show a stuck error badge for accounts that can't sync.
+function canSyncLedger(role?: string): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
 export function LedgerSyncBadge() {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (!canSyncLedger(role)) return null;
+  return <LedgerSyncBadgeInner />;
+}
+
+function LedgerSyncBadgeInner() {
   const { state, pending, failed, syncNow } = useLedgerSync();
 
   if (state === "idle" || state === "synced") return null;

@@ -7,6 +7,7 @@ import { nextStatuses } from "@/lib/orders";
 import type { OrderType } from "@/lib/constants";
 import { z } from "zod";
 import { createOrder, OrderError } from "@/lib/orders";
+import { DiscountError } from "@/lib/discounts";
 import { OfflineMutationConflict, runIdempotentOfflineMutation } from "@/lib/offline/server";
 import { cached, invalidateOrdersCache, cacheKeys, CACHE_TTL } from "@/lib/cache";
 
@@ -38,6 +39,9 @@ export async function GET(req: Request) {
         statusLabel: orderStatusLabel(current, orderType),
         orderType,
         total: o.total,
+        subtotal: o.subtotal || o.total,
+        discountAmount: o.discountAmount || 0,
+        discountCode: o.discountCode ?? null,
         estPrepMin: o.estPrepMin,
         estPrepMax: o.estPrepMax,
         createdAt: new Date(o.createdAt).toISOString(),
@@ -71,6 +75,7 @@ export async function POST(req: Request) {
         manualTableId: parsed.data.tableId || null,
         customerName: parsed.data.customerName?.trim() || "سفارش حضوری",
         notes: parsed.data.notes?.trim() || undefined,
+        autoConfirm: true,
       }, tx);
       return { body: { id: order.id } };
     });
@@ -83,7 +88,7 @@ export async function POST(req: Request) {
     if (error instanceof OfflineMutationConflict) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    if (error instanceof OrderError) {
+    if (error instanceof OrderError || error instanceof DiscountError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
     }
     return NextResponse.json({ error: "ثبت سفارش انجام نشد" }, { status: 500 });

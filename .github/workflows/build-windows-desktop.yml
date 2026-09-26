@@ -8,8 +8,16 @@ on:
       - 'build/icon.*'
       - 'electron-builder.yml'
       - 'prisma/schema.prisma'
+      - 'prisma/schema.desktop.prisma'
       - 'prisma/seed.ts'
       - 'scripts/build-desktop.cjs'
+      - 'scripts/electron-after-pack.cjs'
+      - 'scripts/build-desktop-agent-workflows.cjs'
+      - 'scripts/prepare-desktop-n8n.cjs'
+      - 'vendor/windows-n8n/package.json'
+      - 'vendor/windows-n8n/package-lock.json'
+      - 'n8n/**'
+      - 'worker/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/build-windows-desktop.yml'
@@ -24,14 +32,17 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.16.0'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare bundled n8n runtime
+        run: npm run desktop:prepare-runtime
+
       # Full pipeline: SQLite client + next build + seeded template DB +
-      # cafe-id meta + NSIS (x64+ia32) + Portable installers. Windows runner
+      # cafe-id meta + x64 NSIS installer. Windows runner
       # produces Windows Prisma engines — required for the package to work.
       - name: Build desktop installers
         run: node scripts/build-desktop.cjs

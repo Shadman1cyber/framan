@@ -9,9 +9,8 @@ connectivity.
 
 | File | Use |
 |---|---|
-| `Cafe13-Desktop-<ver>-x64.exe` | NSIS installer, 64-bit (Win 7/8.1/10/11) |
-| `Cafe13-Desktop-<ver>-ia32.exe` | NSIS installer, 32-bit (old Win 7/8.1 PCs) |
-| `Cafe13-Desktop-<ver>-portable-<arch>.exe` | No-install: run from USB stick |
+| `Cafe13-Desktop-<ver>-x64.exe` | NSIS installer, 64-bit (Win 7 SP1/8.1/10/11) |
+| `Cafe13-Desktop-<ver>-portable-x64.exe` | No-install: run from USB stick |
 
 ## Why Electron 22
 
@@ -28,14 +27,17 @@ app embeds the **entire platform inside itself**:
 ```
 Electron 22 window (Chromium 108)
   └─ main process (Node 16 + undici/web-streams polyfills)
-      ├─ embedded Next.js 14 production server (.next)
-      └─ local SQLite database (userData/cafe13.db, seeded template)
+       ├─ embedded Next.js 14 production server (.next-desktop)
+       └─ local SQLite database (userData/cafe13.db, seeded template)
 ```
 
 - **Zero connectivity needed** — orders, menu, inventory, staff, financial
   dashboard, QR codes: everything runs locally on the manager PC.
 - The server binds `0.0.0.0`, so **phones and other terminals on the LAN
   connect to the manager PC** (`PUBLIC_APP_URL` = its LAN IP, auto-detected).
+  Tray → **کپی نشانی موبایل و مرورگر** copies the exact address, including the
+  selected port. Closing the window hides it to the tray and keeps the server
+  available; use **خروج** from the tray to stop it.
 - The local DB is a seeded template copied to `%APPDATA%\Cafe13\cafe13.db`
   on first run. Tray menu → **نسخه پشتیبان دیتابیس** makes timestamped
   backups to `%APPDATA%\Cafe13\backups\`.
@@ -53,13 +55,20 @@ Run the full pipeline (Node 20 LTS; **Windows for release** — the runner
 produces Windows Prisma engines; any OS for smoke tests):
 
 ```bash
-npm run desktop:build          # x64 + ia32, NSIS + Portable (full pipeline)
-npm run desktop:build:x64      # 64-bit only
+npm run desktop:build          # x64 NSIS + Portable (full pipeline)
+npm run desktop:build:x64      # same x64-only pipeline
 ```
 
-The pipeline (`scripts/build-desktop.cjs`): generate the SQLite Prisma
-client → `next build` → seeded template DB (`prisma/dev-desktop.db`) →
-cafe-id meta → electron-builder.
+The pipeline (`scripts/build-desktop.cjs`): synchronize the SQLite Prisma
+schema → generate the SQLite client → `next build` → seeded template DB
+(`prisma/dev-desktop.db`) → cafe-id meta → prepare the pinned Windows n8n runtime
+→ electron-builder.
+
+The n8n runtime is provisioned automatically on Windows with Node.js 22.16 or
+newer. The Windows runner installs n8n 2.20.0 under `vendor/windows-n8n` and
+copies its Node executable into the package. A non-Windows build can reuse an
+already-provisioned `vendor/windows-n8n` directory but cannot provision the
+Windows executable locally.
 
 > NOTE: a desktop build regenerates `@prisma/client` for **SQLite**. Run
 > `npm run build` (or `./run.sh`) afterwards to restore the Postgres client
@@ -88,6 +97,7 @@ server port), `--kiosk` (fullscreen kiosk), `--fullscreen`.
 Daily operation (tray icon, کنار ساعت ویندوز):
 
 - نمایش / مخفی کردن، بارگذاری مجدد، تمام‌صفحه
+- کپی نشانی موبایل و مرورگر برای اتصال همه دستگاه‌های شبکه
 - اجرای خودکار با ویندوز (auto-start, no admin needed)
 - چاپ رسید صفحه جاری (receipt printing)
 - نسخه پشتیبان دیتابیس (DB backup — embedded mode)
@@ -96,8 +106,8 @@ Daily operation (tray icon, کنار ساعت ویندوز):
 
 | OS | Arch | Notes |
 |---|---|---|
-| Windows 7 SP1 | x64 / ia32 | Needs Platform Update (KB2670838); use ia32 on 32-bit |
-| Windows 8.1 | x64 / ia32 | Runs as-is |
+| Windows 7 SP1 | x64 | Needs Platform Update (KB2670838); 32-bit Windows is unsupported |
+| Windows 8.1 | x64 | Runs as-is |
 | Windows 10 (all) | x64 | Runs as-is |
 | Windows 11 | x64 | Runs as-is |
 
@@ -112,7 +122,8 @@ anyway*. For public distribution, sign with a code-signing cert
 - **Old Win7 without updates** → install SP1 + Platform Update (KB2670838).
 - **Printers** → use the tray "چاپ رسید" or in-app print button; set the
   receipt printer as default for silent printing.
-- **Phone can't connect** → same Wi-Fi/LAN, firewall allows the app, use the
-  manager PC's IP (`http://<lan-ip>:<port>`).
+- **Phone can't connect** → same Wi-Fi/LAN, allow the app through Windows
+  Firewall on private networks, then paste the tray's copied address into the
+  mobile app or browser (`http://<lan-ip>:<port>`).
 - **Data** → lives in `%APPDATA%\Cafe13\cafe13.db`; use the tray backup
   regularly. Deleting app data resets to the seeded template.

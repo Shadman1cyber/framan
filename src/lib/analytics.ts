@@ -38,11 +38,17 @@ export type FinancialSummary = {
   };
   averageOrderValue: { today: number | null; month: number | null };
   ordersByType: { takeaway: number; table: number };
+  discounts: {
+    today: number | null;
+    month: number | null;
+    total: number | null;
+    ordersWithDiscount: { today: number; month: number };
+  };
   note: string;
 };
 
 export async function getFinancialSummary(): Promise<FinancialSummary> {
-  const [todayAgg, weekAgg, monthAgg, totalAgg] = await Promise.all([
+  const [todayAgg, weekAgg, monthAgg, totalAgg, discToday, discMonth, discTotal] = await Promise.all([
     prisma.order.aggregate({
       where: { status: { in: REVENUE_STATUSES }, createdAt: { gte: startOfToday() } },
       _sum: { total: true },
@@ -63,6 +69,20 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
     prisma.order.aggregate({
       where: { status: { in: REVENUE_STATUSES } },
       _sum: { total: true },
+    }),
+    prisma.order.aggregate({
+      where: { status: { in: REVENUE_STATUSES }, discountAmount: { gt: 0 }, createdAt: { gte: startOfToday() } },
+      _sum: { discountAmount: true },
+      _count: true,
+    }),
+    prisma.order.aggregate({
+      where: { status: { in: REVENUE_STATUSES }, discountAmount: { gt: 0 }, createdAt: { gte: daysAgo(30) } },
+      _sum: { discountAmount: true },
+      _count: true,
+    }),
+    prisma.order.aggregate({
+      where: { status: { in: REVENUE_STATUSES }, discountAmount: { gt: 0 } },
+      _sum: { discountAmount: true },
     }),
   ]);
   const [active, takeaway, table] = await Promise.all([
@@ -89,6 +109,12 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
       month: monthAgg._count ? Math.round((monthAgg._sum.total ?? 0) / monthAgg._count) : null,
     },
     ordersByType: { takeaway, table },
+    discounts: {
+      today: discToday._sum.discountAmount ?? 0,
+      month: discMonth._sum.discountAmount ?? 0,
+      total: discTotal._sum.discountAmount ?? 0,
+      ordersWithDiscount: { today: discToday._count, month: discMonth._count },
+    },
     note: "درآمد بر اساس سفارش‌های ثبت‌شده (بدون احتساب لغوشده) محاسبه می‌شود؛ هزینه و سود تا ثبت شدن داده‌های خرید در دسترس نیست.",
   };
 }

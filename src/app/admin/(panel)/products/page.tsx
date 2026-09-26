@@ -3,10 +3,12 @@ import { Price } from "@/components/ui/Price";
 import Link from "next/link";
 import Image from "next/image";
 import { AdminProductRowActions } from "@/components/admin/AdminProductRowActions";
+import { requireOwnerPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage() {
+  await requireOwnerPage();
   const products = await prisma.product.findMany({
     orderBy: [{ isFeatured: "desc" }, { order: "asc" }],
     select: {

@@ -14,7 +14,7 @@ if (!globalThis.Request) globalThis.Request = undici.Request;
 if (!globalThis.Response) globalThis.Response = undici.Response;
 if (!globalThis.fetch) globalThis.fetch = undici.fetch;
 
-const ws = require('web-streams-polyfill/ponyfill');
-if (!globalThis.ReadableStream) globalThis.ReadableStream = ws.ReadableStream;
-if (!globalThis.WritableStream) globalThis.WritableStream = ws.WritableStream;
-if (!globalThis.TransformStream) globalThis.TransformStream = ws.TransformStream;
+const nodeStreams = require('stream/web');
+globalThis.ReadableStream = nodeStreams.ReadableStream;
+globalThis.WritableStream = nodeStreams.WritableStream;
+globalThis.TransformStream = nodeStreams.TransformStream;

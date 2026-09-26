@@ -7,6 +7,7 @@ import { syncGraph } from "./graph/sync";
 import { transitionOrderAtomic } from "@/lib/business/orders-write";
 import { updatePrice } from "@/lib/business/pricing";
 import { adjustInventory } from "@/lib/business/inventory";
+import { suggestStaffPerHour } from "@/lib/operations";
 import { OrderError } from "@/lib/orders";
 import { completedSalesSummary, summaryToFaText, completedProfitSummary, profitToFaText } from "@/lib/reporting";
 import { generateSalesArtifact } from "@/lib/files/report-artifact";
@@ -21,7 +22,7 @@ import {
 } from "./contracts";
 
 type DB = Prisma.TransactionClient;
-type Planner = (question: string, lessons: string[], history?: PlannerMessage[], attachments?: PlannerAttachment[]) => Promise<Plan>;
+type Planner = (question: string, lessons: string[], history?: PlannerMessage[], attachments?: PlannerAttachment[], sessionKey?: string, allowDatabaseInsights?: boolean) => Promise<Plan>;
 export const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export const PROMPT_VERSION = "workspace-1.0.0";
 const terminal = new Set(["succeeded", "failed", "cancelled"]);
@@ -193,6 +194,9 @@ export class AgentRuntime {
       return existing;
     }
     await this.sessionForWrite(this.db, userId, request.sessionId);
+    const newSessionId = request.question && !request.sessionId ? randomUUID() : null;
+    const plannerSessionKey = hash(`${scopeId}:${userId}:${request.sessionId ?? newSessionId ?? request.key}`);
+    const allowDatabaseInsights = await identity(this.db, userId, "finance.view").then(() => true).catch(() => false);
     // Model/network work happens OUTSIDE any database transaction (R04).
     let plan: Plan;
     let attachments: PlannerAttachment[] = [];
@@ -207,7 +211,7 @@ export class AgentRuntime {
       // R06: uploaded attachments' contents reach the planner as bounded,
       // clearly-labelled data. Ownership/scope checked; unknown ids rejected.
       attachments = await loadAttachmentContext(this.db, scopeId, userId, request.attachmentIds ?? []);
-      plan = planSchema.parse(await this.planner(request.question, lessons, history, attachments));
+      plan = planSchema.parse(await this.planner(request.question, lessons, history, attachments, plannerSessionKey, allowDatabaseInsights));
     } else {
       plan = { steps: [proposalSchema.parse(request.proposal!)] };
     }
@@ -223,7 +227,7 @@ export class AgentRuntime {
       // First messages need a durable conversation too; otherwise the UI has
       // no session to reload when the worker finishes.
       const sessionId = request.sessionId ?? (request.question ? (await db.aIChatSession.create({
-        data: { ownerId: userId, userId, title: request.question.replace(/\s+/g, " ").slice(0, 60) },
+        data: { id: newSessionId!, ownerId: userId, userId, title: request.question.replace(/\s+/g, " ").slice(0, 60) },
       })).id : null);
       const firstWrite = plan.steps.find(p => WRITE_TOOLS.has(p.tool));
       const snapshot = firstWrite ? await writeSnapshot(db, firstWrite.tool, firstWrite.input as Record<string, unknown>) : null;
@@ -577,6 +581,16 @@ export class AgentRuntime {
       if (terminal.has(run.state)) return run;
       if (!enabled()) throw new AgentError("AGENT_DISABLED", 503);
       if (run.state !== "queued") throw new AgentError("INVALID_STATE");
+      const claimed = await db.agentRun.updateMany({
+        where: { id, scopeId: run.scopeId, userId: run.userId, state: "queued" },
+        data: { state: "running" },
+      });
+      if (claimed.count !== 1) {
+        run = await scoped(db, userId, id);
+        if (terminal.has(run.state)) return run;
+        throw new AgentError("INVALID_STATE");
+      }
+      run = await scoped(db, userId, id);
       const steps = await db.agentStep.findMany({ where: { runId: id }, orderBy: { idx: "asc" } });
       if (!steps.length) throw new AgentError("INVALID_STATE");
       const results: { tool: string; state: string; result: unknown }[] = [];
@@ -711,6 +725,12 @@ export class AgentRuntime {
       }
       case "list_staff":
         return { staff: await db.staff.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, role: true, isActive: true } }), source: "Staff:live", verified: true };
+      case "suggest_staff_per_hour": {
+        const to = new Date();
+        const from = new Date(to.getTime() - Number(input.days ?? 14) * 86400000);
+        const staffing = await suggestStaffPerHour(from, to);
+        return { ...staffing, hours: staffing.hours.filter((hour) => hour.peak), source: "Order:live:Tehran-hour", verified: true };
+      }
       case "list_reservations": {
         const rows = await db.tableReservation.findMany({
           orderBy: { reservedAt: "asc" }, take: Number(input.take ?? 10),
@@ -809,6 +829,7 @@ case "calculate_sales_report":
         case "get_product":
         case "list_inventory":
         case "list_staff":
+        case "suggest_staff_per_hour":
         case "list_reservations":
         case "list_products":
         case "list_categories":

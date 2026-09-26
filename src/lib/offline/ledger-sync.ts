@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { getSession } from "next-auth/react";
 import {
   createFetchApiClient,
   createIndexedDbOutboxStore,
@@ -9,6 +10,17 @@ import {
   runLedgerSync,
   type LedgerOutboxStore,
 } from "./ledger-outbox";
+
+// finance.view is OWNER-only; cashiers would get permanent 403s.
+async function canSyncLedger(): Promise<boolean> {
+  try {
+    const session = await getSession();
+    const role = (session?.user as { role?: string } | undefined)?.role;
+    return role === "OWNER" || role === "ADMIN";
+  } catch {
+    return false;
+  }
+}
 
 export type LedgerSyncState =
   | "idle"
@@ -113,6 +125,10 @@ export function useLedgerSync(): LedgerSnapshot & {
 
 export async function runLedgerSyncNow(): Promise<void> {
   if (typeof window === "undefined" || inFlight) return;
+  if (!(await canSyncLedger())) {
+    setSnapshot({ state: "idle", lastError: null });
+    return;
+  }
   inFlight = true;
   setSnapshot({ state: "syncing", lastError: null });
   try {

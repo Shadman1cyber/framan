@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { guard } from "@/lib/api";
 import { calcLateOvertime, tehranDateKey } from "@/lib/operations";
+import { resolveStaffShift } from "@/lib/staff-shifts";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,14 @@ export async function POST(req: Request) {
   if ("res" in g) return g.res;
   const parsed = checkSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "ورودی نامعتبر" }, { status: 400 });
-  const staff = await prisma.staff.findUnique({ where: { id: parsed.data.staffId } });
+  const staff = await prisma.staff.findUnique({
+    where: { id: parsed.data.staffId },
+    include: {
+      shiftRotation: {
+        include: { slots: { orderBy: { position: "asc" } } },
+      },
+    },
+  });
   if (!staff) return NextResponse.json({ error: "پرسنل یافت نشد" }, { status: 404 });
   const at = parsed.data.at ? new Date(parsed.data.at) : new Date();
   if (Number.isNaN(at.getTime())) return NextResponse.json({ error: "زمان نامعتبر" }, { status: 400 });
@@ -53,7 +61,18 @@ export async function POST(req: Request) {
   if (parsed.data.action === "checkout" && !checkIn) {
     return NextResponse.json({ error: "ابتدا ورود ثبت شود" }, { status: 400 });
   }
-  const { lateMin, overtimeMin } = calcLateOvertime(staff.shiftStart, staff.shiftEnd, checkIn, checkOut);
+  const scheduledShift = resolveStaffShift(
+    staff.shiftStart,
+    staff.shiftEnd,
+    staff.shiftRotation,
+    date,
+  );
+  const { lateMin, overtimeMin } = calcLateOvertime(
+    scheduledShift.shiftStart,
+    scheduledShift.shiftEnd,
+    checkIn,
+    checkOut,
+  );
   const row = existing
     ? await prisma.staffAttendance.update({
         where: { id: existing.id },
@@ -62,5 +81,5 @@ export async function POST(req: Request) {
     : await prisma.staffAttendance.create({
         data: { staffId: staff.id, date, checkIn, checkOut, lateMin, overtimeMin, note: parsed.data.note ?? null },
       });
-  return NextResponse.json({ attendance: row, lateMin, overtimeMin });
+  return NextResponse.json({ attendance: row, scheduledShift, lateMin, overtimeMin });
 }

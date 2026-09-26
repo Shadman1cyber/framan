@@ -1,8 +1,5 @@
 generator client {
-  provider      = "prisma-client-js"
-  // native = build-host engine (Linux CI/dev); windows = engine inside the
-  // Windows package when cross-built on Linux. Prisma has no 32-bit Windows
-  // engines, so the embedded desktop app is x64-only.
+  provider = "prisma-client-js"
   binaryTargets = ["native", "windows"]
 }
 
@@ -309,35 +306,84 @@ model QRCode {
 // orderType: TABLE | TAKEAWAY
 // status: PENDING | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
 // READY means "آماده سرو" for table orders and "آماده تحویل" for takeaway orders.
+// total is the FINAL amount the customer pays (subtotal − discountAmount).
 model Order {
-  id            String            @id @default(cuid())
-  userId        String?
-  qrCodeId      String?
-  tableId       String?
-  orderType     String            @default("TAKEAWAY")
-  status        String            @default("PENDING")
-  total         Int
-  customerName  String?
-  customerPhone String?
-  notes         String?
-  estPrepMin    Int?
-  estPrepMax    Int?
-  prepFactors   String?
-  startedAt     DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  qrCode        QRCode?           @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
-  table         CafeTable?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  items         OrderItem[]
-  stageEvents   OrderStageEvent[]
+  id              String               @id @default(cuid())
+  userId          String?
+  qrCodeId        String?
+  tableId         String?
+  orderType       String               @default("TAKEAWAY")
+  status          String               @default("PENDING")
+  total           Int
+  subtotal        Int                  @default(0)
+  discountAmount  Int                  @default(0)
+  discountCodeId  String?
+  discountCode    String?
+  customerName    String?
+  customerPhone   String?
+  notes           String?
+  estPrepMin      Int?
+  estPrepMax      Int?
+  prepFactors     String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  qrCode          QRCode?              @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
+  table           CafeTable?           @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  discountCodeRef DiscountCode?        @relation(fields: [discountCodeId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  stageEvents     OrderStageEvent[]
+  redemptions     DiscountRedemption[]
 
   @@index([status])
   @@index([userId])
   @@index([orderType])
   @@index([createdAt])
   @@index([status, createdAt])
+  @@index([discountCodeId])
+}
+
+// Owner-managed discount code. type: PERCENT | FIXED (value in percent or toman).
+// All money amounts are integer toman (project currency convention).
+model DiscountCode {
+  id             String               @id @default(cuid())
+  code           String               @unique
+  type           String // PERCENT | FIXED
+  value          Int // percent 1..100 or fixed toman amount
+  startsAt       DateTime
+  endsAt         DateTime
+  minOrderAmount Int                  @default(0)
+  maxDiscount    Int? // cap for PERCENT codes (toman)
+  usageLimit     Int? // total redemptions; null = unlimited
+  perUserLimit   Int? // per customer (requires reliable user identity); null = unlimited
+  isActive       Boolean              @default(true)
+  archivedAt     DateTime?
+  usedCount      Int                  @default(0)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  redemptions    DiscountRedemption[]
+  orders         Order[]
+
+  @@index([isActive, archivedAt])
+  @@index([createdAt])
+}
+
+// One row per redeemed order. orderId is unique so a replayed order can never
+// redeem the same code twice.
+model DiscountRedemption {
+  id             String       @id @default(cuid())
+  discountCodeId String
+  orderId        String       @unique
+  userId         String?
+  amount         Int // discount granted, toman
+  createdAt      DateTime     @default(now())
+  discountCode   DiscountCode @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+  order          Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([discountCodeId, createdAt])
+  @@index([discountCodeId, userId])
 }
 
 model OrderItem {
@@ -353,6 +399,38 @@ model OrderItem {
   order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product        Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
   coffeeLine     CoffeeLine? @relation(fields: [coffeeLineId], references: [id], onDelete: SetNull)
+}
+
+// Recipe quantities are snapshotted when an order is confirmed. This is the
+// durable idempotency record for reservation, consumption and cancellation.
+model OrderIngredientUsage {
+  id           String   @id @default(cuid())
+  orderId      String
+  ingredientId String
+  quantity     Float
+  unit         String
+  state        String   @default("RESERVED") // RESERVED | CONSUMED | RELEASED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([orderId, ingredientId])
+  @@index([ingredientId, state])
+}
+
+// Internal supervisor-agent findings. A future support console can query these
+// without exposing raw model prompts or customer data.
+model AgentMonitorEvent {
+  id         String   @id @default(cuid())
+  runId      String?
+  severity   String
+  category   String
+  summary    String
+  details    String?
+  workflowId String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([severity, createdAt])
 }
 
 model Rating {
@@ -372,19 +450,67 @@ model Rating {
 
 // Kitchen/foyer staff — number of active chefs feeds the preparation estimator.
 model Staff {
-  id         String            @id @default(cuid())
-  userId     String?           @unique
-  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  name       String
-  role       String            @default("CHEF") // CHEF | WAITER | OTHER
-  task       String?
-  shiftStart String? // HH:mm scheduled work start (e.g. "09:00")
-  shiftEnd   String? // HH:mm scheduled work end (e.g. "18:00")
-  isActive   Boolean           @default(true)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  attendance StaffAttendance[]
-  leaves     StaffLeave[]
+  id            String              @id @default(cuid())
+  userId        String?             @unique
+  user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  role          String              @default("CHEF") // CHEF | WAITER | OTHER
+  task          String?
+  shiftStart    String? // HH:mm scheduled work start (e.g. "09:00")
+  shiftEnd      String? // HH:mm scheduled work end (e.g. "18:00")
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  attendance    StaffAttendance[]
+  leaves        StaffLeave[]
+  payRates      StaffPayRate[]
+  shiftRotation StaffShiftRotation?
+}
+
+model StaffShiftRotation {
+  id        String           @id @default(cuid())
+  staffId   String           @unique
+  staff     Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startDate String
+  isEnabled Boolean          @default(true)
+  slots     StaffShiftSlot[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model StaffShiftSlot {
+  id         String             @id @default(cuid())
+  rotationId String
+  rotation   StaffShiftRotation @relation(fields: [rotationId], references: [id], onDelete: Cascade)
+  position   Int
+  label      String
+  shiftStart String?
+  shiftEnd   String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@unique([rotationId, position])
+  @@index([rotationId])
+}
+
+// Append-only staff pay history. payType: MONTHLY | HOURLY.
+// amount is integer toman (monthly total or hourly rate). Rates are resolved
+// by effectiveAt so editing pay today never rewrites past periods.
+// OWNER/ADMIN only — never exposed in public or cashier responses.
+model StaffPayRate {
+  id          String   @id @default(cuid())
+  staffId     String
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  payType     String // MONTHLY | HOURLY
+  amount      Int // toman (> 0)
+  effectiveAt DateTime // effective date (business day in Asia/Tehran)
+  currency    String   @default("TOMAN")
+  note        String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([staffId, effectiveAt])
 }
 
 // Staff check-in / check-out log with auto late/overtime minutes.
@@ -758,49 +884,51 @@ model AgentEvent {
 }
 
 model LedgerEntry {
-  id              String    @id
-  scopeId         String
-  entryType       String    // ORDER_COMPLETED | ORDER_CANCELLED | EXPENSE | REVERSAL | CORRECTION
-  referenceType   String    @default("order")
-  referenceId     String?
-  reversalOf      String?
-  amount          Int       // signed toman (credit +, refund/void −)
-  currency        String    @default("TOMAN")
-  occurredAt      DateTime  // client timestamp (audit/display)
-  accountId       String    @default("cash")
-  deviceId        String
-  idempotencyKey  String
-  serverSequence  Int?
+  id               String    @id
+  scopeId          String
+  entryType        String // ORDER_COMPLETED | ORDER_CANCELLED | EXPENSE | REVERSAL | CORRECTION
+  referenceType    String    @default("order")
+  referenceId      String?
+  reversalOf       String?
+  amount           Int // signed toman (credit +, refund/void −)
+  currency         String    @default("TOMAN")
+  occurredAt       DateTime // client timestamp (audit/display)
+  accountId        String    @default("cash")
+  deviceId         String
+  idempotencyKey   String
+  serverSequence   Int?
   serverReceivedAt DateTime?
-  metadata        String    @default("{}")
-  createdAt       DateTime  @default(now())
-  @@index([scopeId, occurredAt])
-  @@index([scopeId, accountId])
-  @@index([referenceType, referenceId])
+  metadata         String    @default("{}")
+  createdAt        DateTime  @default(now())
+
   @@unique([scopeId, idempotencyKey])
   @@unique([scopeId, reversalOf])
   @@unique([scopeId, serverSequence])
+  @@index([scopeId, occurredAt])
+  @@index([scopeId, accountId])
+  @@index([referenceType, referenceId])
 }
 
 // Server-side outbox/idempotency record: (scope, idempotency_key) is unique so
 // a retried or crashed-and-replayed push can never produce a second effect.
 model SyncOperation {
-  id             String    @id // operation_id (UUID)
-  scopeId        String
-  idempotencyKey String
-  entityType     String    // ledger_entry
-  entityId       String
-  operationType  String    // CREATE_TRANSACTION | REVERSE_TRANSACTION | CORRECT_TRANSACTION
-  payload        String    // JSON
-  requestHash    String
-  createdBy      String
-  status         String    @default("applied") // applied | rejected
-  result         String    @default("{}")
-  serverSequence Int?
-  deviceId       String?
+  id              String    @id // operation_id (UUID)
+  scopeId         String
+  idempotencyKey  String
+  entityType      String // ledger_entry
+  entityId        String
+  operationType   String // CREATE_TRANSACTION | REVERSE_TRANSACTION | CORRECT_TRANSACTION
+  payload         String // JSON
+  requestHash     String
+  createdBy       String
+  status          String    @default("applied") // applied | rejected
+  result          String    @default("{}")
+  serverSequence  Int?
+  deviceId        String?
   clientTimestamp DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
   @@unique([scopeId, idempotencyKey])
   @@index([scopeId, serverSequence])
 }
@@ -808,10 +936,11 @@ model SyncOperation {
 // Diagnostic record of devices that have pushed/pulled. Identity for
 // authorization is always the session user; device_id is never trusted.
 model SyncDevice {
-  id          String   @id
-  scopeId     String
-  lastSeenAt  DateTime @default(now())
-  userAgent   String?
+  id         String   @id
+  scopeId    String
+  lastSeenAt DateTime @default(now())
+  userAgent  String?
+
   @@index([scopeId, lastSeenAt])
 }
 
@@ -832,9 +961,10 @@ model StockMovement {
   serverSequence   Int?
   serverReceivedAt DateTime?
   createdAt        DateTime  @default(now())
+
+  @@unique([scopeId, idempotencyKey])
+  @@unique([scopeId, serverSequence])
   @@index([scopeId, occurredAt])
   @@index([scopeId, ingredientId])
   @@index([ingredientId])
-  @@unique([scopeId, idempotencyKey])
-  @@unique([scopeId, serverSequence])
 }

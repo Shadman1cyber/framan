@@ -171,14 +171,13 @@ export default async function AdminDashboard() {
   const peak = pts.reduce((a, b) => (b.revenue > (a?.revenue ?? -1) ? b : a), pts[0]);
   const dayFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", month: "short", day: "numeric" });
 
-  /* category donut (share of revenue for owner, share of items otherwise) */
-  const catTotal = byCategory.reduce((s, c) => s + c.revenue, 0);
-  const catQtyTotal = byCategory.reduce((s, c) => s + c.quantity, 0);
-  const cats = byCategory.slice(0, 5).map((c, i) => ({
+  /* category donut (share of ordered products) */
+  const categoriesByQuantity = [...byCategory].sort((a, b) => b.quantity - a.quantity);
+  const catTotal = categoriesByQuantity.reduce((s, c) => s + c.quantity, 0);
+  const cats = categoriesByQuantity.slice(0, 5).map((c, i) => ({
     ...c,
     color: DONUT_COLORS[i % DONUT_COLORS.length],
-    pct: catTotal ? Math.round((c.revenue / catTotal) * 100) : 0,
-    qtyPct: catQtyTotal ? Math.round((c.quantity / catQtyTotal) * 100) : 0,
+    pct: catTotal ? Math.round((c.quantity / catTotal) * 100) : 0,
   }));
   const restPct = Math.max(0, 100 - cats.reduce((s, c) => s + c.pct, 0));
   let acc = 0;
@@ -496,19 +495,21 @@ export default async function AdminDashboard() {
           <section aria-label="دسته‌های پرفروش" className="card p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="heading-card !text-base">دسته‌های پرفروش</h2>
-              <Link href="/admin/categories" className="text-xs font-medium text-olive-600 hover:underline dark:text-olive-300">
-                دسته‌ها ←
-              </Link>
+              {owner && (
+                <Link href="/admin/categories" className="text-xs font-medium text-olive-600 hover:underline dark:text-olive-300">
+                  دسته‌ها ←
+                </Link>
+              )}
             </div>
             {cats.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted">داده‌ای برای نمایش نیست.</p>
             ) : (
               <div className="flex items-center gap-4">
-                <div className="relative h-32 w-32 shrink-0" role="img" aria-label={`پرفروش‌ترین دسته: ${cats[0].category} با ${formatNumber(owner ? cats[0].pct : cats[0].qtyPct)} درصد`}>
+                <div className="relative h-32 w-32 shrink-0" role="img" aria-label={`پرفروش‌ترین دسته: ${cats[0].category} با ${formatNumber(cats[0].pct)} درصد`}>
                   <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(${donutStops})` }} />
                   <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-cream-50 dark:bg-dark-surface">
                     <span className="text-lg font-bold tabular-nums text-espresso dark:text-dark-text">
-                      {formatNumber(owner ? cats[0].pct : cats[0].qtyPct)}٪
+                      {formatNumber(cats[0].pct)}٪
                     </span>
                     <span className="max-w-20 truncate text-[10px] text-muted">{cats[0].category}</span>
                   </div>
@@ -521,7 +522,7 @@ export default async function AdminDashboard() {
                         <span className="truncate">{c.category}</span>
                       </span>
                       <span className="shrink-0 tabular-nums text-muted">
-                        {owner ? <Price amount={c.revenue} size="sm" className="!text-xs" /> : `${formatNumber(c.quantity)} عدد`}
+                        {formatNumber(c.quantity)} عدد
                       </span>
                     </li>
                   ))}
@@ -534,9 +535,11 @@ export default async function AdminDashboard() {
           <section aria-label="محصولات پرطرفدار" className="card p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="heading-card !text-base">پرطرفدارها</h2>
-              <Link href="/admin/products" className="text-xs font-medium text-olive-600 hover:underline dark:text-olive-300">
-                محصولات ←
-              </Link>
+              {owner && (
+                <Link href="/admin/products" className="text-xs font-medium text-olive-600 hover:underline dark:text-olive-300">
+                  محصولات ←
+                </Link>
+              )}
             </div>
             {trending.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted">هنوز فروشی ثبت نشده است.</p>
@@ -585,10 +588,11 @@ export default async function AdminDashboard() {
               </span>
             </div>
             <ul className="space-y-2.5 text-sm">
+              {owner && (
               <li>
                 <Link href="/admin/inventory" className="flex items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 transition-colors hover:bg-beige-soft dark:border-dark-border dark:hover:bg-dark-surfaceHover">
                   <span className="flex items-center gap-2">
-                    <span aria-hidden="true" className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${lowItems.length ? "bg-warning/15 text-warning" : "bg-olive/10 text-olive-600 dark:text-olive-300"}`}>🌿</span>
+                    <span aria-hidden="true" className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${lowItems.length ? "bg-warning/15 text-warning" : "bg-olive/10 text-olive-600 dark:text-olive/30"}`}>🌿</span>
                     <span>
                       <span className="block text-xs font-semibold">انبار مواد</span>
                       <span className="block text-[11px] text-muted">
@@ -599,6 +603,7 @@ export default async function AdminDashboard() {
                   <span aria-hidden="true" className="text-muted">‹</span>
                 </Link>
               </li>
+              )}
               <li>
                 <Link href="/admin/tables" className="flex items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 transition-colors hover:bg-beige-soft dark:border-dark-border dark:hover:bg-dark-surfaceHover">
                   <span className="flex items-center gap-2">
@@ -611,6 +616,7 @@ export default async function AdminDashboard() {
                   <span aria-hidden="true" className="text-muted">‹</span>
                 </Link>
               </li>
+              {owner && (
               <li>
                 <Link href="/admin/staff" className="flex items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 transition-colors hover:bg-beige-soft dark:border-dark-border dark:hover:bg-dark-surfaceHover">
                   <span className="flex items-center gap-2">
@@ -623,6 +629,7 @@ export default async function AdminDashboard() {
                   <span aria-hidden="true" className="text-muted">‹</span>
                 </Link>
               </li>
+              )}
               <li>
                 <Link href="/admin/customers" className="flex items-center justify-between gap-2 rounded-xl border border-coffee/10 p-2.5 transition-colors hover:bg-beige-soft dark:border-dark-border dark:hover:bg-dark-surfaceHover">
                   <span className="flex items-center gap-2">

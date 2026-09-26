@@ -22,6 +22,9 @@ export default async function AdminOrdersPage({
       status: true,
       orderType: true,
       total: true,
+      subtotal: true,
+      discountAmount: true,
+      discountCode: true,
       estPrepMin: true,
       estPrepMax: true,
       createdAt: true,
@@ -35,7 +38,12 @@ export default async function AdminOrdersPage({
   }), prisma.product.findMany({
     where: { isAvailable: true },
     orderBy: [{ category: { order: "asc" } }, { order: "asc" }],
-    select: { id: true, nameFa: true, price: true },
+    select: {
+      id: true,
+      nameFa: true,
+      price: true,
+      category: { select: { id: true, nameFa: true } },
+    },
   }), prisma.cafeTable.findMany({
     where: { isActive: true },
     orderBy: { number: "asc" },
@@ -54,6 +62,9 @@ export default async function AdminOrdersPage({
             statusLabel: orderStatusLabel(current, orderType),
             orderType,
             total: o.total,
+            subtotal: o.subtotal,
+            discountAmount: o.discountAmount,
+            discountCode: o.discountCode,
             estPrepMin: o.estPrepMin,
             estPrepMax: o.estPrepMax,
             createdAt: o.createdAt.toISOString(),

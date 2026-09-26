@@ -12,9 +12,8 @@
 # (prisma/dev-desktop.db, copied to userData on first run). Zero connectivity
 # required. The manager PC hosts LAN terminals.
 #
-# asar is OFF: the embedded server (Next + Prisma engines + SQLite) performs
-# real filesystem operations and spawns workers — an unpacked layout is the
-# robust choice for an internal POS tool.
+# The embedded Next server and Prisma use real filesystem paths. Keep the app
+# unpacked; the large n8n dependency tree is archived by afterPack instead.
 appId: com.farmancoffeeshop.app
 productName: Cafe 13
 copyright: Copyright © Cafe 13
@@ -26,12 +25,17 @@ files:
   - build/icon.ico
   - build/icon.png
   - package.json
+  - next.config.js
   # Embedded platform (offline-first)
   - .next-desktop/**/*
+  - '!.next-desktop/cache/**/*'
+  - '!.next-desktop/types/**/*'
   - public/**/*
   - prisma/dev-desktop.db
   - prisma/desktop-meta.json
-  - node_modules/**/*
+  - prisma/schema.desktop.prisma
+  - worker/dist.cjs
+  - vendor/windows-n8n/workflows/**/*
   - node_modules/.prisma/**/*
   - '!**/*.map'
 
@@ -53,8 +57,6 @@ win:
   target:
     - target: nsis
       arch: [x64]
-    - target: portable
-      arch: [x64]
   requestedExecutionLevel: asInvoker
   signAndEditExecutable: false
 
@@ -68,9 +70,6 @@ nsis:
   shortcutName: Cafe 13
   deleteAppDataOnUninstall: false
   differentialPackage: false
-
-portable:
-  artifactName: Cafe13-Desktop-${version}-portable-${arch}.${ext}
 
 # No auto-publish: CI uploads the artifacts explicitly.
 publish: null

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { UNITS, UNIT_LABELS_FA, type Unit } from "@/lib/constants";
@@ -10,9 +10,13 @@ export type InventoryItem = {
   nameFa: string;
   unit: string;
   stockQuantity: number;
+  availableQuantity: number;
   minQuantity: number | null;
   costPerUnit: number | null;
   supplier: string | null;
+  category: string | null;
+  purchaseUnit: string | null;
+  purchaseFactor: number;
   isAllergen: boolean;
   isActive: boolean;
   productCount: number;
@@ -20,15 +24,18 @@ export type InventoryItem = {
 
 export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
   const [items, setItems] = useState(initial);
+  const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [form, setForm] = useState({
     nameFa: "",
     unit: "GRAM" as Unit,
-    stockQuantity: 0,
+    category: "",
+    purchaseUnit: "",
+    purchaseFactor: "1",
     minQuantity: "",
     costPerUnit: "",
     supplier: "",
   });
-  const [stockEdits, setStockEdits] = useState<Record<string, string>>({});
+  useEffect(() => setItems(initial), [initial]);
   const router = useRouter();
   const { show } = useToast();
 
@@ -40,41 +47,22 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
       body: JSON.stringify({
         nameFa: form.nameFa.trim(),
         unit: form.unit,
-        stockQuantity: form.stockQuantity,
+        category: form.category || null,
+        purchaseUnit: form.purchaseUnit || null,
+        purchaseFactor: Number(form.purchaseFactor),
         minQuantity: form.minQuantity ? Number(form.minQuantity) : null,
         costPerUnit: form.costPerUnit ? Number(form.costPerUnit) : null,
         supplier: form.supplier || null,
       }),
     });
     if (res.ok) {
-      setForm({ nameFa: "", unit: "GRAM", stockQuantity: 0, minQuantity: "", costPerUnit: "", supplier: "" });
+      setForm({ nameFa: "", unit: "GRAM", category: "", purchaseUnit: "", purchaseFactor: "1", minQuantity: "", costPerUnit: "", supplier: "" });
       router.refresh();
       show("ماده اولیه اضافه شد", "success");
     } else {
       const j = await res.json().catch(() => ({}));
       show(j.error ?? "خطا", "error");
     }
-  }
-
-  async function saveStock(id: string) {
-    const value = stockEdits[id];
-    if (value == null || value === "") return;
-    const res = await fetch(`/api/admin/ingredients/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stockQuantity: Number(value) }),
-    });
-    if (res.ok) {
-      setItems((xs) =>
-        xs.map((x) => (x.id === id ? { ...x, stockQuantity: Number(value) } : x)),
-      );
-      setStockEdits((s) => {
-        const n = { ...s };
-        delete n[id];
-        return n;
-      });
-      show("موجودی به‌روزرسانی شد", "success");
-    } else show("خطا", "error");
   }
 
   async function toggleActive(item: InventoryItem) {
@@ -86,6 +74,20 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
     if (res.ok) {
       setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, isActive: !x.isActive } : x)));
     }
+  }
+
+  async function saveMetadata() {
+    if (!editing) return;
+    const res = await fetch(`/api/admin/ingredients/${editing.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: editing.category || null, purchaseUnit: editing.purchaseUnit || null,
+        purchaseFactor: Number(editing.purchaseFactor), minQuantity: editing.minQuantity,
+        supplier: editing.supplier || null,
+      }),
+    });
+    if (res.ok) { setEditing(null); router.refresh(); show("مشخصات ذخیره شد", "success"); }
+    else { const body = await res.json().catch(() => ({})); show(body.error || "خطا", "error"); }
   }
 
   async function del(id: string) {
@@ -105,7 +107,7 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
       {/* Mobile: card list */}
       <ul className="space-y-2 md:hidden">
         {items.map((i) => {
-          const isLow = i.minQuantity != null && i.stockQuantity <= i.minQuantity;
+          const isLow = i.availableQuantity <= 0 || (i.minQuantity != null && i.availableQuantity <= i.minQuantity);
           return (
             <li key={i.id} className="card p-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -125,23 +127,12 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
               </div>
               <div className="mt-1 text-[11px] text-muted">
                 {i.productCount} محصول · واحد: {UNIT_LABELS_FA[i.unit as Unit] ?? i.unit}
+                {i.category ? ` · ${i.category}` : ""}
                 {i.minQuantity != null ? ` · حداقل: ${formatNumber(i.minQuantity)}` : ""}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <input
-                  type="number"
-                  className="input w-28 py-1.5"
-                  aria-label={`موجودی ${i.nameFa}`}
-                  value={stockEdits[i.id] ?? String(i.stockQuantity)}
-                  onChange={(e) => setStockEdits((s) => ({ ...s, [i.id]: e.target.value }))}
-                />
-                <button
-                  onClick={() => saveStock(i.id)}
-                  disabled={stockEdits[i.id] == null}
-                  className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40"
-                >
-                  ذخیره
-                </button>
+                <span className="text-sm">قابل مصرف: {formatNumber(i.availableQuantity)} / کل: {formatNumber(i.stockQuantity)}</span>
+                <button onClick={() => setEditing({ ...i })} className="btn-ghost px-2 py-1 text-xs">ویرایش</button>
                 <button onClick={() => toggleActive(i)} className="btn-ghost px-2 py-1 text-xs">
                   {i.isActive ? "غیرفعال" : "فعال"}
                 </button>
@@ -156,12 +147,12 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
 
       {/* Desktop: table */}
       <div className="card hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
+        <table className="min-w-[880px] w-full text-sm">
           <thead className="bg-beige text-espresso/70 dark:bg-dark-surfaceHover dark:text-dark-textSecondary">
             <tr>
               <th className="p-3 text-right">ماده اولیه</th>
               <th className="p-3 text-right">واحد</th>
-              <th className="p-3 text-right">موجودی</th>
+              <th className="p-3 text-right">قابل مصرف / کل</th>
               <th className="p-3 text-right">حداقل</th>
               <th className="p-3 text-right">قیمت واحد</th>
               <th className="p-3 text-right">تامین‌کننده</th>
@@ -171,7 +162,7 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
           </thead>
           <tbody>
             {items.map((i) => {
-              const isLow = i.minQuantity != null && i.stockQuantity <= i.minQuantity;
+              const isLow = i.availableQuantity <= 0 || (i.minQuantity != null && i.availableQuantity <= i.minQuantity);
               return (
                 <tr key={i.id} className="border-t border-coffee/10 dark:border-dark-border">
                   <td className="p-3">
@@ -184,24 +175,11 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
                       )}
                     </div>
                     <div className="mt-0.5 text-[11px] text-muted">{i.productCount} محصول</div>
+                    {i.category && <div className="text-[11px] text-muted">{i.category}</div>}
                   </td>
                   <td className="p-3 text-muted">{UNIT_LABELS_FA[i.unit as Unit] ?? i.unit}</td>
                   <td className="p-3">
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        className="input w-24 py-1"
-                        value={stockEdits[i.id] ?? String(i.stockQuantity)}
-                        onChange={(e) => setStockEdits((s) => ({ ...s, [i.id]: e.target.value }))}
-                      />
-                      <button
-                        onClick={() => saveStock(i.id)}
-                        disabled={stockEdits[i.id] == null}
-                        className="btn-ghost px-2 py-1 text-xs text-olive-600 dark:text-olive-300 disabled:opacity-40"
-                      >
-                        ذخیره
-                      </button>
-                    </div>
+                    {formatNumber(i.availableQuantity)} / {formatNumber(i.stockQuantity)}
                   </td>
                   <td className="p-3 text-muted">
                     {i.minQuantity != null ? formatNumber(i.minQuantity) : "—"}
@@ -219,6 +197,7 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
+                      <button onClick={() => setEditing({ ...i })} className="btn-ghost px-2 py-1 text-xs">ویرایش</button>
                       <button onClick={() => toggleActive(i)} className="btn-ghost px-2 py-1 text-xs">
                         {i.isActive ? "غیرفعال" : "فعال"}
                       </button>
@@ -232,6 +211,18 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
         </table>
       </div>
 
+      {editing && <div className="card p-4">
+        <h2 className="mb-3 text-sm font-semibold">ویرایش {editing.nameFa}</h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          <input className="input" aria-label="دسته‌بندی" placeholder="دسته‌بندی" value={editing.category ?? ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} />
+          <input className="input" aria-label="واحد خرید" placeholder="واحد خرید" value={editing.purchaseUnit ?? ""} onChange={(e) => setEditing({ ...editing, purchaseUnit: e.target.value })} />
+          <input className="input" type="number" min="0.001" step="any" aria-label="ضریب تبدیل واحد خرید" value={editing.purchaseFactor} onChange={(e) => setEditing({ ...editing, purchaseFactor: Number(e.target.value) })} />
+          <input className="input" type="number" min="0" step="any" aria-label="حداقل موجودی" value={editing.minQuantity ?? ""} onChange={(e) => setEditing({ ...editing, minQuantity: e.target.value === "" ? null : Number(e.target.value) })} />
+          <input className="input" aria-label="تأمین‌کننده" placeholder="تأمین‌کننده" value={editing.supplier ?? ""} onChange={(e) => setEditing({ ...editing, supplier: e.target.value })} />
+        </div>
+        <div className="mt-3 flex gap-2"><button className="btn-primary" onClick={saveMetadata}>ذخیره</button><button className="btn-secondary" onClick={() => setEditing(null)}>انصراف</button></div>
+      </div>}
+
       <div className="card p-4">
         <h2 className="mb-3 text-sm font-semibold">افزودن ماده اولیه</h2>
         <div className="grid gap-3 md:grid-cols-3">
@@ -241,7 +232,9 @@ export function InventoryAdmin({ initial }: { initial: InventoryItem[] }) {
               <option key={u} value={u}>{UNIT_LABELS_FA[u]}</option>
             ))}
           </select>
-          <input className="input" type="number" min={0} placeholder="موجودی فعلی" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })} />
+          <input className="input" placeholder="دسته‌بندی (اختیاری)" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <input className="input" placeholder="واحد خرید (مثلاً بسته، کیسه)" value={form.purchaseUnit} onChange={(e) => setForm({ ...form, purchaseUnit: e.target.value })} />
+          <input className="input" type="number" min={0.001} step="any" placeholder="مقدار هر واحد خرید در واحد مصرف" value={form.purchaseFactor} onChange={(e) => setForm({ ...form, purchaseFactor: e.target.value })} />
           <input className="input" type="number" min={0} placeholder="حداقل موجودی (اختیاری)" value={form.minQuantity} onChange={(e) => setForm({ ...form, minQuantity: e.target.value })} />
           <input className="input" type="number" min={0} placeholder="قیمت هر واحد (اختیاری)" value={form.costPerUnit} onChange={(e) => setForm({ ...form, costPerUnit: e.target.value })} />
           <input className="input" placeholder="تامین‌کننده (اختیاری)" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
