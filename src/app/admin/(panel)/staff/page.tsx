@@ -1,33 +1,72 @@
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/guards";
+import { getEnabledCashierTabs } from "@/lib/cashier-access";
+import { getLeaveDeadlineHours } from "@/lib/operations";
 import { StaffPanelClient } from "@/components/admin/StaffPanelClient";
+import { CashierLeavesClient } from "@/components/admin/CashierLeavesClient";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
+/** پرسنل + مرخصی‌ها on one page; the leave block keeps its own permission. */
 export default async function AdminStaffPage() {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  if (role !== "OWNER" && role !== "ADMIN") redirect("/admin");
+  const user = await getSessionUser();
+  if (!user) redirect("/admin/login");
+  const isOwner = user.role === "OWNER";
+  const enabled = isOwner ? [] : await getEnabledCashierTabs();
+  const canManageStaff = isOwner;
+  const canSeeLeaves = isOwner || enabled.includes("leaves");
+  if (!canManageStaff && !canSeeLeaves) redirect("/admin/no-access");
 
-  const staff = await prisma.staff.findMany({ orderBy: { name: "asc" } });
+  const [staff, leaves, deadlineH] = await Promise.all([
+    prisma.staff.findMany({ orderBy: { name: "asc" } }),
+    canSeeLeaves
+      ? prisma.staffLeave.findMany({
+          include: { staff: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
+    canSeeLeaves ? getLeaveDeadlineHours().catch(() => 48) : Promise.resolve(48),
+  ]);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-[11px] font-medium tracking-wide text-muted">کافه ۱۳ · پنل مدیر</p>
-        <h1 className="heading-section mt-1">پرسنل</h1>
-        <p className="mt-1 text-sm text-muted">
-          مدیریت پرسنل، حضور و غیاب، مرخصی، گزارش کار و پیشنهاد نیرو — همه در یک جا.
-        </p>
-      </div>
-      <StaffPanelClient
-        initialStaff={staff.map((s) => ({
-          id: s.id, name: s.name, role: s.role, task: s.task,
-          shiftStart: s.shiftStart, shiftEnd: s.shiftEnd, isActive: s.isActive,
-        }))}
-      />
-    </div>
+    <SectionPage
+      kind="erp"
+      title="پرسنل و مرخصی‌ها"
+      exclude="/admin/staff"
+      description="مدیریت پرسنل، حضور و غیاب، مرخصی، گزارش کار و پیشنهاد نیرو — همه در یک جا."
+    >
+      {canManageStaff && (
+        <StaffPanelClient
+          initialStaff={staff.map((s) => ({
+            id: s.id, name: s.name, role: s.role, task: s.task,
+            shiftStart: s.shiftStart, shiftEnd: s.shiftEnd, isActive: s.isActive,
+          }))}
+        />
+      )}
+      {canSeeLeaves && (
+        <div className="mt-5 border-t border-dashboard-line pt-5">
+          <CashierLeavesClient
+            initialStaff={staff.map((s) => ({
+              id: s.id, name: s.name, role: s.role, task: s.task, isActive: s.isActive,
+            }))}
+            initialLeaves={leaves.map((l) => ({
+              id: l.id,
+              staffId: l.staffId,
+              type: l.type,
+              from: l.from.toISOString(),
+              to: l.to.toISOString(),
+              status: l.status,
+              reason: l.reason,
+              createdAt: l.createdAt.toISOString(),
+              staff: l.staff,
+            }))}
+            initialDeadlineH={deadlineH}
+          />
+        </div>
+      )}
+    </SectionPage>
   );
 }

@@ -294,6 +294,415 @@ button { font-family: inherit; }
   background-size: 32px 32px;
 }
 
+.module-ring {
+  --module-ring-size: clamp(220px, 27vw, 255px);
+  height: var(--module-ring-size);
+  width: var(--module-ring-size);
+}
+
+.module-ring[data-featured="true"] {
+  --module-ring-size: clamp(260px, 32vw, 345px);
+}
+
+.module-ring-content {
+  font-size: calc(var(--module-ring-size) / 19.1667);
+  padding-inline: 1.3333em;
+}
+
+.module-ring-content :where(.module-ring-icon) {
+  height: 3.5556em;
+  margin-bottom: 0.6667em;
+  width: 3.5556em;
+}
+
+.module-ring-content :where(.module-ring-glyph) {
+  height: 1.5556em;
+  width: 1.5556em;
+}
+
+.module-ring-content :where(.module-ring-title) {
+  font-size: 1em;
+  line-height: 1.5556;
+}
+
+.module-ring-content :where(.module-ring-subtitle) {
+  /* Ring type is em-based off the ring size; the clamp keeps the small rings'
+     labels at a readable 11px without changing the ring's geometry. */
+  font-size: clamp(11px, 0.5556em, 13px);
+  line-height: 1.6;
+  margin-top: 0.4em;
+  max-width: 17em;
+}
+
+.module-ring-content :where(.module-ring-percentage) {
+  font-size: 2em;
+  line-height: 1.1111;
+  margin-top: 0.3333em;
+}
+
+.module-ring-content :where(.module-ring-caption) {
+  font-size: clamp(11px, 0.5556em, 13px);
+  line-height: 1.5;
+  margin-top: 0.4em;
+}
+
+/* ---------------------------------------------------------------------------
+   Module themes
+   One accent per FARMAN module. A module page sets data-theme on its root and
+   every chart / ring / bar / badge under that subtree reads --module-primary,
+   so a 4th module only needs a new token block, never chart code changes.
+   Background, card, border and text tokens stay shared across all modules.
+--------------------------------------------------------------------------- */
+:root {
+  --module-on-primary: #04231c;
+  --module-primary: var(--color-signal-bright);
+  --module-primary-rgb: 34 230 176;
+  --module-primary-dark: #17b894;
+  --module-tint: rgb(34 230 176 / 0.12);
+  --module-glow: 0 0 34px rgb(34 230 176 / 0.12);
+  --module-gradient-end: #4e8752;
+}
+
+[data-theme="accounting"] {
+  --accounting-primary: #22e6b0;
+  --accounting-primary-dark: #17b894;
+  --accounting-primary-rgb: 34 230 176;
+  --accounting-tint: rgb(34 230 176 / 0.12);
+  --accounting-glow: 0 0 42px rgb(34 230 176 / 0.28);
+  --accounting-gradient-end: #4e8752;
+  --module-primary: var(--accounting-primary);
+  --module-primary-dark: var(--accounting-primary-dark);
+  --module-primary-rgb: var(--accounting-primary-rgb);
+  --module-tint: var(--accounting-tint);
+  --module-glow: var(--accounting-glow);
+  --module-gradient-end: var(--accounting-gradient-end);
+}
+
+[data-theme="erp"] {
+  --erp-primary: #4f86ff;
+  --erp-primary-dark: #2f61d8;
+  --erp-primary-rgb: 79 134 255;
+  --erp-tint: rgb(79 134 255 / 0.12);
+  --erp-glow: 0 0 34px rgb(79 134 255 / 0.12);
+  --erp-gradient-end: #2f61d8;
+  --module-primary: var(--erp-primary);
+  --module-primary-dark: var(--erp-primary-dark);
+  --module-primary-rgb: var(--erp-primary-rgb);
+  --module-tint: var(--erp-tint);
+  --module-glow: var(--erp-glow);
+  --module-gradient-end: var(--erp-gradient-end);
+}
+
+[data-theme="crm"] {
+  --crm-primary: #9b5cf6;
+  --crm-primary-dark: #7439d4;
+  --crm-primary-rgb: 155 92 246;
+  --crm-tint: rgb(155 92 246 / 0.12);
+  --crm-glow: 0 0 34px rgb(155 92 246 / 0.12);
+  --crm-gradient-end: #7439d4;
+  --module-primary: var(--crm-primary);
+  --module-primary-dark: var(--crm-primary-dark);
+  --module-primary-rgb: var(--crm-primary-rgb);
+  --module-tint: var(--crm-tint);
+  --module-glow: var(--crm-glow);
+  --module-gradient-end: var(--crm-gradient-end);
+}
+
+.module-accent-text {
+  color: var(--module-primary);
+}
+
+.module-accent-bg {
+  background-color: var(--module-primary);
+}
+
+.module-tint-bg {
+  background-color: var(--module-tint);
+}
+
+.module-glow {
+  box-shadow: var(--module-glow);
+}
+
+.module-line {
+  border-color: rgb(var(--module-primary-rgb) / 0.3);
+}
+
+.module-button-primary {
+  background-image: linear-gradient(to left, var(--module-primary), var(--module-gradient-end));
+  color: var(--module-on-primary);
+}
+
+.module-button-ghost {
+  border-color: rgb(var(--module-primary-rgb) / 0.35);
+}
+
+.module-button-ghost:hover {
+  border-color: rgb(var(--module-primary-rgb) / 0.7);
+  filter: brightness(1.12);
+}
+
+.module-interactive {
+  transition: transform 0.3s ease, filter 0.2s ease;
+}
+
+.module-interactive:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.06);
+}
+
+/* Beats the global `:where(a):focus-visible` outline, so the focus ring wears
+   the module accent instead of the shared dark-navy primary. */
+.module-interactive:focus-visible,
+.module-focusable:focus-visible,
+.module-back-link:focus-visible {
+  outline: 2px solid var(--module-primary);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   Module sections
+   The financial report and the module-owned admin sections (انبار, دسته‌ها,
+   محصولات, باشگاه مشتریان, امتیازها, میزها) run inside a module's dark shell and
+   reuse the existing admin components, so no behaviour is duplicated or
+   re-implemented. Those components are still styled with the legacy card/input
+   utilities on every other route, so their surfaces are remapped to the
+   dashboard tokens *only* inside this scope — /admin/operations, /admin/orders
+   and the rest keep the old look untouched. The accent comes from the page's
+   own data-theme, so ERP reads blue and CRM purple from the same rules.
+--------------------------------------------------------------------------- */
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] {
+  --panel-surface: #111a2e;
+  --panel-raised: #16233b;
+  --panel-line: #1d2b44;
+  --panel-line-strong: #24314f;
+  --panel-ink: #f2f5fb;
+  --panel-ink-soft: #9aa8c4;
+  --panel-warning: #f5c542;
+  --panel-danger: #ff5a6e;
+  --donut-track: #16233b;
+  --donut-none: #9aa8c4;
+  --donut-low: #ff5a6e;
+  --donut-mid: #f5c542;
+  --donut-high: #22e6b0;
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .card {
+  border-radius: 14px;
+  border-color: var(--panel-line);
+  background-color: var(--panel-surface);
+  box-shadow: none;
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .chip {
+  border-color: var(--panel-line);
+  background-color: rgb(17 26 46 / 0.6);
+  color: var(--panel-ink-soft);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .input {
+  border-color: var(--panel-line);
+  background-color: var(--panel-surface);
+  color: var(--panel-ink);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .input::placeholder {
+  color: var(--panel-ink-soft);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .btn-primary {
+  background-color: var(--module-primary);
+  color: var(--module-on-primary);
+  box-shadow: none;
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .btn-secondary {
+  background-color: var(--panel-raised);
+  color: var(--panel-ink);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-muted,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-espresso {
+  color: var(--panel-ink-soft);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-warning {
+  color: var(--panel-warning);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-danger {
+  color: var(--panel-danger);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-cream,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-dark-bg {
+  background-color: var(--panel-surface);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-coffee\/5,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-coffee\/15,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-coffee\/20,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-coffee\/40,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:border-dark-border {
+  border-color: var(--panel-line);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-warning\/10 {
+  background-color: rgb(245 197 66 / 0.1);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-warning\/5 {
+  background-color: rgb(245 197 66 / 0.06);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-warning\/40 {
+  border-color: rgb(245 197 66 / 0.4);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-danger\/40 {
+  border-color: rgb(255 90 110 / 0.4);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-danger\/5 {
+  background-color: rgb(255 90 110 / 0.06);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-olive\/40 {
+  border-color: rgb(var(--module-primary-rgb) / 0.4);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-olive\/5 {
+  background-color: var(--module-tint);
+}
+
+/* Chart columns in the shared panels: legacy olive is a pale slate, which reads
+   as a light block on navy — map the bar fills to the module accent. */
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-olive\/70 {
+  background-color: rgb(var(--module-primary-rgb) / 0.75);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .group:hover .group-hover\:bg-olive {
+  background-color: var(--module-primary);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-coffee\/50 {
+  background-color: rgb(var(--module-primary-rgb) / 0.5);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-beige-soft {
+  background-color: var(--panel-raised);
+}
+
+/* Legacy chip / row surfaces used by the module sections (available, active,
+   low-stock, occupied …). Everything keyed to "olive" becomes the module accent
+   so ERP reads blue and CRM purple. */
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-beige,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-dark-surfaceHover {
+  background-color: var(--panel-raised);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-olive-50,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-olive\/20 {
+  background-color: rgb(var(--module-primary-rgb) / 0.2);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-olive,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-olive-600,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:text-olive-300 {
+  color: var(--module-primary);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-danger\/10,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-danger\/20 {
+  background-color: rgb(255 90 110 / 0.12);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-warning\/20,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-warning\/20 {
+  background-color: rgb(245 197 66 / 0.14);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .divide-coffee\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--panel-line);
+}
+
+/* The assistant page reuses the same legacy components; these finish the set. */
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-cream-50 {
+  background-color: var(--panel-surface);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-dark-surface {
+  background-color: var(--panel-surface);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:text-dark-text,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:text-dark-textSecondary {
+  color: var(--panel-ink);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-espresso\/75 {
+  color: var(--panel-ink-soft);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-olive {
+  background-color: var(--module-primary);
+  color: var(--module-on-primary);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:hover\:bg-olive-600:hover,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .hover\:bg-olive-600:hover {
+  background-color: var(--module-primary-dark);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .shadow-soft {
+  box-shadow: none;
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .chip-active {
+  border-color: rgb(var(--module-primary-rgb) / 0.4);
+  background-color: var(--module-tint);
+  color: var(--module-primary);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-amber-50 {
+  background-color: rgb(245 197 66 / 0.1);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .border-amber-300 {
+  border-color: rgb(245 197 66 / 0.4);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-red-700 {
+  color: var(--panel-danger);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .accent-olive {
+  accent-color: var(--module-primary);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-espresso\/70 {
+  background-color: rgb(22 35 59 / 0.7);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .bg-red-50,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-red-900\/30 {
+  background-color: rgb(255 90 110 / 0.1);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:bg-dark-bg {
+  background-color: var(--panel-surface);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-amber-700,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .text-amber-800,
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:text-amber-300 {
+  color: var(--panel-warning);
+}
+
+[data-shell="dashboard"] [data-legacy-surface="dashboard"] .dark\:text-red-300 {
+  color: var(--panel-danger);
+}
+
 .farman-scroll {
   scrollbar-color: rgb(var(--farman-line-strong)) transparent;
   scrollbar-width: thin;

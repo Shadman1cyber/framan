@@ -4,11 +4,14 @@ import { usePathname } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { CashierOrderReminder } from "@/components/admin/CashierOrderReminder";
 import { LeaveRequestHeader } from "@/components/admin/LeaveRequestHeader";
+import { DARK_SHELL_PREFIXES, DARK_SHELL_ROUTES } from "@/lib/dashboard/modules";
 import type { CashierTabId } from "@/lib/cashier-tabs";
 
+/** The home screen, the module pages and the financial report share the dark
+ *  full-bleed shell; every other admin route keeps the sidebar. */
 export function AdminPanelFrame({ children, role, cashierTabs, pendingLeaveCount }: { children: React.ReactNode; role: "OWNER" | "CASHIER"; cashierTabs: CashierTabId[]; pendingLeaveCount: number }) {
   const pathname = usePathname();
-  const isDashboard = pathname === "/admin";
+  const isDashboard = DARK_SHELL_ROUTES.includes(pathname) || DARK_SHELL_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   if (isDashboard) {
     return (

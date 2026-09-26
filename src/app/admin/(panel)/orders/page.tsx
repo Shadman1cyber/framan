@@ -4,6 +4,11 @@ import type { OrderStatus, OrderType } from "@/lib/constants";
 import { ORDER_STATUSES, orderStatusLabel } from "@/lib/constants";
 import { nextStatuses } from "@/lib/orders";
 import { requireAdminPage } from "@/lib/admin-page-access";
+import { DashboardShell } from "@/components/admin/dashboard/DashboardShell";
+
+function OrdersIcon() {
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14l-1.2 14.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 4Z" /><path d="M9 4a3 3 0 0 1 6 0M9.5 10h5" /></svg>;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +47,9 @@ export default async function AdminOrdersPage({
     select: { id: true, number: true, label: true },
   })]);
   return (
-    <div>
-      <h1 className="heading-section mb-6">سفارش‌ها</h1>
-      <OrdersAdmin
+    <DashboardShell title="سفارش‌ها" icon={<OrdersIcon />}>
+      <div data-legacy-surface="dashboard">
+        <OrdersAdmin
         initial={orders.map((o) => {
           const orderType = (o.orderType as OrderType) ?? "TAKEAWAY";
           const current = o.status as OrderStatus;
@@ -68,6 +73,7 @@ export default async function AdminOrdersPage({
         products={products}
         tables={tables}
       />
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

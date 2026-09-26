@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/admin/ProductForm";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,7 @@ export default async function EditProductPage({ params }: { params: { id: string
   if (!product) notFound();
   const imageUrls = new Set(product.images.map((i) => i.url));
   return (
-    <div className="max-w-3xl">
-      <h1 className="heading-section mb-6">ویرایش محصول</h1>
+    <SectionPage kind="erp" title="ویرایش محصول">
       <ProductForm
         product={{
           id: product.id,
@@ -66,6 +66,6 @@ export default async function EditProductPage({ params }: { params: { id: string
         allergens={allergens.map((a) => ({ id: a.id, nameFa: a.nameFa, icon: a.icon }))}
         coffeeLines={coffeeLines.map((l) => ({ id: l.id, nameFa: l.nameFa }))}
       />
-    </div>
+    </SectionPage>
   );
 }

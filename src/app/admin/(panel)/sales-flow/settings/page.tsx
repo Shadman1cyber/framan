@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
+
 
 type Schedule = {
   dayOfWeek: number;
@@ -104,19 +106,25 @@ export default function SalesFlowSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-olive border-t-transparent"></div>
-      </div>
+      <SectionPage kind="accounting" title="تنظیمات جریان فروش" exclude="/admin/sales-flow/settings">
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[rgb(var(--module-primary-rgb)/0.75)] border-t-transparent" />
+        </div>
+      </SectionPage>
     );
   }
 
   if (!settings) {
-    return <div className="text-center text-muted py-8">تنظیمات یافت نشد</div>;
+    return (
+      <SectionPage kind="accounting" title="تنظیمات جریان فروش" exclude="/admin/sales-flow/settings">
+        <div className="py-8 text-center text-dashboard-muted">تنظیمات یافت نشد</div>
+      </SectionPage>
+    );
   }
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="heading-section mb-6">تنظیمات جریان فروش</h1>
+    <SectionPage kind="accounting" title="تنظیمات جریان فروش" exclude="/admin/sales-flow/settings">
+      <div data-legacy-surface="dashboard">
 
       {message && (
         <div
@@ -239,6 +247,7 @@ export default function SalesFlowSettingsPage() {
           {saving ? "در حال ذخیره..." : "ذخیره تنظیمات"}
         </button>
       </div>
-    </div>
+      </div>
+    </SectionPage>
   );
 }

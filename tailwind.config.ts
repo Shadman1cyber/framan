@@ -66,7 +66,7 @@ const config: Config = {
         "dashboard-mountain": "#101a2c",
         "dashboard-mountain-back": "#0c1424",
         "dashboard-foreground": "#f2f5fb",
-        "dashboard-muted": "#7d8aa4",
+        "dashboard-muted": "#9aa8c4",
         erp: "#4f86ff",
         accounting: "#22e6b0",
         crm: "#9b5cf6",

@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
 import { UsersAdmin } from "@/components/admin/UsersAdmin";
+import { DashboardShell } from "@/components/admin/dashboard/DashboardShell";
+function UsersIcon() {
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 19a6.5 6.5 0 0 1 13 0" /><circle cx="17" cy="9.5" r="2.5" /><path d="M17 14.5a5 5 0 0 1 4.5 4.5" /></svg>;
+}
+
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +15,9 @@ export default async function AdminUsersPage() {
     include: { _count: { select: { orders: true, ratings: true } } },
   });
   return (
-    <div>
-      <h1 className="heading-section mb-6">کاربران</h1>
-      <UsersAdmin
+    <DashboardShell title="کاربران" icon={<UsersIcon />}>
+      <div data-legacy-surface="dashboard">
+        <UsersAdmin
         initial={users.map((u) => ({
           id: u.id,
           name: u.name ?? "—",
@@ -24,6 +29,7 @@ export default async function AdminUsersPage() {
           createdAt: u.createdAt.toISOString(),
         }))}
       />
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

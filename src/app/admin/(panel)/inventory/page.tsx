@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { InventoryAdmin } from "@/components/admin/InventoryAdmin";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,12 @@ export default async function AdminInventoryPage() {
     include: { _count: { select: { products: true } } },
   });
   return (
-    <div>
-      <h1 className="heading-section mb-2">انبار مواد اولیه</h1>
-      <p className="mb-6 text-sm text-muted">
-        موجودی، واحد اندازه‌گیری، حداقل مجاز، قیمت واحد و تامین‌کننده‌ی هر ماده را مدیریت کنید.
-        مقادیر مصرف محصولات از فرم محصول قابل ویرایش است.
-      </p>
+    <SectionPage
+      kind="erp"
+      title="انبار مواد اولیه"
+      exclude="/admin/inventory"
+      description="موجودی، واحد اندازه‌گیری، حداقل مجاز، قیمت واحد و تامین‌کننده‌ی هر ماده را مدیریت کنید. مقادیر مصرف محصولات از فرم محصول قابل ویرایش است."
+    >
       <InventoryAdmin
         initial={ingredients.map((i) => ({
           id: i.id,
@@ -36,6 +37,6 @@ export default async function AdminInventoryPage() {
           productCount: i._count.products,
         }))}
       />
-    </div>
+    </SectionPage>
   );
 }

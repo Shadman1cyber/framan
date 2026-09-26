@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { CategoriesAdmin } from "@/components/admin/CategoriesAdmin";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,7 @@ export default async function AdminCategoriesPage() {
     include: { _count: { select: { products: true } } },
   });
   return (
-    <div className="max-w-2xl">
-      <h1 className="heading-section mb-6">دسته‌ها</h1>
+    <SectionPage kind="erp" title="دسته‌ها" exclude="/admin/categories">
       <CategoriesAdmin
         initial={categories.map((c) => ({
           id: c.id,
@@ -22,6 +22,6 @@ export default async function AdminCategoriesPage() {
           productCount: c._count.products,
         }))}
       />
-    </div>
+    </SectionPage>
   );
 }

@@ -1,92 +1,203 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { GoalsPanel, MatrixPanel, SalesPanel, type ProductOpt } from "@/components/admin/OperationsDashboard";
 import { Price } from "@/components/ui/Price";
 import { formatNumber, formatToman } from "@/lib/format";
-import { JalaliDateInput } from "@/components/ui/JalaliInputs";
 import { formatJalaliDate } from "@/lib/jalali";
+import { ChartCard } from "@/components/admin/dashboard/charts/ChartCard";
+import { BarsCard } from "@/components/admin/dashboard/charts/BarsCard";
+import { StatCard } from "@/components/admin/dashboard/charts/StatCard";
 type S = { revenue: { today: number | null; week: number | null; month: number | null }; orders: { today: number }; averageOrderValue: { month: number | null }; ordersByType: { takeaway: number; table: number } };
 type P = { summary: S; top: { productId: string; name: string; quantity: number; revenue: number }[]; byCategory: { category: string; revenue: number }[]; daily: { date: string; revenue: number }[]; lowStock: { ingredientId: string; name: string; stock: number; unit: string }[]; lowStockCost: number; ops: { activeOrders: number; avgActualPrepMinutes: number | null }; products: ProductOpt[]; defaultFrom: string; defaultTo: string };
+
+const TABS = [
+  { key: "summary", label: "خلاصه مالی", icon: <WalletIcon /> },
+  { key: "sales", label: "فروش و تقاضا", icon: <ChartIcon /> },
+  { key: "matrix", label: "دسته‌بندی محصولات", icon: <GridIcon /> },
+  { key: "goals", label: "تعیین هدف", icon: <TargetIcon /> },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+const TAB_KEYS: TabKey[] = TABS.map((tab) => tab.key);
+
+function WalletIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" /><path d="M3 8v9a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3" /><path d="M21 10h-4a2 2 0 0 0 0 4h4" /></svg>;
+}
+function ChartIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20v-6M10 20V6M16 20v-9M22 20H2" /></svg>;
+}
+function GridIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+}
+function TargetIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></svg>;
+}
+function ListIcon() {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" /></svg>;
+}
+function TagIcon() {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 13.5 13 21 3 11V3h8l9.5 9.5Z" /><circle cx="7.5" cy="7.5" r="1.2" /></svg>;
+}
+function AlertIcon() {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4.5a6.5 6.5 0 0 0-6.5 6.5c0 5-2 5-2 6.5h17c0-1.5-2-1.5-2-6.5A6.5 6.5 0 0 0 12 4.5Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>;
+}
+
+function KeyValueList({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <ul className="space-y-2 text-sm">
+      {items.map((item) => (
+        <li key={item.label} className="flex justify-between gap-3">
+          <span className="text-dashboard-muted">{item.label}</span>
+          <span className="font-mono text-dashboard-foreground">{item.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function FinancialTabs(a: P) {
   const { summary, top, byCategory, daily, lowStock, lowStockCost, ops, products, defaultFrom, defaultTo } = a;
-  const [tab, setTab] = useState<"summary" | "sales" | "matrix" | "goals">("sales");
-  const [from, setFrom] = useState(defaultFrom);
-  const [to, setTo] = useState(defaultTo);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The active tab lives in ?tab= so it can be deep-linked; unknown or missing
+  // values keep the old default.
+  const requested = searchParams.get("tab");
+  const tab: TabKey = TAB_KEYS.includes(requested as TabKey) ? (requested as TabKey) : "sales";
+  const setTab = (next: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+  const [from] = useState(defaultFrom);
+  const [to] = useState(defaultTo);
   const { show } = useToast();
-  const maxDaily = Math.max(...daily.map((d) => d.revenue), 1);
-  const cards = [
-    { label: "درآمد امروز", value: formatToman(summary.revenue.today ?? 0) },
-    { label: "درآمد هفته", value: formatToman(summary.revenue.week ?? 0) },
-    { label: "درآمد ماه", value: formatToman(summary.revenue.month ?? 0) },
-    { label: "سفارش‌های امروز", value: formatNumber(summary.orders.today) },
+
+  const cards: { label: string; value: string; icon: ReactNode }[] = [
+    { label: "درآمد امروز", value: formatToman(summary.revenue.today ?? 0), icon: <WalletIcon /> },
+    { label: "درآمد هفته", value: formatToman(summary.revenue.week ?? 0), icon: <ChartIcon /> },
+    { label: "درآمد ماه", value: formatToman(summary.revenue.month ?? 0), icon: <TargetIcon /> },
+    { label: "سفارش‌های امروز", value: formatNumber(summary.orders.today), icon: <GridIcon /> },
   ];
-  const tabCls = (on: boolean) => `flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${on ? "bg-olive text-cream shadow-soft" : "text-espresso/70 hover:bg-beige-soft dark:text-dark-textSecondary dark:hover:bg-dark-surfaceHover"}`;
+
   return (
     <div>
-      <div className="card flex gap-1 overflow-x-auto p-1.5" role="tablist" aria-label="گزارش مالی">
-        <button role="tab" aria-selected={tab === "summary"} onClick={() => setTab("summary")} className={tabCls(tab === "summary")}><span aria-hidden="true">💰</span>خلاصه مالی</button>
-        <button role="tab" aria-selected={tab === "sales"} onClick={() => setTab("sales")} className={tabCls(tab === "sales")}><span aria-hidden="true">📊</span>فروش و تقاضا</button>
-        <button role="tab" aria-selected={tab === "matrix"} onClick={() => setTab("matrix")} className={tabCls(tab === "matrix")}><span aria-hidden="true">🧮</span>دسته‌بندی محصولات</button>
-        <button role="tab" aria-selected={tab === "goals"} onClick={() => setTab("goals")} className={tabCls(tab === "goals")}><span aria-hidden="true">🎯</span>تعیین هدف</button>
+      <div className="mb-5 flex gap-1.5 overflow-x-auto rounded-[14px] border border-dashboard-line bg-dashboard-surface/60 p-1.5" role="tablist" aria-label="گزارش مالی">
+        {TABS.map((item) => {
+          const on = tab === item.key;
+          return (
+            <button
+              key={item.key}
+              role="tab"
+              type="button"
+              aria-selected={on}
+              onClick={() => setTab(item.key)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[11px] font-semibold transition-colors ${
+                on
+                  ? "module-tint-bg module-accent-text border border-[rgb(var(--module-primary-rgb)/0.45)]"
+                  : "border border-transparent text-dashboard-muted hover:bg-dashboard-surface hover:text-dashboard-foreground"
+              }`}
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              {item.label}
+            </button>
+          );
+        })}
       </div>
+
       {tab === "summary" && (
-        <div className="mt-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {cards.map((c) => (
-              <div key={c.label} className="card p-4"><div className="text-xs text-muted">{c.label}</div><div className="mt-2 text-lg font-bold">{c.value}</div></div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {cards.map((card) => (
+              <StatCard key={card.label} label={card.label} value={card.value} icon={card.icon} />
             ))}
           </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="card p-4"><h2 className="mb-3 text-sm font-semibold">شاخص‌ها</h2><ul className="space-y-2 text-sm">
-              <li className="flex justify-between"><span className="text-muted">میانگین ارزش سفارش (ماه)</span><span>{summary.averageOrderValue.month ? formatToman(summary.averageOrderValue.month) : "—"}</span></li>
-              <li className="flex justify-between"><span className="text-muted">سفارش‌های فعال</span><span>{formatNumber(ops.activeOrders)}</span></li>
-              <li className="flex justify-between"><span className="text-muted">بیرون‌بر (۳۰ روز)</span><span>{formatNumber(summary.ordersByType.takeaway)}</span></li>
-              <li className="flex justify-between"><span className="text-muted">میز (۳۰ روز)</span><span>{formatNumber(summary.ordersByType.table)}</span></li>
-              <li className="flex justify-between"><span className="text-muted">میانگین آماده‌سازی</span><span>{ops.avgActualPrepMinutes != null ? `${formatNumber(ops.avgActualPrepMinutes)} دقیقه` : "—"}</span></li>
-              <li className="flex justify-between"><span className="text-muted">بهای جایگزینی کم‌موجود</span><span>{formatToman(lowStockCost)}</span></li>
-            </ul></div>
-            <div className="card p-4"><h2 className="mb-3 text-sm font-semibold">روند فروش ۱۴ روز اخیر</h2>
-              <div className="flex h-40 items-end gap-1" dir="ltr">
-                {daily.map((d) => (<div key={d.date} className="group relative flex-1"><div className="w-full rounded-t bg-olive/70 group-hover:bg-olive" style={{ height: `${Math.max(4, (d.revenue / maxDaily) * 140)}px` }} title={`${formatJalaliDate(d.date)}: ${formatToman(d.revenue)}`} /></div>))}
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-muted" dir="ltr"><span>{daily[0] ? formatJalaliDate(daily[0].date) : ""}</span><span>{daily.length ? formatJalaliDate(daily[daily.length - 1].date) : ""}</span></div>
-            </div>
+          <div className="grid gap-3 lg:grid-cols-[1.34fr_1fr]">
+            <BarsCard
+              title="روند فروش ۱۴ روز اخیر"
+              data={daily.map((day) => ({
+                label: formatJalaliDate(day.date),
+                value: day.revenue,
+                display: formatNumber(day.revenue),
+              }))}
+            />
+            <ChartCard title="شاخص‌ها" icon={<ListIcon />}>
+              <KeyValueList
+                items={[
+                  { label: "میانگین ارزش سفارش (ماه)", value: summary.averageOrderValue.month ? formatToman(summary.averageOrderValue.month) : "—" },
+                  { label: "سفارش‌های فعال", value: formatNumber(ops.activeOrders) },
+                  { label: "بیرون‌بر (۳۰ روز)", value: formatNumber(summary.ordersByType.takeaway) },
+                  { label: "میز (۳۰ روز)", value: formatNumber(summary.ordersByType.table) },
+                  { label: "میانگین آماده‌سازی", value: ops.avgActualPrepMinutes != null ? `${formatNumber(ops.avgActualPrepMinutes)} دقیقه` : "—" },
+                  { label: "بهای جایگزینی کم‌موجود", value: formatToman(lowStockCost) },
+                ]}
+              />
+            </ChartCard>
           </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="card p-4"><h2 className="mb-3 text-sm font-semibold">پرفروش‌ترین محصولات</h2><ul className="space-y-2 text-sm">{top.map((p) => (<li key={p.productId} className="flex items-center justify-between"><span>{p.name}</span><span className="text-muted">{formatNumber(p.quantity)} عدد · <Price amount={p.revenue} size="sm" /></span></li>))}{top.length === 0 && <li className="text-muted">داده‌ای نیست</li>}</ul></div>
-            <div className="card p-4"><h2 className="mb-3 text-sm font-semibold">درآمد بر اساس دسته</h2><ul className="space-y-2 text-sm">{byCategory.map((c) => (<li key={c.category} className="flex items-center justify-between"><span>{c.category}</span><span className="text-muted"><Price amount={c.revenue} size="sm" /></span></li>))}{byCategory.length === 0 && <li className="text-muted">داده‌ای نیست</li>}</ul></div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            <ChartCard title="پرفروش‌ترین محصولات" icon={<TagIcon />}>
+              {top.length === 0 ? (
+                <p className="text-sm text-dashboard-muted">داده‌ای نیست</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {top.map((product) => (
+                    <li key={product.productId} className="flex items-center justify-between gap-3">
+                      <span className="truncate text-dashboard-foreground">{product.name}</span>
+                      <span className="shrink-0 text-dashboard-muted">
+                        {formatNumber(product.quantity)} عدد · <Price amount={product.revenue} size="sm" className="text-dashboard-foreground" />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ChartCard>
+            <ChartCard title="درآمد بر اساس دسته" icon={<GridIcon />}>
+              {byCategory.length === 0 ? (
+                <p className="text-sm text-dashboard-muted">داده‌ای نیست</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {byCategory.map((row) => (
+                    <li key={row.category} className="flex items-center justify-between gap-3">
+                      <span className="truncate text-dashboard-foreground">{row.category}</span>
+                      <Price amount={row.revenue} size="sm" className="shrink-0 text-dashboard-foreground" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ChartCard>
+            <ChartCard title="مواد کم‌موجود" icon={<AlertIcon />}>
+              {lowStock.length === 0 ? (
+                <p className="text-sm text-dashboard-muted">موردی نیست</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {lowStock.map((item) => (
+                    <li key={item.ingredientId} className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-accent-yellow" aria-hidden="true" />
+                        <span className="truncate text-dashboard-foreground">{item.name}</span>
+                      </span>
+                      <span className="shrink-0 font-mono text-dashboard-muted">
+                        {formatNumber(item.stock)} {item.unit}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ChartCard>
           </div>
-          {lowStock.length > 0 && (<div className="card mt-4 p-4"><h2 className="mb-3 text-sm font-semibold text-warning">مواد کم‌موجود</h2><div className="flex flex-wrap gap-2">{lowStock.map((i) => (<span key={i.ingredientId} className="chip border-warning/30 text-warning">{i.name}: {formatNumber(i.stock)} {i.unit}</span>))}</div></div>)}
         </div>
       )}
-      {tab === "sales" && (
-        <div className="mt-4 space-y-4">
-          <div className="card flex flex-wrap items-center justify-between gap-2 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs text-muted">از<JalaliDateInput value={from} onChange={setFrom} ariaLabel="از تاریخ" /></label>
-              <label className="flex items-center gap-1.5 text-xs text-muted">تا<JalaliDateInput value={to} onChange={setTo} ariaLabel="تا تاریخ" /></label>
-            </div>
-            <span className="text-[11px] text-muted">بازهٔ انتخابی روی گزارش فروش و دسته‌بندی محصولات اعمال می‌شود.</span>
-          </div>
-          <SalesPanel from={from} to={to} show={show} />
-        </div>
-      )}
-      {tab === "matrix" && (
-        <div className="mt-4 space-y-4">
-          <div className="card flex flex-wrap items-center justify-between gap-2 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs text-muted">از<JalaliDateInput value={from} onChange={setFrom} ariaLabel="از تاریخ" /></label>
-              <label className="flex items-center gap-1.5 text-xs text-muted">تا<JalaliDateInput value={to} onChange={setTo} ariaLabel="تا تاریخ" /></label>
-            </div>
-            <span className="text-[11px] text-muted">بازهٔ انتخابی روی دسته‌بندی محصولات اعمال می‌شود.</span>
-          </div>
-          <MatrixPanel from={from} to={to} show={show} />
-        </div>
-      )}
-      {tab === "goals" && (
-        <div className="mt-4">
-          <GoalsPanel products={products} show={show} />
+
+      {/* Sales, product matrix and goals reuse the shared admin panels, which
+          stay on the legacy look everywhere else; this scope remaps their
+          surfaces to the dashboard tokens. */}
+      {tab !== "summary" && (
+        <div data-legacy-surface="dashboard" className="space-y-4">
+          {tab === "sales" && <SalesPanel from={from} to={to} show={show} />}
+          {tab === "matrix" && <MatrixPanel from={from} to={to} show={show} />}
+          {tab === "goals" && <GoalsPanel products={products} show={show} />}
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getFinancialSummary, getRevenueByProduct, getRevenueByCategory, getDailyRevenue, getInventoryStatus, getOperationalStatus } from "@/lib/analytics";
 import { FinancialTabs } from "@/components/admin/FinancialTabs";
+import { ModulePage } from "@/components/admin/dashboard/ModulePage";
 import { todayGregorianInput, parseGregorianInput, padGregorian, jalaliToGregorian, gregorianToJalali } from "@/lib/jalali";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +30,19 @@ export default async function FinancialPage() {
     prisma.product.findMany({ orderBy: { nameFa: "asc" }, select: { id: true, nameFa: true, price: true }, take: 300 }),
   ]);
   const lowStock = inventory.filter((i) => i.isLow);
-  const lowStockCost = inventory.reduce((s, i) => s + (i.lowStockCost ?? 0), 0);
+  const lowStockCost = inventory.reduce((s, i) => i.lowStockCost ?? 0, 0);
   const todayStr = todayGregorianInput();
   const twoWeeksAgoStr = shiftGregorian(todayStr, -13);
   return (
-    <div>
-      <h1 className="heading-section mb-6">گزارش مالی</h1>
+    <ModulePage
+      kind="accounting"
+      title="گزارش مالی"
+      related={[
+        { href: "/admin/accounting", label: "حسابداری", icon: "💰" },
+        { href: "/admin/sales-flow", label: "جریان فروش", icon: "📈" },
+      ]}
+    >
       <FinancialTabs summary={summary} top={top} byCategory={byCategory} daily={daily} lowStock={lowStock} lowStockCost={lowStockCost} ops={ops} products={products} defaultFrom={twoWeeksAgoStr} defaultTo={todayStr} />
-    </div>
+    </ModulePage>
   );
 }

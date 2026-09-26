@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireAdminPage } from "@/lib/admin-page-access";
 import { CustomersLoyaltyAdmin } from "@/components/admin/CustomersLoyaltyAdmin";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,12 @@ export default async function CustomersPage() {
     },
   });
   return (
-    <div>
-      <h1 className="heading-section mb-2">باشگاه مشتریان</h1>
-      <p className="mb-6 text-sm text-muted">امتیاز مشتریان را برای خرید حضوری یا برنامه‌های وفاداری افزایش دهید.</p>
+    <SectionPage
+      kind="crm"
+      title="باشگاه مشتریان"
+      exclude="/admin/customers"
+      description="امتیاز مشتریان را برای خرید حضوری یا برنامه‌های وفاداری افزایش دهید."
+    >
       <CustomersLoyaltyAdmin initial={customers.map((customer) => ({
         id: customer.id,
         name: customer.name ?? "مشتری بدون نام",
@@ -27,6 +31,6 @@ export default async function CustomersPage() {
         points: Number(customer.preferences[0]?.value ?? 0) || 0,
         orderCount: customer._count.orders,
       }))} />
-    </div>
+    </SectionPage>
   );
 }
