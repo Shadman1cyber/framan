@@ -57,7 +57,7 @@ function AdminLoginInner() {
   }
 
   return (
-    <main className="admin-login flex min-h-dvh items-center justify-center bg-dark-bg p-4">
+    <main data-shell="dashboard" className="admin-login flex min-h-dvh items-center justify-center bg-dashboard p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <span
@@ -73,15 +73,16 @@ function AdminLoginInner() {
         </div>
 
         <form
+          data-legacy-surface="dashboard"
           onSubmit={submit}
-          className="space-y-4 rounded-3xl border border-coffee-light/30 bg-[#3a2c20] p-6 shadow-elevated dark:border-coffee/25 dark:bg-[#3a2c20] dark:shadow-elevated"
+          className="space-y-4 rounded-[18px] border border-dashboard-line bg-dashboard-surface/75 p-6"
         >
-          <div className="flex items-center justify-center gap-2 text-xs font-medium text-espresso/70">
+          <div className="flex items-center justify-center gap-2 text-xs font-medium text-dashboard-muted">
             <span aria-hidden="true">🔐</span>
             <span>ورود پرسنلی</span>
           </div>
           {error && (
-            <p className="rounded-xl border border-danger/25 bg-danger/5 px-3 py-2 text-sm text-danger">
+            <p className="rounded-xl border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-sm leading-relaxed text-accent-red">
               {error}
             </p>
           )}
@@ -90,7 +91,7 @@ function AdminLoginInner() {
             <input
               id="email"
               type="email"
-              className="input !border-coffee-light/25 dark:!bg-dark-surfaceHover"
+              className="input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={(e) => setEmail(e.target.value.trim())}
@@ -104,7 +105,7 @@ function AdminLoginInner() {
             <input
               id="password"
               type="password"
-              className="input !border-coffee-light/25 dark:!bg-dark-surfaceHover"
+              className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -115,7 +116,7 @@ function AdminLoginInner() {
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? "در حال ورود..." : "ورود به پنل مدیریت"}
           </button>
-          <p className="native-customer-link text-center text-[11px] text-muted">
+          <p className="native-customer-link text-center text-[12px] leading-relaxed text-dashboard-muted">
             حساب مشتری دارید؟ از <a href="/login" className="text-olive-600 hover:underline">صفحه ورود مشتریان</a> استفاده کنید.
           </p>
         </form>

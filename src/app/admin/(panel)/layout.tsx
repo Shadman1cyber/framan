@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { normalizeRole } from "@/lib/constants";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { CashierOrderReminder } from "@/components/admin/CashierOrderReminder";
-import { LeaveRequestHeader } from "@/components/admin/LeaveRequestHeader";
+import { AdminPanelFrame } from "@/components/admin/AdminPanelFrame";
+import { AiChatLauncher } from "@/components/admin/dashboard/AiChatLauncher";
 import { getEnabledCashierTabs } from "@/lib/cashier-access";
+import { getAiSettings } from "@/lib/ai/settings";
 import { prisma } from "@/lib/db";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -18,17 +18,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const pendingLeaveCount = role === "OWNER"
     ? await prisma.staffLeave.count({ where: { status: "PENDING" } }).catch(() => 0)
     : 0;
+  // The assistant floats over every admin page for the manager; the chat
+  // endpoint is owner-only and needs both the switch and a provider key.
+  const ai = role === "OWNER" ? await getAiSettings().catch(() => ({ enabled: false, hasApiKey: false })) : { enabled: false, hasApiKey: false };
+  const aiUsable = ai.enabled && ai.hasApiKey;
+  const aiReason = !ai.enabled ? "disabled" : "key";
   return (
-    <div className="admin-shell min-h-dvh bg-cream dark:bg-dark-bg">
-      {/* RTL: sidebar column renders first → appears on the right side */}
-      <div className="mx-auto flex max-w-7xl flex-col md:flex-row">
-        <AdminSidebar role={role} cashierTabs={cashierTabs} />
-        <main className="admin-content min-w-0 max-w-full flex-1 p-4 md:p-8">
-          <LeaveRequestHeader role={role} initialPendingCount={pendingLeaveCount} />
-          {children}
-        </main>
-      </div>
-      <CashierOrderReminder enabled={role === "CASHIER" && cashierTabs.includes("orders")} />
-    </div>
+    <AdminPanelFrame role={role} cashierTabs={cashierTabs} pendingLeaveCount={pendingLeaveCount}>
+      <>
+        {children}
+        {role === "OWNER" ? <AiChatLauncher usable={aiUsable} reason={aiUsable ? undefined : aiReason} /> : null}
+      </>
+    </AdminPanelFrame>
   );
 }

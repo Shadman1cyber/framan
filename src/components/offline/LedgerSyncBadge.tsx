@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { retryAllFailedLedger, useLedgerSync } from "@/lib/offline/ledger-sync";
 
 // Ledger sync requires finance.view (OWNER). Cashiers/customers get 403
@@ -17,8 +18,10 @@ export function LedgerSyncBadge() {
 }
 
 function LedgerSyncBadgeInner() {
+  const pathname = usePathname();
   const { state, pending, failed, syncNow } = useLedgerSync();
 
+  if (pathname === "/admin") return null;
   if (state === "idle" || state === "synced") return null;
   if (state === "offline" && pending === 0 && failed === 0) return null;
 

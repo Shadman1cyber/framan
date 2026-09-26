@@ -90,11 +90,14 @@ function downloadCSV(filename: string, headers: string[], rows: (string | number
 function Donut({ pct, size = 84 }: { pct: number | null; size?: number }) {
   const v = pct == null ? 0 : Math.max(0, Math.min(100, pct));
   const r = 34; const c = 2 * Math.PI * r;
-  const color = pct == null ? "#B5A796" : v >= 100 ? "#556B2F" : v >= 80 ? "#C68A2E" : "#6F4E37";
+  // Colours are CSS variables with the legacy values as fallback, so hosts that
+  // define them (the financial report) can theme the ring without forking this
+  // shared component. /admin/operations renders exactly as before.
+  const color = pct == null ? "var(--donut-none, #B5A796)" : v >= 100 ? "var(--donut-high, #556B2F)" : v >= 80 ? "var(--donut-mid, #C68A2E)" : "var(--donut-low, #6F4E37)";
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={pct == null ? "پیشرفت نامشخص" : `پیشرفت ${pct} درصد`}>
       <svg viewBox="0 0 84 84" width={size} height={size}>
-        <circle cx="42" cy="42" r={r} fill="none" stroke="#EFE3CB" strokeWidth="10" />
+        <circle cx="42" cy="42" r={r} fill="none" stroke="var(--donut-track, #EFE3CB)" strokeWidth="10" />
         <circle
           cx="42" cy="42" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
           strokeDasharray={`${(v / 100) * c} ${c}`} transform="rotate(-90 42 42)"

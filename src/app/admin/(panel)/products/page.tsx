@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AdminProductRowActions } from "@/components/admin/AdminProductRowActions";
 import { requireOwnerPage } from "@/lib/admin-page-access";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +24,15 @@ export default async function AdminProductsPage() {
     },
   });
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="heading-section">محصولات</h1>
-        <Link href="/admin/products/new" className="btn-primary">+ افزودن محصول</Link>
+    <SectionPage kind="erp" title="محصولات" exclude="/admin/products">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-xs text-dashboard-muted">فهرست محصولات، قیمت، دسته و وضعیت موجودی.</p>
+        <Link
+          href="/admin/products/new"
+          className="module-button-primary inline-flex min-h-9 items-center rounded-full px-4 text-[11px] font-semibold"
+        >
+          + افزودن محصول
+        </Link>
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
@@ -70,6 +76,6 @@ export default async function AdminProductsPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </SectionPage>
   );
 }

@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAiSettings } from "@/lib/ai/settings";
 import { Workspace } from "@/components/admin/Workspace";
+import { DashboardShell } from "@/components/admin/dashboard/DashboardShell";
+import { BotIcon } from "@/components/admin/dashboard/ai/AiChatLocked";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,9 @@ export default async function AdminWorkspacePage() {
   const settings = await getAiSettings();
 
   return (
-    <Workspace
+    <DashboardShell title="فضای کاری دستیار" icon={<BotIcon size={24} />}>
+      <div data-legacy-surface="dashboard">
+      <Workspace
       aiSettings={{
         enabled: settings.enabled,
         provider: settings.provider,
@@ -27,6 +31,8 @@ export default async function AdminWorkspacePage() {
         telemetryConfigured: Boolean(process.env.OPENOBSERVE_TRACES_URL && process.env.OPENOBSERVE_AUTHORIZATION),
         openobserveUrl: process.env.OPENOBSERVE_DASHBOARD_URL ?? "",
       }}
-    />
+      />
+      </div>
+    </DashboardShell>
   );
 }

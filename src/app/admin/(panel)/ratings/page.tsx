@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { RatingsAdmin } from "@/components/admin/RatingsAdmin";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 import { requireAdminPage } from "@/lib/admin-page-access";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,7 @@ export default async function AdminRatingsPage() {
     include: { user: true, product: true },
   });
   return (
-    <div>
-      <h1 className="heading-section mb-6">امتیازها</h1>
+    <SectionPage kind="crm" title="امتیازها" exclude="/admin/ratings">
       <RatingsAdmin
         initial={ratings.map((r) => ({
           id: r.id,
@@ -25,6 +25,6 @@ export default async function AdminRatingsPage() {
           createdAt: r.createdAt.toISOString(),
         }))}
       />
-    </div>
+    </SectionPage>
   );
 }

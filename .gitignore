@@ -1,6 +1,7 @@
 node_modules
 .next
 .next-live/
+.next-[0-9]*
 /vendor/windows-n8n/node_modules/
 /vendor/windows-n8n/node.exe
 /vendor/windows-n8n/.temporary-credential.json

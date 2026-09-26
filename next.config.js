@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
-const port = process.env.PORT || 3080;
+const port = process.env.PORT || "3080";
+const defaultDistDir = port === "3080" ? ".next" : `.next-${port}`;
 const withPWA = require("next-pwa")({
   dest: "public",
   customWorkerDir: "src/service-worker",
@@ -53,7 +54,7 @@ const nextConfig = {
   // never clobber the dev server's `.next` (dev on-demand compilation would
   // otherwise rewrite the production chunks). Set NEXT_DIST_DIR=.next-desktop
   // in scripts/build-desktop.cjs and electron/main.cjs (embedded boot).
-  distDir: process.env.NEXT_DIST_DIR || ".next",
+  distDir: process.env.NEXT_DIST_DIR || defaultDistDir,
   // NOTE: no `output: "standalone"` — the Docker image ships full
   // node_modules and starts via `next start`, and standalone mode breaks
   // that (`next start` refuses to run) plus relative SQLite resolution.

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { AllergensAdmin } from "@/components/admin/AllergensAdmin";
 import { requireOwnerPage } from "@/lib/admin-page-access";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,7 @@ export default async function AdminAllergensPage() {
     include: { _count: { select: { products: true, users: true } } },
   });
   return (
-    <div className="max-w-2xl">
-      <h1 className="heading-section mb-6">آلرژن‌ها</h1>
+    <SectionPage kind="erp" title="آلرژن‌ها" exclude="/admin/allergens">
       <AllergensAdmin
         initial={allergens.map((a) => ({
           id: a.id,
@@ -24,6 +24,6 @@ export default async function AdminAllergensPage() {
           userCount: a._count.users,
         }))}
       />
-    </div>
+    </SectionPage>
   );
 }

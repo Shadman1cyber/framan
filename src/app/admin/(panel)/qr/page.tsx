@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import QRCode from "qrcode";
 import { QrAdmin } from "@/components/admin/QrAdmin";
+import { SectionPage } from "@/components/admin/dashboard/SectionPage";
 import { getPublicAppUrl } from "@/lib/config";
 import { requireAdminPage } from "@/lib/admin-page-access";
 
@@ -25,7 +26,7 @@ export default async function AdminQrPage() {
         dataUrl = await QRCode.toDataURL(`${BASE_URL}/?table=${q.code}`, {
           margin: 1,
           width: 320,
-          color: { dark: "#3E3A33", light: "#FFFDF7" },
+          color: { dark: "#122B48", light: "#FBF9F5" },
         });
       } catch {}
       return {
@@ -43,9 +44,8 @@ export default async function AdminQrPage() {
   );
 
   return (
-    <div>
-      <h1 className="heading-section mb-6">کدهای QR</h1>
+    <SectionPage kind="crm" title="کدهای QR" exclude="/admin/qr">
       <QrAdmin initial={rows} />
-    </div>
+    </SectionPage>
   );
 }

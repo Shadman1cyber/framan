@@ -39,11 +39,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.farmancoffeeshop.app.sync.FarmanApp
+import com.farmancoffeeshop.app.ui.dashboard.BottomTabBar
+import com.farmancoffeeshop.app.ui.dashboard.DashboardHomeScreen
 import com.farmancoffeeshop.app.ui.ios.ScreenBackground
 import com.farmancoffeeshop.app.ui.nav.Routes
 import com.farmancoffeeshop.app.ui.screens.AssistantScreen
 import com.farmancoffeeshop.app.ui.screens.CatalogScreen
-import com.farmancoffeeshop.app.ui.screens.DashboardScreen
 import com.farmancoffeeshop.app.ui.screens.InsightsScreen
 import com.farmancoffeeshop.app.ui.screens.InventoryScreen
 import com.farmancoffeeshop.app.ui.screens.LedgerScreen
@@ -82,7 +83,6 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-// Same 5 tabs as iOS MainShellView: خانه / عملیات / مدیریت / دستیار / بیشتر.
 private val TABS = listOf(
     Tab(Routes.DASHBOARD, "خانه", Icons.Filled.Home),
     Tab(Routes.OPERATIONS, "عملیات", Icons.Filled.List),
@@ -90,6 +90,16 @@ private val TABS = listOf(
     Tab(Routes.ASSISTANT, "دستیار", Icons.Filled.Star),
     Tab(Routes.MORE, "بیشتر", Icons.Filled.MoreVert),
 )
+
+private fun isDashboardTabDestination(entry: androidx.navigation.NavBackStackEntry?): Boolean {
+    val destination = entry?.destination ?: return false
+    return destination.hierarchy.any { route ->
+        route.route == Routes.DASHBOARD ||
+            route.route == Routes.LEDGER ||
+            route.route == Routes.INVENTORY ||
+            (route.route == Routes.MODULE && entry.arguments?.getString("key") == "customers")
+    }
+}
 
 @Composable
 fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
@@ -119,34 +129,38 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
             }
         }
     }
-    val showBar = current?.hierarchy?.any { it.route in TABS.map { t -> t.route } } == true
+    val showDashboardBar = isDashboardTabDestination(backStack)
+    val showLegacyBar = current?.hierarchy?.any { it.route in TABS.map { t -> t.route } } == true && !showDashboardBar
 
     Scaffold(
         containerColor = FarmanBackground,
         bottomBar = {
-            if (showBar) {
-                NavigationBar(containerColor = Color(0xFF21100C).copy(alpha = 0.98f)) {
-                    TABS.forEach { tab ->
-                        val selected = current?.hierarchy?.any { it.route == tab.route } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = FarmanOlive,
-                                selectedTextColor = FarmanOlive,
-                                unselectedIconColor = FarmanSecondary,
-                                unselectedTextColor = FarmanSecondary,
-                                indicatorColor = FarmanOlive.copy(alpha = 0.15f),
-                            ),
-                        )
+            when {
+                showDashboardBar -> BottomTabBar(nav)
+                showLegacyBar -> {
+                    NavigationBar(containerColor = Color(0xFF21100C).copy(alpha = 0.98f)) {
+                        TABS.forEach { tab ->
+                            val selected = current?.hierarchy?.any { it.route == tab.route } == true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    nav.navigate(tab.route) {
+                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                                label = { Text(tab.label) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = FarmanOlive,
+                                    selectedTextColor = FarmanOlive,
+                                    unselectedIconColor = FarmanSecondary,
+                                    unselectedTextColor = FarmanSecondary,
+                                    indicatorColor = FarmanOlive.copy(alpha = 0.15f),
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -158,7 +172,7 @@ fun FarmanNav(container: com.farmancoffeeshop.app.sync.AppContainer) {
                     nav.navigate(Routes.DASHBOARD) { popUpTo(Routes.LOGIN) { inclusive = true } }
                 })
             }
-            composable(Routes.DASHBOARD) { DashboardScreen(container, nav) }
+            composable(Routes.DASHBOARD) { DashboardHomeScreen(nav) }
             composable(Routes.OPERATIONS) { OperationsScreen(container, nav) }
             composable(Routes.ORDERS) { OrdersScreen(container, nav) }
             composable(Routes.ORDER_DETAIL) { backStack ->
